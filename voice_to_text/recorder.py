@@ -47,5 +47,7 @@ class Recorder:
             import sys
 
             print(f"[WARN] オーディオステータス: {status}", file=sys.stderr)
-        if indata is not None and self._buffer.is_recording():
-            self._buffer.append(indata.copy().reshape(-1))
+        # NOTE: is_recording() guard removed — AudioBuffer.append() checks _recording
+        # internally under lock. Avoids double lock acquire per chunk.
+        if indata is not None:
+            self._buffer.append(indata.reshape(-1))

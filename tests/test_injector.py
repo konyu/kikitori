@@ -36,7 +36,7 @@ class TestInjector:
         ctrl = FakeController()
         inj = Injector(controller=ctrl, clipboard=clip)
 
-        inj.inject("hello", max_wait=0.01)
+        inj.inject("hello")
 
         assert clip.copied == "hello"
         assert ctrl.events == [
@@ -57,16 +57,15 @@ class TestInjector:
         assert ctrl.events == []
 
     def test_inject_waits_for_clipboard(self):
-        """クリップボード反映を待ってからペーストすること"""
+        """クリップボード反映後に即座にペーストすること"""
         clip = FakeClipboard()
         ctrl = FakeController()
         inj = Injector(controller=ctrl, clipboard=clip)
 
         start = time.monotonic()
-        inj.inject("x", max_wait=0.5)
+        inj.inject("x")
         elapsed = time.monotonic() - start
 
-        # ポーリングなので即座に終わるはず（0.01秒間隔）
         assert elapsed < 0.1
 
     def test_inject_key_error_is_caught(self):
@@ -81,5 +80,5 @@ class TestInjector:
         clip = FakeClipboard()
         inj = Injector(controller=BrokenController(), clipboard=clip)
         # 例外が上がらないこと
-        inj.inject("test", max_wait=0.01)
+        inj.inject("test")
         assert clip.copied == "test"

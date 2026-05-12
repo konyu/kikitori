@@ -84,6 +84,13 @@ class HotkeyManager:
         # ホットキー設定
         names = hotkey if hotkey is not None else DEFAULT_HOTKEY
         self._hotkey_groups = resolve_hotkey(names)
+        # O(1) lookup sets
+        self._hotkey_set: set = set()
+        self._hotkey_group_sets: list[set] = []
+        for group in self._hotkey_groups:
+            key_ids = {_key_id(k) for k in group}
+            self._hotkey_set.update(key_ids)
+            self._hotkey_group_sets.append(key_ids)
         self._pressed_keys: set = set()
 
     # ── タイマー ────────────────────────────────────────────────────────
@@ -128,17 +135,12 @@ class HotkeyManager:
 
     def _is_hotkey_key(self, key) -> bool:
         """与えられたキーがホットキー設定に含まれるか。"""
-        kid = _key_id(key)
-        for group in self._hotkey_groups:
-            for k in group:
-                if kid == _key_id(k):
-                    return True
-        return False
+        return _key_id(key) in self._hotkey_set
 
     def _all_hotkey_pressed(self) -> bool:
         """すべてのホットキーが押下されているか。"""
-        for group in self._hotkey_groups:
-            if not any(_key_id(k) in self._pressed_keys for k in group):
+        for group_set in self._hotkey_group_sets:
+            if group_set.isdisjoint(self._pressed_keys):
                 return False
         return True
 
@@ -159,19 +161,19 @@ class HotkeyManager:
                 self._start_auto_stop_timer()
 
     def on_release(self, key):
+        if not self._is_hotkey_key(key):
+            return
+
         with self._lock:
             was_recording = self._is_recording
-            if self._is_hotkey_key(key):
-                self._pressed_keys.discard(_key_id(key))
-            else:
-                return
-
-            if was_recording and not self._all_hotkey_pressed():
+            self._pressed_keys.discard(_key_id(key))
+            should_stop = was_recording and not self._all_hotkey_pressed()
+            if should_stop:
                 self._is_recording = False
                 if self._on_state_change:
                     self._on_state_change(False)
 
-        if was_recording and not self._all_hotkey_pressed():
+        if should_stop:
             self._cancel_auto_stop_timer()
             audio = self._recorder.stop()
             if audio.size > 0:
