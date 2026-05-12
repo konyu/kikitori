@@ -51,7 +51,12 @@ class VoiceToTextStatusBarApp(rumps.App):
         # Menu items
         self._status_item = rumps.MenuItem("○ 待機中")
         self._language_item = rumps.MenuItem(f"言語: {self._language}")
+        self._prompt_item = rumps.MenuItem(self._prompt_preview(self._prompt))
+        self._prompt_item.set_callback(None)
+        self._updated_item = rumps.MenuItem("最終更新: --")
+        self._updated_item.set_callback(None)
         self._model_item = rumps.MenuItem(f"モデル: {MODEL_NAME}")
+        self._model_item.set_callback(None)
         self._model_loading_item = rumps.MenuItem("モデルを読み込み中...")
         self._model_loading_item.set_callback(None)
 
@@ -60,6 +65,8 @@ class VoiceToTextStatusBarApp(rumps.App):
             None,
             self._model_loading_item,
             self._language_item,
+            self._prompt_item,
+            self._updated_item,
             self._model_item,
             None,
             rumps.MenuItem("設定ファイルを開く", callback=self._open_settings),
@@ -99,6 +106,14 @@ class VoiceToTextStatusBarApp(rumps.App):
         """Called from hotkey listener thread when recording starts/stops."""
         self._recording = is_recording
 
+    def _prompt_preview(self, prompt: str) -> str:
+        """プロンプトをメニュー表示用に短縮"""
+        max_len = 30
+        text = prompt.replace("\n", " ")
+        if len(text) > max_len:
+            return f"プロンプト: {text[:max_len]}…"
+        return f"プロンプト: {text}" if text else "プロンプト: (未設定)"
+
     def _start_settings_watcher(self):
         """設定ファイルの変更を監視し、変更があれば自動再読み込み"""
         try:
@@ -118,6 +133,7 @@ class VoiceToTextStatusBarApp(rumps.App):
         # 既存の watcher があれば停止
         if hasattr(self, "_settings_timer") and self._settings_timer is not None:
             self._settings_timer.stop()
+            self._settings_timer = None
 
         self._settings_timer = rumps.Timer(check_settings_change, 1.0)
         self._settings_timer.start()
@@ -126,6 +142,8 @@ class VoiceToTextStatusBarApp(rumps.App):
         """設定ファイルを再読み込みしてアプリに反映"""
         new_settings = load_settings()
         changed = False
+        from datetime import datetime
+        now = datetime.now().strftime("%H:%M:%S")
 
         new_lang = new_settings.get("language", DEFAULT_LANGUAGE)
         if new_lang != self._language:
@@ -140,18 +158,34 @@ class VoiceToTextStatusBarApp(rumps.App):
             self._prompt = new_prompt
             self._app._prompt = new_prompt
             self._app._hotkey._prompt = new_prompt
+            self._prompt_item.title = self._prompt_preview(new_prompt)
             changed = True
 
         if changed:
             self._settings = new_settings
+            self._updated_item.title = f"最終更新: {now}"
+            self._flash_icon("✅")
             try:
                 rumps.notification(
                     "VoiceToText",
                     "設定を更新しました",
-                    f"言語: {self._language}",
+                    f"言語: {self._language} / {self._prompt_preview(self._prompt)}",
                 )
             except RuntimeError:
                 pass
+
+    def _flash_icon(self, icon: str, duration: float = 1.5):
+        """一時的にアイコンを変更して視覚的フィードバックを与える"""
+        original = self.title
+        # 録音中なら 🔴 のままにする
+        if original == "🔴":
+            return
+        self.title = icon
+        def restore(timer):
+            if self.title == icon:
+                self.title = "🎤"
+        timer = rumps.Timer(restore, duration)
+        timer.start()
 
     def _update_ui(self, timer):
         """Called on main thread by rumps.Timer."""
@@ -196,6 +230,7 @@ class VoiceToTextStatusBarApp(rumps.App):
         self._poll_timer.stop()
         if hasattr(self, "_settings_timer") and self._settings_timer is not None:
             self._settings_timer.stop()
+            self._settings_timer = None
         rumps.quit_application()
 
 
