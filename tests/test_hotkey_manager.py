@@ -21,6 +21,7 @@ class FakeRecorder:
 
     def stop(self):
         self.stopped = True
+        self.started = False
         return self._audio
 
 
@@ -40,6 +41,26 @@ class FakeInjector:
 
     def inject(self, text, delay=0.2):
         self.injected.append(text)
+
+
+class FakeTimer:
+    """手動発火型の偽タイマー"""
+
+    def __init__(self, interval, function):
+        self.interval = interval
+        self.function = function
+        self.started = False
+        self.cancelled = False
+
+    def start(self):
+        self.started = True
+
+    def cancel(self):
+        self.cancelled = True
+
+    def fire(self):
+        if not self.cancelled:
+            self.function()
 
 
 class TestHotkeyManager:
@@ -157,3 +178,79 @@ class TestHotkeyManager:
         assert len(trans.calls) == 1
         assert trans.calls[0][1] == "テストプロンプト"
         assert trans.calls[0][2] == "en"
+
+    def test_auto_stop_timer_starts_on_recording(self):
+        rec = FakeRecorder()
+        timer = FakeTimer(0, None)
+        mgr = HotkeyManager(
+            rec, FakeTranscriber(), FakeInjector(),
+            max_duration=60.0,
+            timer_factory=lambda interval, func: FakeTimer(interval, func),
+        )
+        mgr.on_press(Key.ctrl_l)
+        mgr.on_press(Key.alt)
+        assert mgr._timer is not None
+        assert mgr._timer.interval == 60.0
+        assert mgr._timer.started
+
+    def test_auto_stop_timer_cancelled_on_release(self):
+        rec = FakeRecorder()
+        mgr = HotkeyManager(
+            rec, FakeTranscriber(), FakeInjector(),
+            max_duration=60.0,
+            timer_factory=lambda interval, func: FakeTimer(interval, func),
+        )
+        mgr.on_press(Key.ctrl_l)
+        mgr.on_press(Key.alt)
+        timer = mgr._timer
+        mgr.on_release(Key.ctrl_l)
+        assert timer.cancelled
+
+    def test_auto_stop_fires_and_restarts_when_keys_held(self):
+        """タイマー発火→ペースト→キー押下中なら再録音"""
+        rec = FakeRecorder()
+        trans = FakeTranscriber("区切り")
+        inj = FakeInjector()
+        mgr = HotkeyManager(
+            rec, trans, inj,
+            max_duration=60.0,
+            timer_factory=lambda interval, func: FakeTimer(interval, func),
+        )
+        mgr.on_press(Key.ctrl_l)
+        mgr.on_press(Key.alt)
+        timer = mgr._timer
+
+        # タイマー発火（キーはまだ押されている）
+        timer.fire()
+
+        assert rec.stopped
+        assert inj.injected == ["区切り"]
+        # 再録音されている
+        assert rec.started
+        assert mgr._timer is not None
+        assert mgr._timer is not timer  # 新しいタイマー
+
+    def test_auto_stop_fires_and_stops_when_keys_released(self):
+        """タイマー発火→ペースト→キー離れているなら再録音しない"""
+        rec = FakeRecorder()
+        trans = FakeTranscriber("区切り")
+        inj = FakeInjector()
+        mgr = HotkeyManager(
+            rec, trans, inj,
+            max_duration=60.0,
+            timer_factory=lambda interval, func: FakeTimer(interval, func),
+        )
+        mgr.on_press(Key.ctrl_l)
+        mgr.on_press(Key.alt)
+        timer = mgr._timer
+
+        # キーを離す
+        mgr._ctrl_pressed = False
+        mgr._alt_pressed = False
+        timer.fire()
+
+        assert rec.stopped
+        assert inj.injected == ["区切り"]
+        # 再録音されていない
+        assert not rec.started
+        assert mgr._timer is None

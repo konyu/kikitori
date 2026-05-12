@@ -16,12 +16,14 @@ class App:
         channels: int = 1,
         prompt: str = "以下は日本語の音声認識結果です。",
         language: str = "ja",
+        max_duration: float = 60.0,
     ):
         self._model_name = model_name
         self._sample_rate = sample_rate
         self._channels = channels
         self._prompt = prompt
         self._language = language
+        self._max_duration = max_duration
 
         self._buffer = AudioBuffer()
         self._recorder = Recorder(self._buffer, sample_rate, channels)
@@ -33,6 +35,7 @@ class App:
             self._injector,
             prompt=prompt,
             language=language,
+            max_duration=max_duration,
         )
 
     def load(self):
