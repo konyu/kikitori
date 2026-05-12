@@ -79,6 +79,11 @@ class VoiceToTextStatusBarApp(rumps.App):
         self._model_ready = False
         self._loading_item_removed = False
 
+        # Pending menu updates (applied in _update_ui for thread safety)
+        self._pending_language = None
+        self._pending_prompt = None
+        self._pending_updated = None
+
         # Polling timer for UI refresh (0.1s)
         self._poll_timer = rumps.Timer(self._update_ui, 0.1)
 
@@ -150,7 +155,7 @@ class VoiceToTextStatusBarApp(rumps.App):
             self._language = new_lang
             self._app._language = new_lang
             self._app._hotkey._language = new_lang
-            self._language_item.title = f"言語: {new_lang}"
+            self._pending_language = f"言語: {new_lang}"
             changed = True
 
         new_prompt = new_settings.get("prompt", DEFAULT_PROMPT)
@@ -158,12 +163,12 @@ class VoiceToTextStatusBarApp(rumps.App):
             self._prompt = new_prompt
             self._app._prompt = new_prompt
             self._app._hotkey._prompt = new_prompt
-            self._prompt_item.title = self._prompt_preview(new_prompt)
+            self._pending_prompt = self._prompt_preview(new_prompt)
             changed = True
 
         if changed:
             self._settings = new_settings
-            self._updated_item.title = f"最終更新: {now}"
+            self._pending_updated = f"最終更新: {now}"
             self._flash_icon("✅")
             try:
                 rumps.notification(
@@ -198,6 +203,18 @@ class VoiceToTextStatusBarApp(rumps.App):
         status = "● 録音中..." if is_recording else "○ 待機中"
         if self._status_item.title != status:
             self._status_item.title = status
+
+        # Apply pending settings updates (rumps.MenuItem.title setter is
+        # unreliable from timer callbacks; applying via _update_ui works)
+        if self._pending_language is not None:
+            self._language_item.title = self._pending_language
+            self._pending_language = None
+        if self._pending_prompt is not None:
+            self._prompt_item.title = self._pending_prompt
+            self._pending_prompt = None
+        if self._pending_updated is not None:
+            self._updated_item.title = self._pending_updated
+            self._pending_updated = None
 
         # Update model loading indicator
         if self._model_ready and not self._loading_item_removed:
