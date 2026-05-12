@@ -102,8 +102,8 @@ def inject_text(text: str):
     # クリップボード反映待ち（長めに）
     time.sleep(0.2)
     print("[INFO] Cmd+V を送信します...")
-    
-    # 方法1: pynput で送信（アクセシビリティ権限があれば動作）
+
+    # pynput で送信（アクセシビリティ権限があれば動作）
     try:
         keyboard_controller.press(Key.cmd_l)
         keyboard_controller.press("v")
@@ -112,37 +112,6 @@ def inject_text(text: str):
         print("[INFO] pynput でペースト送信完了")
     except Exception as e:
         print(f"[WARN] pynput での送信に失敗: {e}")
-    
-    # 方法2: AppleScript で送信（別の権限経路を使う）
-    try:
-        import subprocess
-        script = 'delay 0.1\ntell application "System Events" to keystroke "v" using {command down}'
-        subprocess.run(["osascript", "-e", script], check=True)
-        print("[INFO] AppleScript でペースト送信完了")
-    except Exception as e:
-        print(f"[WARN] AppleScript での送信に失敗: {e}")
-        print("[HINT] アクセシビリティ権限が必要です。システム設定 > プライバシーとセキュリティ > アクセシビリティ を確認してください")
-
-
-def on_press(key):
-    """キー押下時: Ctrl + Option で録音開始"""
-    try:
-        if key == keyboard.Key.ctrl_l or key == keyboard.Key.alt:
-            # 現在の修飾キー状態を確認
-            with lock:
-                if not recording:
-                    # Ctrl と Option(Alt) の両方が押されているか確認
-                    # pynput では現在の押下状態を直接取得できないため、
-                    # 別途フラグで管理
-                    pass
-    except Exception as e:
-        print(f"[ERROR] on_press: {e}", file=sys.stderr)
-
-
-def on_release(key):
-    """キー解放時: 録音停止・認識・出力"""
-    pass
-
 
 class HotkeyHandler:
     """Ctrl + Option の押下/解放を管理"""
