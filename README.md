@@ -83,6 +83,68 @@ python main.py
 
 設定ファイルを保存すると、アプリが自動的に再読み込みします。
 
+## ログイン時自動起動（毎回の手動実行が不要に）
+
+```bash
+./setup_autostart.sh
+```
+
+これで以下が自動設定されます：
+- **Launch Agent**: Mac 起動時に自動でバックグラウンド実行
+- **ログローテーション**: `newsyslog` によりログファイルが 1MB 単位で自動ローテーション（最大3世代、bzip2 圧縮）
+
+```bash
+# 起動確認
+launchctl list | grep voicetotext
+
+# ログ確認
+tail -f /tmp/voicetotext.log
+
+# 停止したい場合
+launchctl unload ~/Library/LaunchAgents/com.voicetotext.plist
+```
+
+### 手動セットアップの場合
+
+**Launch Agent plist**（`~/Library/LaunchAgents/com.voicetotext.plist`）:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.voicetotext</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/path/to/whisper/run.sh</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>WorkingDirectory</key>
+    <string>/path/to/whisper</string>
+    <key>StandardOutPath</key>
+    <string>/tmp/voicetotext.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/voicetotext.err</string>
+</dict>
+</plist>
+```
+
+**ログローテーション**（`/etc/newsyslog.d/voicetotext.conf`）:
+
+```
+/tmp/voicetotext.log       <uid>  staff  644  3  1024  *  JN
+/tmp/voicetotext.err       <uid>  staff  644  3  1024  *  JN
+```
+
+```bash
+launchctl load ~/Library/LaunchAgents/com.voicetotext.plist
+```
+
 ## 開発
 
 ### テストの実行
@@ -96,18 +158,24 @@ python -m pytest tests/ -v
 
 ```
 .
-├── main.py                  # CLI エントリポイント
-├── menu_bar_app.py          # macOS メニューバーアプリ
-├── run.sh                   # 起動スクリプト
-├── requirements.txt         # Python 依存関係
+├── main.py                       # CLI エントリポイント
+├── menu_bar_app.py               # macOS メニューバーアプリ
+├── run.sh                        # 起動スクリプト
+├── setup_autostart.sh            # 自動起動＆ログローテーション セットアップ
+├── com.voicetotext.plist         # Launch Agent 設定
+├── voicetotext.newsyslog.conf    # ログローテーション設定
+├── requirements.txt              # Python 依存関係
+├── tests/
+│   ├── conftest.py               # pynput macOS スレッドハング対策
+│   └── ...
 └── voice_to_text/
-    ├── app.py               # アプリケーション統合
-    ├── audio_buffer.py      # スレッドセーフ録音バッファ
-    ├── config.py            # 設定定数
-    ├── hotkey_manager.py    # ホットキー状態管理
-    ├── injector.py          # クリップボード経由テキスト入力
-    ├── recorder.py          # 録音ストリーム制御
-    └── transcriber.py       # mlx-whisper ラッパー
+    ├── app.py                    # アプリケーション統合
+    ├── audio_buffer.py           # スレッドセーフ録音バッファ
+    ├── config.py                 # 設定定数
+    ├── hotkey_manager.py         # ホットキー状態管理
+    ├── injector.py               # クリップボード経由テキスト入力
+    ├── recorder.py               # 録音ストリーム制御
+    └── transcriber.py            # mlx-whisper ラッパー
 ```
 
 ## ライセンス
