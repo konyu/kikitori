@@ -1,4 +1,6 @@
 """アプリケーション統合エントリポイント"""
+import threading
+
 from pynput import keyboard
 
 from voice_to_text.audio_buffer import AudioBuffer
@@ -25,6 +27,7 @@ class App:
         prompt: str = DEFAULT_PROMPT,
         language: str = DEFAULT_LANGUAGE,
         max_duration: float = MAX_DURATION,
+        on_state_change=None,
     ):
         self._model_name = model_name
         self._sample_rate = sample_rate
@@ -44,7 +47,10 @@ class App:
             prompt=prompt,
             language=language,
             max_duration=max_duration,
+            on_state_change=on_state_change,
         )
+        self._listener = None
+        self._listener_thread = None
 
     def load(self):
         print(f"[INFO] モデルを読み込み中: {self._model_name}")
@@ -73,3 +79,25 @@ class App:
             on_release=self._hotkey.on_release,
         ) as listener:
             listener.join()
+
+    def run_background(self, listener_factory=None):
+        """デーモンスレッドでホットキーリスナーを開始（メニューバー用）"""
+        if listener_factory is None:
+            listener_factory = lambda on_press, on_release: keyboard.Listener(
+                on_press=on_press, on_release=on_release
+            )
+
+        self._listener = listener_factory(
+            on_press=self._hotkey.on_press,
+            on_release=self._hotkey.on_release,
+        )
+        self._listener.start()
+        self._listener_thread = threading.Thread(target=self._listener.join, daemon=True)
+        self._listener_thread.start()
+
+    def stop_background(self):
+        """バックグラウンドリスナーを停止"""
+        if self._listener is not None:
+            self._listener.stop()
+            self._listener = None
+        self._listener_thread = None

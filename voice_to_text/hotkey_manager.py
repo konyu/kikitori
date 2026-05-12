@@ -19,6 +19,7 @@ class HotkeyManager:
         language: str = DEFAULT_LANGUAGE,
         max_duration: float = MAX_DURATION,
         timer_factory=None,
+        on_state_change=None,
     ):
         self._recorder = recorder
         self._transcriber = transcriber
@@ -31,6 +32,8 @@ class HotkeyManager:
         self._ctrl_pressed = False
         self._alt_pressed = False
         self._is_recording = False
+        self._lock = threading.Lock()
+        self._on_state_change = on_state_change
 
     def _start_auto_stop_timer(self):
         self._cancel_auto_stop_timer()
@@ -43,9 +46,12 @@ class HotkeyManager:
             self._timer = None
 
     def _on_auto_stop(self):
-        if not self._is_recording:
-            return
-        self._is_recording = False
+        with self._lock:
+            if not self._is_recording:
+                return
+            self._is_recording = False
+            if self._on_state_change:
+                self._on_state_change(False)
         audio = self._recorder.stop()
         if audio.size > 0:
             text = self._transcriber.transcribe(
@@ -55,12 +61,15 @@ class HotkeyManager:
         else:
             print("[INFO] 録音データが空です")
         # キーがまだ押されていれば再録音、そうでなければタイマーをクリア
-        if self._ctrl_pressed and self._alt_pressed:
-            self._is_recording = True
-            self._recorder.start()
-            self._start_auto_stop_timer()
-        else:
-            self._timer = None
+        with self._lock:
+            if self._ctrl_pressed and self._alt_pressed:
+                self._is_recording = True
+                if self._on_state_change:
+                    self._on_state_change(True)
+                self._recorder.start()
+                self._start_auto_stop_timer()
+            else:
+                self._timer = None
 
     def on_press(self, key):
         if key == Key.ctrl_l:
@@ -70,23 +79,30 @@ class HotkeyManager:
         else:
             return
 
-        if self._ctrl_pressed and self._alt_pressed and not self._is_recording:
-            self._is_recording = True
-            self._recorder.start()
-            self._start_auto_stop_timer()
+        with self._lock:
+            if self._ctrl_pressed and self._alt_pressed and not self._is_recording:
+                self._is_recording = True
+                if self._on_state_change:
+                    self._on_state_change(True)
+                self._recorder.start()
+                self._start_auto_stop_timer()
 
     def on_release(self, key):
-        was_recording = self._is_recording
+        with self._lock:
+            was_recording = self._is_recording
 
-        if key == Key.ctrl_l:
-            self._ctrl_pressed = False
-        elif key == Key.alt:
-            self._alt_pressed = False
-        else:
-            return
+            if key == Key.ctrl_l:
+                self._ctrl_pressed = False
+            elif key == Key.alt:
+                self._alt_pressed = False
+            else:
+                return
 
+            if was_recording and not (self._ctrl_pressed and self._alt_pressed):
+                self._is_recording = False
+                if self._on_state_change:
+                    self._on_state_change(False)
         if was_recording and not (self._ctrl_pressed and self._alt_pressed):
-            self._is_recording = False
             self._cancel_auto_stop_timer()
             audio = self._recorder.stop()
             if audio.size > 0:
@@ -96,3 +112,7 @@ class HotkeyManager:
                 self._injector.inject(text)
             else:
                 print("[INFO] 録音データが空です")
+
+    def is_recording(self) -> bool:
+        with self._lock:
+            return self._is_recording
