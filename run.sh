@@ -25,7 +25,7 @@ if [ ! -x "$PYTHON" ]; then
     exit 1
 fi
 
-# アクセシビリティ権限の確認（ターミナルアプリに付与されているか）
+# アクセシビリティ権限の確認
 PERM_CHECK=$(osascript -e '
     tell application "System Events"
         return UI elements enabled
@@ -33,10 +33,12 @@ PERM_CHECK=$(osascript -e '
 ' 2>/dev/null || echo "unknown")
 
 if [ "$PERM_CHECK" != "true" ]; then
-    echo "⚠️  アクセシビリティ権限が有効になっていない可能性があります"
-    echo "   ホットキーが効かない場合は以下を確認してください:"
+    echo "⚠️  アクセシビリティ権限が無効です"
+    echo "   ホットキーを使うには以下を実行してください:"
     echo "   システム設定 → プライバシーとセキュリティ → アクセシビリティ"
-    echo "   → ターミナル.app（または iTerm.app）に ✅ が付いていることを確認"
+    echo "   → ターミナル.app（または iTerm.app）に ✅"
+    echo ""
+    echo "   アプリ起動後、権限ダイアログが表示される場合もあります"
     echo ""
 fi
 

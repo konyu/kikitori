@@ -94,22 +94,28 @@ else
     echo "   $warn HuggingFace キャッシュなし — 初回起動時に自動作成"
 fi
 
-# ── 7. ffmpeg ──
+# ── 7. Homebrew ──
+echo ""
+echo "🍺 Homebrew"
+if command -v brew &>/dev/null; then
+    echo "   $ok $(brew --version | head -1)"
+else
+    echo "   インストール中..."
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    # パスを通す（Apple Silicon のデフォルト）
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+    echo "   $ok インストール完了"
+fi
+
+# ── 8. ffmpeg ──
 echo ""
 echo "🎬 ffmpeg"
 if command -v ffmpeg &>/dev/null; then
     echo "   $ok $(ffmpeg -version 2>&1 | head -1 | cut -d' ' -f1-3)"
 else
-    echo "   $warn 未インストール → brew install ffmpeg"
-fi
-
-# ── 8. 権限 ──
-echo ""
-echo "🔐 権限"
-if osascript -e 'tell application "System Events" to return UI elements enabled' 2>/dev/null | grep -q true; then
-    echo "   $ok アクセシビリティ"
-else
-    echo "   $warn アクセシビリティ未確認 → システム設定を確認"
+    echo "   インストール中... (brew install ffmpeg)"
+    brew install ffmpeg
+    echo "   $ok インストール完了"
 fi
 
 # ── 完了 ──
