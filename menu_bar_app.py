@@ -62,7 +62,7 @@ class VoiceToTextStatusBarApp(rumps.App):
             self._language_item,
             self._model_item,
             None,
-            rumps.MenuItem("設定を開く", callback=self._open_settings),
+            rumps.MenuItem("設定ファイルを開く", callback=self._open_settings),
             None,
             rumps.MenuItem("終了", callback=self._quit_app),
         ]
@@ -99,6 +99,60 @@ class VoiceToTextStatusBarApp(rumps.App):
         """Called from hotkey listener thread when recording starts/stops."""
         self._recording = is_recording
 
+    def _start_settings_watcher(self):
+        """設定ファイルの変更を監視し、変更があれば自動再読み込み"""
+        try:
+            self._settings_mtime = os.path.getmtime(SETTINGS_PATH)
+        except OSError:
+            self._settings_mtime = 0
+
+        def check_settings_change(timer):
+            try:
+                current_mtime = os.path.getmtime(SETTINGS_PATH)
+                if current_mtime != getattr(self, "_settings_mtime", 0):
+                    self._settings_mtime = current_mtime
+                    self._reload_settings()
+            except (OSError, FileNotFoundError):
+                pass
+
+        # 既存の watcher があれば停止
+        if hasattr(self, "_settings_timer") and self._settings_timer is not None:
+            self._settings_timer.stop()
+
+        self._settings_timer = rumps.Timer(check_settings_change, 1.0)
+        self._settings_timer.start()
+
+    def _reload_settings(self):
+        """設定ファイルを再読み込みしてアプリに反映"""
+        new_settings = load_settings()
+        changed = False
+
+        new_lang = new_settings.get("language", DEFAULT_LANGUAGE)
+        if new_lang != self._language:
+            self._language = new_lang
+            self._app._language = new_lang
+            self._app._hotkey._language = new_lang
+            self._language_item.title = f"言語: {new_lang}"
+            changed = True
+
+        new_prompt = new_settings.get("prompt", DEFAULT_PROMPT)
+        if new_prompt != self._prompt:
+            self._prompt = new_prompt
+            self._app._prompt = new_prompt
+            self._app._hotkey._prompt = new_prompt
+            changed = True
+
+        if changed:
+            self._settings = new_settings
+            try:
+                rumps.notification(
+                    "VoiceToText",
+                    "設定を更新しました",
+                    f"言語: {self._language}",
+                )
+            except RuntimeError:
+                pass
+
     def _update_ui(self, timer):
         """Called on main thread by rumps.Timer."""
         is_recording = self._app._hotkey.is_recording()
@@ -121,46 +175,27 @@ class VoiceToTextStatusBarApp(rumps.App):
     # ── Menu actions ────────────────────────────────────────────────────
 
     def _open_settings(self, _):
-        window = rumps.Window(
-            title="VoiceToText 設定",
-            message="言語とプロンプトを変更できます",
-            default_text=f"{self._language}\n{self._prompt}",
-            dimensions=(320, 120),
-            ok="保存",
-            cancel="キャンセル",
-        )
-        response = window.run()
-        if response.clicked:
-            lines = response.text.strip().splitlines()
-            if len(lines) >= 1:
-                new_lang = lines[0].strip()
-                if new_lang:
-                    self._language = new_lang
-                    self._app._language = new_lang
-                    self._app._hotkey._language = new_lang
-                    self._language_item.title = f"言語: {new_lang}"
-            if len(lines) >= 2:
-                new_prompt = lines[1].strip()
-                self._prompt = new_prompt
-                self._app._prompt = new_prompt
-                self._app._hotkey._prompt = new_prompt
+        """設定ファイルをデフォルトエディタで開く（rumps.Window はフリーズするため）"""
+        # 設定ファイルがなければデフォルト値で作成
+        if not SETTINGS_PATH.exists():
+            default = {
+                "language": self._language,
+                "prompt": self._prompt,
+            }
+            save_settings(default)
 
-            self._settings["language"] = self._language
-            self._settings["prompt"] = self._prompt
-            save_settings(self._settings)
+        # デフォルトエディタで開く
+        import subprocess
+        subprocess.Popen(["open", str(SETTINGS_PATH)])
 
-            try:
-                rumps.notification(
-                    "VoiceToText",
-                    "設定を保存しました",
-                    f"言語: {self._language}",
-                )
-            except RuntimeError:
-                pass
+        # ファイル変更を監視して自動再読み込み
+        self._start_settings_watcher()
 
     def _quit_app(self, _):
         self._app.stop_background()
         self._poll_timer.stop()
+        if hasattr(self, "_settings_timer") and self._settings_timer is not None:
+            self._settings_timer.stop()
         rumps.quit_application()
 
 
