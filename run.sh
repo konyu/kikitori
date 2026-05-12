@@ -42,14 +42,6 @@ if [ "$PERM_CHECK" != "true" ]; then
     echo ""
 fi
 
-# 既存プロセスを終了（ゴーストアイコン防止）
-EXISTING=$(pgrep -f "menu_bar_app.py" 2>/dev/null || true)
-if [ -n "$EXISTING" ]; then
-    echo "⏳ 既存の Kikitori プロセスを終了します..."
-    kill $EXISTING 2>/dev/null || true
-    sleep 0.5
-fi
-
 echo "🎤 Kikitori を起動します..."
 echo "   終了: メニューバー → 🎤 → 終了"
 echo ""
