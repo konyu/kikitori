@@ -93,13 +93,6 @@ python main.py
 - **Launch Agent**: Mac 起動時に自動でバックグラウンド実行
 - **ログローテーション**: `newsyslog` によりログファイルが 1MB 単位で自動ローテーション（最大3世代、bzip2 圧縮）
 
-> ⚠️ **重要**: Launch Agent 経由で起動する場合、ターミナルとは別プロセスになるため、
-> **Python バイナリ自体** にアクセシビリティ権限を付与する必要があります。
-> `setup_autostart.sh` 実行時に案内が表示されます。
->
-> 手動設定: システム設定 → プライバシーとセキュリティ → アクセシビリティ →
-> `venv/bin/python` を追加して ✅
-
 ```bash
 # 起動確認
 launchctl list | grep voicetotext
@@ -183,31 +176,6 @@ python -m pytest tests/ -v
     ├── injector.py               # クリップボード経由テキスト入力
     ├── recorder.py               # 録音ストリーム制御
     └── transcriber.py            # mlx-whisper ラッパー
-```
-
-## トラブルシューティング
-
-### ホットキーが効かない
-
-1. **アクセシビリティ権限を確認**: システム設定 → プライバシーとセキュリティ → アクセシビリティ
-   - ターミナル.app（または iTerm.app）に ✅
-   - Launch Agent 使用時は `venv/bin/python` にも ✅
-2. **マイク権限を確認**: 同様にマイクの設定も確認
-3. 設定後はアプリを再起動してください
-
-### Launch Agent が起動しない
-
-```bash
-# ステータス確認
-launchctl list | grep voicetotext
-# 終了コードが 0 以外ならエラー
-
-# ログ確認
-tail -20 /tmp/voicetotext.err
-
-# 再読み込み
-launchctl unload ~/Library/LaunchAgents/com.voicetotext.plist
-launchctl load ~/Library/LaunchAgents/com.voicetotext.plist
 ```
 
 ## ライセンス
