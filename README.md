@@ -75,13 +75,33 @@ python main.py
 }
 ```
 
+- `language`: 認識言語（`ja`, `en`, `zh` など）
+- `prompt`: Whisper への指示文（文脈を与えると認識精度が向上）
+- `hotkey`: ホットキー（後述）
+
+ファイル保存後、自動的に設定が反映されます。
+
 **利用可能なホットキー例:**
 - `["option"]` — Option 単体
 - `["ctrl", "alt"]` — Ctrl + Option
 - `["f13"]` — F13 キー
 - `["cmd", "shift", "a"]` — Cmd + Shift + A
 
-設定ファイルを保存すると、アプリが自動的に再読み込みします。
+### メニューバー操作
+
+画面右上の 🎤 アイコンをクリック:
+
+| メニュー | 動作 |
+|---------|------|
+| ○ 待機中 / ● 録音中... | 現在の状態を表示 |
+| 🔴 録音開始 / ⏹ 録音停止 | ホットキーなしで録音操作 |
+| 言語: ja | 現在の認識言語 |
+| プロンプト: ... | 現在のプロンプト（30文字まで表示） |
+| モデル: ... | 使用中のWhisperモデル |
+| 設定ファイルを開く | `~/.voice_to_text_settings.json` を編集 |
+| 終了 | アプリを終了 |
+
+> 初回起動時、`mlx-whisper` が Hugging Face からモデルをダウンロードします（数百MB）。ネットワーク接続が必要です。
 
 ## 開発
 
@@ -109,6 +129,46 @@ python -m pytest tests/ -v
     ├── recorder.py          # 録音ストリーム制御
     └── transcriber.py       # mlx-whisper ラッパー
 ```
+
+## トラブルシューティング
+
+### ホットキーが効かない
+
+1. システム設定 → プライバシーとセキュリティ → アクセシビリティ で **ターミナル.app**（または iTerm.app）に ✅ が付いているか確認
+2. Karabiner-Elements、BetterTouchTool など他のキー監視アプリを一時的に無効化
+3. メニューバーから「🔴 録音開始」をクリックして動作確認（メニュー操作で録音できれば権限問題）
+
+### マイク入力が取得できない
+
+システム設定 → プライバシーとセキュリティ → マイク でターミナル.app に ✅
+
+### 音声認識結果が入力されない
+
+1. 対象アプリ（メモ帳、VS Code など）にカーソルが置かれているか確認
+2. 対象アプリにもアクセシビリティ権限が必要な場合があります
+
+### モデルのダウンロードに失敗する
+
+```bash
+rm -rf ~/.cache/huggingface
+./run.sh  # 再試行
+```
+
+## 技術的補足
+
+### なぜ .app 化しないのか
+
+macOS の TCC（Transparency, Consent, and Control）はアクセシビリティ権限を実行ファイルのコード署名ハッシュに紐付けます。PyInstaller 等で生成した `.app` は ad-hoc 署名のため TCC が正しく認識せず、権限付与が無限ループになります。Developer ID 証明書（Apple Developer Program、年額$99）で署名すれば解決しますが、個人利用ではターミナル実行が最も確実です。
+
+### 使用ライブラリ
+
+| ライブラリ | 用途 |
+|-----------|------|
+| [mlx-whisper](https://github.com/ml-explore/mlx-whisper) | Apple Silicon 最適化音声認識 |
+| [sounddevice](https://python-sounddevice.readthedocs.io/) | マイク録音 |
+| [pynput](https://pynput.readthedocs.io/) | グローバルホットキー監視 |
+| [pyperclip](https://pyperclip.readthedocs.io/) | クリップボード操作 |
+| [rumps](https://rumps.readthedocs.io/) | macOS メニューバー UI |
 
 ## ライセンス
 
