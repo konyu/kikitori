@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Voice to Text Injection Tool
+Kikitori
 Apple Silicon Mac向け音声認識ツール
 
 ホットキー押下中にマイク入力を録音し、
@@ -9,7 +9,7 @@ Apple Silicon Mac向け音声認識ツール
 デフォルトホットキー: Caps Lock（設定ファイルで変更可能）
 """
 
-from voice_to_text.app import App
+from kikitori.app import App
 
 
 def main():

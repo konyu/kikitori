@@ -1,5 +1,5 @@
 #!/bin/bash
-# VoiceToText メニューバーアプリ起動スクリプト
+# Kikitori メニューバーアプリ起動スクリプト
 
 set -e
 
@@ -42,7 +42,7 @@ if [ "$PERM_CHECK" != "true" ]; then
     echo ""
 fi
 
-echo "🎤 VoiceToText を起動します..."
+echo "🎤 Kikitori を起動します..."
 echo "   終了: メニューバー → 🎤 → 終了"
 echo ""
 

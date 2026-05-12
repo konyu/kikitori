@@ -2,8 +2,8 @@
 import numpy as np
 import pytest
 
-from voice_to_text.audio_buffer import AudioBuffer
-from voice_to_text.recorder import Recorder
+from kikitori.audio_buffer import AudioBuffer
+from kikitori.recorder import Recorder
 
 
 class FakeStream:

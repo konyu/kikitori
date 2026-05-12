@@ -2,7 +2,7 @@
 import numpy as np
 import pytest
 
-from voice_to_text.audio_buffer import AudioBuffer
+from kikitori.audio_buffer import AudioBuffer
 
 
 class TestAudioBuffer:

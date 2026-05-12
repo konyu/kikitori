@@ -3,14 +3,14 @@ import numpy as np
 import pytest
 from pynput.keyboard import Key
 
-from voice_to_text.audio_buffer import AudioBuffer
-from voice_to_text.hotkey_manager import HotkeyManager
+from kikitori.audio_buffer import AudioBuffer
+from kikitori.hotkey_manager import HotkeyManager
 
 
 DEFAULT_TEST_HOTKEY = ["ctrl", "alt"]
-from voice_to_text.injector import Injector
-from voice_to_text.recorder import Recorder
-from voice_to_text.transcriber import Transcriber
+from kikitori.injector import Injector
+from kikitori.recorder import Recorder
+from kikitori.transcriber import Transcriber
 
 
 class FakeRecorder:

@@ -1,5 +1,5 @@
 #!/bin/bash
-# VoiceToText セットアップ — 環境チェック + インストール
+# Kikitori セットアップ — 環境チェック + インストール
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -9,7 +9,7 @@ ok="✅"
 warn="⚠️"
 fail="❌"
 
-echo "🎤 VoiceToText セットアップ"
+echo "🎤 Kikitori セットアップ"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 

@@ -3,8 +3,8 @@ import threading
 
 from pynput import keyboard
 
-from voice_to_text.audio_buffer import AudioBuffer
-from voice_to_text.config import (
+from kikitori.audio_buffer import AudioBuffer
+from kikitori.config import (
     CHANNELS,
     DEFAULT_HOTKEY,
     DEFAULT_LANGUAGE,
@@ -13,10 +13,10 @@ from voice_to_text.config import (
     MODEL_NAME,
     SAMPLE_RATE,
 )
-from voice_to_text.hotkey_manager import HotkeyManager
-from voice_to_text.injector import Injector
-from voice_to_text.recorder import Recorder
-from voice_to_text.transcriber import Transcriber
+from kikitori.hotkey_manager import HotkeyManager
+from kikitori.injector import Injector
+from kikitori.recorder import Recorder
+from kikitori.transcriber import Transcriber
 
 
 class App:
@@ -68,7 +68,7 @@ class App:
             )
 
         print("=" * 50)
-        print("Voice to Text Injection Tool")
+        print("Kikitori")
         print("=" * 50)
         print(f"モデル: {self._model_name}")
         print(f"サンプリングレート: {self._sample_rate} Hz")

@@ -5,7 +5,7 @@ import pytest
 
 from pynput.keyboard import Key
 
-from voice_to_text.injector import Injector
+from kikitori.injector import Injector
 
 
 class FakeClipboard:

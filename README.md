@@ -1,4 +1,4 @@
-# 🎤 VoiceToText
+# 🎤 Kikitori
 
 macOS 向け音声認識入力ツール。ホットキー押下中にマイク入力を録音し、解放時に Apple Silicon 最適化された Whisper モデルが音声をテキストに変換、クリップボード経由で自動ペーストします。
 
@@ -65,7 +65,7 @@ python main.py
 
 ### 設定のカスタマイズ
 
-メニューバーから **設定ファイルを開く** を選択すると `~/.voice_to_text_settings.json` が作成・表示されます。
+メニューバーから **設定ファイルを開く** を選択すると `~/.kikitori_settings.json` が作成・表示されます。
 
 ```json
 {
@@ -98,7 +98,7 @@ python main.py
 | 言語: ja | 現在の認識言語 |
 | プロンプト: ... | 現在のプロンプト（30文字まで表示） |
 | モデル: ... | 使用中のWhisperモデル |
-| 設定ファイルを開く | `~/.voice_to_text_settings.json` を編集 |
+| 設定ファイルを開く | `~/.kikitori_settings.json` を編集 |
 | 終了 | アプリを終了 |
 
 > 初回起動時、`mlx-whisper` が Hugging Face からモデルをダウンロードします（数百MB）。ネットワーク接続が必要です。
@@ -120,7 +120,7 @@ python -m pytest tests/ -v
 ├── menu_bar_app.py          # macOS メニューバーアプリ
 ├── run.sh                   # 起動スクリプト
 ├── requirements.txt         # Python 依存関係
-└── voice_to_text/
+└── kikitori/
     ├── app.py               # アプリケーション統合
     ├── audio_buffer.py      # スレッドセーフ録音バッファ
     ├── config.py            # 設定定数

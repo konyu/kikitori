@@ -3,10 +3,10 @@ import threading
 
 from pynput.keyboard import Key, KeyCode
 
-from voice_to_text.config import DEFAULT_HOTKEY, DEFAULT_LANGUAGE, MAX_DURATION
-from voice_to_text.injector import Injector
-from voice_to_text.recorder import Recorder
-from voice_to_text.transcriber import Transcriber
+from kikitori.config import DEFAULT_HOTKEY, DEFAULT_LANGUAGE, MAX_DURATION
+from kikitori.injector import Injector
+from kikitori.recorder import Recorder
+from kikitori.transcriber import Transcriber
 
 
 # キー名 → pynput Key/KeyCode 一覧（左右どちらでも反応）

@@ -2,7 +2,7 @@
 import numpy as np
 import pytest
 
-from voice_to_text.transcriber import Transcriber
+from kikitori.transcriber import Transcriber
 
 
 def fake_transcribe(audio, *, path_or_hf_repo, initial_prompt, language, verbose):

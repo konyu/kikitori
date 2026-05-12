@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""macOS メニューバー常駐型 VoiceToText アプリ（ターミナル実行推奨）"""
+"""macOS メニューバー常駐型 Kikitori アプリ（ターミナル実行推奨）"""
 import json
 import os
 import threading
@@ -7,12 +7,12 @@ from pathlib import Path
 
 import rumps
 
-from voice_to_text.app import App
-from voice_to_text.config import DEFAULT_HOTKEY, DEFAULT_LANGUAGE, DEFAULT_PROMPT, MODEL_NAME
-from voice_to_text.hotkey_manager import resolve_hotkey
+from kikitori.app import App
+from kikitori.config import DEFAULT_HOTKEY, DEFAULT_LANGUAGE, DEFAULT_PROMPT, MODEL_NAME
+from kikitori.hotkey_manager import resolve_hotkey
 
 
-SETTINGS_PATH = Path.home() / ".voice_to_text_settings.json"
+SETTINGS_PATH = Path.home() / ".kikitori_settings.json"
 
 
 def load_settings():
@@ -36,9 +36,9 @@ def save_settings(settings):
         pass
 
 
-class VoiceToTextStatusBarApp(rumps.App):
+class KikitoriStatusBarApp(rumps.App):
     def __init__(self):
-        super().__init__("🎤", title="VoiceToText", quit_button=None)
+        super().__init__("🎤", title="Kikitori", quit_button=None)
 
         self._settings = load_settings()
         self._language = self._settings.get("language", DEFAULT_LANGUAGE)
@@ -113,7 +113,7 @@ class VoiceToTextStatusBarApp(rumps.App):
         self._model_ready = True
         try:
             rumps.notification(
-                "VoiceToText",
+                "Kikitori",
                 "準備完了",
                 f"モデルの読み込みが完了しました。{' + '.join(self._hotkey)} で録音開始",
             )
@@ -193,7 +193,7 @@ class VoiceToTextStatusBarApp(rumps.App):
             self._flash_icon("✅")
             try:
                 rumps.notification(
-                    "VoiceToText",
+                    "Kikitori",
                     "設定を更新しました",
                     f"言語: {self._language} / {self._prompt_preview(self._prompt)}",
                 )
@@ -261,7 +261,7 @@ class VoiceToTextStatusBarApp(rumps.App):
         """設定ファイルをデフォルトエディタで開く（初回はマニュアル付きで生成）"""
         if not SETTINGS_PATH.exists():
             default = {
-                "_comment": "VoiceToText 設定ファイル",
+                "_comment": "Kikitori 設定ファイル",
                 "_hotkey_manual": "hotkey は配列で指定。同時押ししたいキーを並べる。例: [\"caps_lock\"], [\"f13\"], [\"ctrl\",\"alt\"], [\"cmd\",\"shift\",\"a\"]",
                 "_available_keys": [
                     "--- 修飾キー ---",
@@ -295,4 +295,4 @@ class VoiceToTextStatusBarApp(rumps.App):
 
 
 if __name__ == "__main__":
-    VoiceToTextStatusBarApp().run()
+    KikitoriStatusBarApp().run()

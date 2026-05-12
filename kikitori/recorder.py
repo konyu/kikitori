@@ -3,8 +3,8 @@ from typing import Callable
 
 import sounddevice as sd
 
-from voice_to_text.audio_buffer import AudioBuffer
-from voice_to_text.config import AUDIO_DTYPE, CHANNELS, SAMPLE_RATE
+from kikitori.audio_buffer import AudioBuffer
+from kikitori.config import AUDIO_DTYPE, CHANNELS, SAMPLE_RATE
 
 
 class Recorder:

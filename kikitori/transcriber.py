@@ -5,7 +5,7 @@ import numpy as np
 
 import mlx_whisper
 
-from voice_to_text.config import DEFAULT_LANGUAGE
+from kikitori.config import DEFAULT_LANGUAGE
 
 
 class Transcriber:

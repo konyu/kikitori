@@ -1,4 +1,4 @@
-# Voice to Text Injection Tool - Requirements & TODO
+# Kikitori - Requirements & TODO
 
 ## Requirements (システム要件)
 

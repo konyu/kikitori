@@ -3,7 +3,7 @@ import threading
 
 import numpy as np
 
-from voice_to_text.config import AUDIO_DTYPE, MAX_DURATION, SAMPLE_RATE
+from kikitori.config import AUDIO_DTYPE, MAX_DURATION, SAMPLE_RATE
 
 
 class AudioBuffer:
