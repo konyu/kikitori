@@ -116,3 +116,32 @@ class HotkeyManager:
     def is_recording(self) -> bool:
         with self._lock:
             return self._is_recording
+
+    def start_recording(self):
+        """メニューなど外部から録音を開始（ホットキー以外の入力手段用）"""
+        with self._lock:
+            if self._is_recording:
+                return
+            self._is_recording = True
+            if self._on_state_change:
+                self._on_state_change(True)
+        self._recorder.start()
+        self._start_auto_stop_timer()
+
+    def stop_recording(self):
+        """メニューなど外部から録音を停止（ホットキー以外の入力手段用）"""
+        with self._lock:
+            if not self._is_recording:
+                return
+            self._is_recording = False
+            if self._on_state_change:
+                self._on_state_change(False)
+        self._cancel_auto_stop_timer()
+        audio = self._recorder.stop()
+        if audio.size > 0:
+            text = self._transcriber.transcribe(
+                audio, prompt=self._prompt, language=self._language
+            )
+            self._injector.inject(text)
+        else:
+            print("[INFO] 録音データが空です")

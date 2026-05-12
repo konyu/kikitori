@@ -5,4 +5,3 @@ pynput
 pyperclip
 pytest
 rumps
-py2app

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""macOS メニューバー常駐型 VoiceToText アプリ（rumps + py2app）"""
+"""macOS メニューバー常駐型 VoiceToText アプリ（ターミナル実行推奨）"""
 import json
 import os
 import threading
@@ -60,8 +60,13 @@ class VoiceToTextStatusBarApp(rumps.App):
         self._model_loading_item = rumps.MenuItem("モデルを読み込み中...")
         self._model_loading_item.set_callback(None)
 
+        # 録音開始/停止ボタン（メニューからの手動操作用）
+        self._record_toggle_item = rumps.MenuItem("🔴 録音開始", callback=self._toggle_recording)
+
         self.menu = [
             self._status_item,
+            None,
+            self._record_toggle_item,
             None,
             self._model_loading_item,
             self._language_item,
@@ -97,7 +102,6 @@ class VoiceToTextStatusBarApp(rumps.App):
     def _load_model(self):
         self._app.load()
         self._model_ready = True
-        # .app バンドル外（ターミナル直接実行）では通知が使えない場合がある
         try:
             rumps.notification(
                 "VoiceToText",
@@ -204,8 +208,12 @@ class VoiceToTextStatusBarApp(rumps.App):
         if self._status_item.title != status:
             self._status_item.title = status
 
-        # Apply pending settings updates (rumps.MenuItem.title setter is
-        # unreliable from timer callbacks; applying via _update_ui works)
+        # Update record toggle button label
+        toggle_label = "⏹ 録音停止" if is_recording else "🔴 録音開始"
+        if self._record_toggle_item.title != toggle_label:
+            self._record_toggle_item.title = toggle_label
+
+        # Apply pending settings updates
         if self._pending_language is not None:
             self._language_item.title = self._pending_language
             self._pending_language = None
@@ -225,9 +233,15 @@ class VoiceToTextStatusBarApp(rumps.App):
 
     # ── Menu actions ────────────────────────────────────────────────────
 
+    def _toggle_recording(self, _):
+        """メニューから録音開始/停止"""
+        if self._app._hotkey.is_recording():
+            self._app._hotkey.stop_recording()
+        else:
+            self._app._hotkey.start_recording()
+
     def _open_settings(self, _):
-        """設定ファイルをデフォルトエディタで開く（rumps.Window はフリーズするため）"""
-        # 設定ファイルがなければデフォルト値で作成
+        """設定ファイルをデフォルトエディタで開く"""
         if not SETTINGS_PATH.exists():
             default = {
                 "language": self._language,
@@ -235,11 +249,8 @@ class VoiceToTextStatusBarApp(rumps.App):
             }
             save_settings(default)
 
-        # デフォルトエディタで開く
         import subprocess
         subprocess.Popen(["open", str(SETTINGS_PATH)])
-
-        # ファイル変更を監視して自動再読み込み
         self._start_settings_watcher()
 
     def _quit_app(self, _):
