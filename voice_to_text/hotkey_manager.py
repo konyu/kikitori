@@ -1,12 +1,59 @@
-"""ホットキー状態管理（Ctrl + Option）"""
+"""ホットキー状態管理（設定ファイルで変更可能）"""
 import threading
 
-from pynput.keyboard import Key
+from pynput.keyboard import Key, KeyCode
 
-from voice_to_text.config import DEFAULT_LANGUAGE, MAX_DURATION
+from voice_to_text.config import DEFAULT_HOTKEY, DEFAULT_LANGUAGE, MAX_DURATION
 from voice_to_text.injector import Injector
 from voice_to_text.recorder import Recorder
 from voice_to_text.transcriber import Transcriber
+
+
+# キー名 → pynput Key/KeyCode 一覧（左右どちらでも反応）
+_KEY_MAP: dict[str, list] = {
+    "ctrl": [Key.ctrl_l, Key.ctrl_r],
+    "control": [Key.ctrl_l, Key.ctrl_r],
+    "alt": [Key.alt, Key.alt_r],
+    "option": [Key.alt, Key.alt_r],
+    "cmd": [Key.cmd, Key.cmd_r],
+    "command": [Key.cmd, Key.cmd_r],
+    "shift": [Key.shift, Key.shift_r],
+}
+
+
+def resolve_hotkey(names: list[str]) -> list[list]:
+    """キー名のリストを、各名前に対応する Key オブジェクトのグループに変換する。"""
+    groups = []
+    for name in names:
+        name = name.lower().strip()
+        if name in _KEY_MAP:
+            groups.append(_KEY_MAP[name])
+        elif hasattr(Key, name):
+            groups.append([getattr(Key, name)])
+        elif len(name) == 1 and name.isalpha():
+            # a-z などの1文字キー
+            groups.append([KeyCode.from_char(name)])
+        elif len(name) == 1 and name.isdigit():
+            # 0-9 などの数字キー
+            groups.append([KeyCode.from_char(name)])
+        else:
+            # 数値として解釈できれば仮想キーコードとみなす
+            try:
+                vk = int(name)
+                groups.append([KeyCode.from_vk(vk)])
+            except ValueError as exc:
+                raise ValueError(f"未知のホットキー名です: {name}") from exc
+    return groups
+
+
+def _key_id(key):
+    """キーをハッシュ可能な ID に変換（KeyCode の比較を安定化）。"""
+    if isinstance(key, KeyCode):
+        if key.vk is not None:
+            return ("vk", key.vk)
+        if key.char is not None:
+            return ("char", key.char.lower())
+    return key
 
 
 class HotkeyManager:
@@ -18,6 +65,7 @@ class HotkeyManager:
         prompt: str = "",
         language: str = DEFAULT_LANGUAGE,
         max_duration: float = MAX_DURATION,
+        hotkey: list[str] | None = None,
         timer_factory=None,
         on_state_change=None,
     ):
@@ -29,11 +77,16 @@ class HotkeyManager:
         self._max_duration = max_duration
         self._timer_factory = timer_factory or threading.Timer
         self._timer = None
-        self._ctrl_pressed = False
-        self._alt_pressed = False
         self._is_recording = False
         self._lock = threading.Lock()
         self._on_state_change = on_state_change
+
+        # ホットキー設定
+        names = hotkey if hotkey is not None else DEFAULT_HOTKEY
+        self._hotkey_groups = resolve_hotkey(names)
+        self._pressed_keys: set = set()
+
+    # ── タイマー ────────────────────────────────────────────────────────
 
     def _start_auto_stop_timer(self):
         self._cancel_auto_stop_timer()
@@ -62,7 +115,7 @@ class HotkeyManager:
             print("[INFO] 録音データが空です")
         # キーがまだ押されていれば再録音、そうでなければタイマーをクリア
         with self._lock:
-            if self._ctrl_pressed and self._alt_pressed:
+            if self._all_hotkey_pressed():
                 self._is_recording = True
                 if self._on_state_change:
                     self._on_state_change(True)
@@ -71,16 +124,34 @@ class HotkeyManager:
             else:
                 self._timer = None
 
+    # ── キー判定 ────────────────────────────────────────────────────────
+
+    def _is_hotkey_key(self, key) -> bool:
+        """与えられたキーがホットキー設定に含まれるか。"""
+        kid = _key_id(key)
+        for group in self._hotkey_groups:
+            for k in group:
+                if kid == _key_id(k):
+                    return True
+        return False
+
+    def _all_hotkey_pressed(self) -> bool:
+        """すべてのホットキーが押下されているか。"""
+        for group in self._hotkey_groups:
+            if not any(_key_id(k) in self._pressed_keys for k in group):
+                return False
+        return True
+
+    # ── イベントハンドラ ───────────────────────────────────────────────
+
     def on_press(self, key):
-        if key == Key.ctrl_l:
-            self._ctrl_pressed = True
-        elif key == Key.alt:
-            self._alt_pressed = True
+        if self._is_hotkey_key(key):
+            self._pressed_keys.add(_key_id(key))
         else:
             return
 
         with self._lock:
-            if self._ctrl_pressed and self._alt_pressed and not self._is_recording:
+            if self._all_hotkey_pressed() and not self._is_recording:
                 self._is_recording = True
                 if self._on_state_change:
                     self._on_state_change(True)
@@ -90,19 +161,17 @@ class HotkeyManager:
     def on_release(self, key):
         with self._lock:
             was_recording = self._is_recording
-
-            if key == Key.ctrl_l:
-                self._ctrl_pressed = False
-            elif key == Key.alt:
-                self._alt_pressed = False
+            if self._is_hotkey_key(key):
+                self._pressed_keys.discard(_key_id(key))
             else:
                 return
 
-            if was_recording and not (self._ctrl_pressed and self._alt_pressed):
+            if was_recording and not self._all_hotkey_pressed():
                 self._is_recording = False
                 if self._on_state_change:
                     self._on_state_change(False)
-        if was_recording and not (self._ctrl_pressed and self._alt_pressed):
+
+        if was_recording and not self._all_hotkey_pressed():
             self._cancel_auto_stop_timer()
             audio = self._recorder.stop()
             if audio.size > 0:
@@ -112,6 +181,8 @@ class HotkeyManager:
                 self._injector.inject(text)
             else:
                 print("[INFO] 録音データが空です")
+
+    # ── 公開 API ───────────────────────────────────────────────────────
 
     def is_recording(self) -> bool:
         with self._lock:

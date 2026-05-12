@@ -34,14 +34,13 @@ PERM_CHECK=$(osascript -e '
 
 if [ "$PERM_CHECK" != "true" ]; then
     echo "⚠️  アクセシビリティ権限が有効になっていない可能性があります"
-    echo "   ホットキー（Ctrl+Option）が効かない場合は以下を確認してください:"
+    echo "   ホットキーが効かない場合は以下を確認してください:"
     echo "   システム設定 → プライバシーとセキュリティ → アクセシビリティ"
     echo "   → ターミナル.app（または iTerm.app）に ✅ が付いていることを確認"
     echo ""
 fi
 
 echo "🎤 VoiceToText を起動します..."
-echo "   ホットキー: Ctrl + Option（押下中録音 / 解放で出力）"
 echo "   終了: メニューバー → 🎤 → 終了"
 echo ""
 

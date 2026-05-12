@@ -13,6 +13,10 @@ DEFAULT_PROMPT: str = "以下は日本語の音声認識結果です。"
 # 録音設定
 MAX_DURATION: float = 60.0  # 秒
 
+# ホットキー設定（設定ファイルで変更可能）
+# 例: ["f13"], ["ctrl", "alt"], ["cmd"], ["shift", "f13"]
+DEFAULT_HOTKEY: list[str] = ["option"]
+
 # クリップボード設定
 CLIPBOARD_POLL_INTERVAL: float = 0.01  # 秒
 CLIPBOARD_MAX_WAIT: float = 1.0  # 秒

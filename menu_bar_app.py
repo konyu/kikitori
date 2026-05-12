@@ -8,7 +8,8 @@ from pathlib import Path
 import rumps
 
 from voice_to_text.app import App
-from voice_to_text.config import DEFAULT_LANGUAGE, DEFAULT_PROMPT, MODEL_NAME
+from voice_to_text.config import DEFAULT_HOTKEY, DEFAULT_LANGUAGE, DEFAULT_PROMPT, MODEL_NAME
+from voice_to_text.hotkey_manager import resolve_hotkey
 
 
 SETTINGS_PATH = Path.home() / ".voice_to_text_settings.json"
@@ -17,7 +18,9 @@ SETTINGS_PATH = Path.home() / ".voice_to_text_settings.json"
 def load_settings():
     if SETTINGS_PATH.exists():
         try:
-            return json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+            raw = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+            # _ で始まるキーはコメント/マニュアル用として無視
+            return {k: v for k, v in raw.items() if not k.startswith("_")}
         except Exception:
             pass
     return {}
@@ -40,11 +43,13 @@ class VoiceToTextStatusBarApp(rumps.App):
         self._settings = load_settings()
         self._language = self._settings.get("language", DEFAULT_LANGUAGE)
         self._prompt = self._settings.get("prompt", DEFAULT_PROMPT)
+        self._hotkey = self._settings.get("hotkey", DEFAULT_HOTKEY)
 
         # Core app with state-change callback
         self._app = App(
             language=self._language,
             prompt=self._prompt,
+            hotkey=self._hotkey,
             on_state_change=self._on_core_state_change,
         )
 
@@ -60,6 +65,9 @@ class VoiceToTextStatusBarApp(rumps.App):
         self._model_loading_item = rumps.MenuItem("モデルを読み込み中...")
         self._model_loading_item.set_callback(None)
 
+        self._hotkey_item = rumps.MenuItem(f"ホットキー: {' + '.join(self._hotkey)}")
+        self._hotkey_item.set_callback(None)
+
         # 録音開始/停止ボタン（メニューからの手動操作用）
         self._record_toggle_item = rumps.MenuItem("🔴 録音開始", callback=self._toggle_recording)
 
@@ -73,6 +81,7 @@ class VoiceToTextStatusBarApp(rumps.App):
             self._prompt_item,
             self._updated_item,
             self._model_item,
+            self._hotkey_item,
             None,
             rumps.MenuItem("設定ファイルを開く", callback=self._open_settings),
             None,
@@ -106,7 +115,7 @@ class VoiceToTextStatusBarApp(rumps.App):
             rumps.notification(
                 "VoiceToText",
                 "準備完了",
-                "モデルの読み込みが完了しました。Ctrl+Option で録音開始",
+                f"モデルの読み込みが完了しました。{' + '.join(self._hotkey)} で録音開始",
             )
         except RuntimeError:
             pass
@@ -168,6 +177,14 @@ class VoiceToTextStatusBarApp(rumps.App):
             self._app._prompt = new_prompt
             self._app._hotkey._prompt = new_prompt
             self._pending_prompt = self._prompt_preview(new_prompt)
+            changed = True
+
+        new_hotkey = new_settings.get("hotkey", DEFAULT_HOTKEY)
+        if new_hotkey != self._hotkey:
+            self._hotkey = new_hotkey
+            self._app._hotkey_config = new_hotkey
+            self._app._hotkey._hotkey_groups = resolve_hotkey(new_hotkey)
+            self._hotkey_item.title = f"ホットキー: {' + '.join(self._hotkey)}"
             changed = True
 
         if changed:
@@ -241,11 +258,26 @@ class VoiceToTextStatusBarApp(rumps.App):
             self._app._hotkey.start_recording()
 
     def _open_settings(self, _):
-        """設定ファイルをデフォルトエディタで開く"""
+        """設定ファイルをデフォルトエディタで開く（初回はマニュアル付きで生成）"""
         if not SETTINGS_PATH.exists():
             default = {
+                "_comment": "VoiceToText 設定ファイル",
+                "_hotkey_manual": "hotkey は配列で指定。同時押ししたいキーを並べる。例: [\"caps_lock\"], [\"f13\"], [\"ctrl\",\"alt\"], [\"cmd\",\"shift\",\"a\"]",
+                "_available_keys": [
+                    "--- 修飾キー ---",
+                    "ctrl", "alt (option)", "cmd (command)", "shift",
+                    "--- 特殊キー ---",
+                    "esc", "space", "tab", "enter", "backspace", "delete",
+                    "caps_lock", "home", "end", "page_up", "page_down",
+                    "up", "down", "left", "right",
+                    "--- Fキー ---",
+                    "f1 〜 f20",
+                    "--- 英数字 ---",
+                    "a 〜 z", "0 〜 9"
+                ],
                 "language": self._language,
                 "prompt": self._prompt,
+                "hotkey": self._hotkey,
             }
             save_settings(default)
 
