@@ -10,11 +10,19 @@ class Injector:
         self._controller = controller or Controller()
         self._clipboard = clipboard or pyperclip
 
-    def inject(self, text: str, delay: float = 0.2):
+    def inject(self, text: str, max_wait: float = 1.0):
         if not text:
             return
         self._clipboard.copy(text)
-        time.sleep(delay)
+        # クリップボード反映をポーリングで待つ（最大1秒）
+        start = time.monotonic()
+        while time.monotonic() - start < max_wait:
+            try:
+                if self._clipboard.paste() == text:
+                    break
+            except Exception:
+                pass
+            time.sleep(0.01)
         try:
             self._controller.press(Key.cmd_l)
             self._controller.press("v")

@@ -7,10 +7,19 @@ from voice_to_text.transcriber import Transcriber
 
 
 class HotkeyManager:
-    def __init__(self, recorder: Recorder, transcriber: Transcriber, injector: Injector):
+    def __init__(
+        self,
+        recorder: Recorder,
+        transcriber: Transcriber,
+        injector: Injector,
+        prompt: str = "",
+        language: str = "ja",
+    ):
         self._recorder = recorder
         self._transcriber = transcriber
         self._injector = injector
+        self._prompt = prompt
+        self._language = language
         self._ctrl_pressed = False
         self._alt_pressed = False
         self._is_recording = False
@@ -41,7 +50,9 @@ class HotkeyManager:
             self._is_recording = False
             audio = self._recorder.stop()
             if audio.size > 0:
-                text = self._transcriber.transcribe(audio)
+                text = self._transcriber.transcribe(
+                    audio, prompt=self._prompt, language=self._language
+                )
                 self._injector.inject(text)
             else:
                 print("[INFO] 録音データが空です")

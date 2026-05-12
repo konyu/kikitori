@@ -143,3 +143,17 @@ class TestHotkeyManager:
 
         assert len(inj.injected) == 2
         assert all(t == "A" for t in inj.injected)
+
+    def test_prompt_and_language_passed_to_transcriber(self):
+        rec = FakeRecorder()
+        trans = FakeTranscriber()
+        inj = FakeInjector()
+        mgr = HotkeyManager(rec, trans, inj, prompt="テストプロンプト", language="en")
+
+        mgr.on_press(Key.ctrl_l)
+        mgr.on_press(Key.alt)
+        mgr.on_release(Key.alt)
+
+        assert len(trans.calls) == 1
+        assert trans.calls[0][1] == "テストプロンプト"
+        assert trans.calls[0][2] == "en"

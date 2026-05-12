@@ -27,7 +27,13 @@ class App:
         self._recorder = Recorder(self._buffer, sample_rate, channels)
         self._transcriber = Transcriber(model_name)
         self._injector = Injector()
-        self._hotkey = HotkeyManager(self._recorder, self._transcriber, self._injector)
+        self._hotkey = HotkeyManager(
+            self._recorder,
+            self._transcriber,
+            self._injector,
+            prompt=prompt,
+            language=language,
+        )
 
     def load(self):
         print(f"[INFO] モデルを読み込み中: {self._model_name}")
