@@ -4,14 +4,15 @@ from typing import Callable
 import sounddevice as sd
 
 from voice_to_text.audio_buffer import AudioBuffer
+from voice_to_text.config import AUDIO_DTYPE, CHANNELS, SAMPLE_RATE
 
 
 class Recorder:
     def __init__(
         self,
         audio_buffer: AudioBuffer,
-        sample_rate: int = 16000,
-        channels: int = 1,
+        sample_rate: int = SAMPLE_RATE,
+        channels: int = CHANNELS,
         stream_factory=None,
     ):
         self._buffer = audio_buffer
@@ -24,7 +25,7 @@ class Recorder:
         return sd.InputStream(
             samplerate=self._sample_rate,
             channels=self._channels,
-            dtype="float32",
+            dtype=AUDIO_DTYPE,
             callback=callback,
         )
 

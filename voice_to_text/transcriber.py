@@ -5,6 +5,8 @@ import numpy as np
 
 import mlx_whisper
 
+from voice_to_text.config import DEFAULT_LANGUAGE
+
 
 class Transcriber:
     def __init__(
@@ -25,7 +27,7 @@ class Transcriber:
         self,
         audio: np.ndarray,
         prompt: str = "",
-        language: str = "ja",
+        language: str = DEFAULT_LANGUAGE,
     ) -> str:
         if audio.size == 0:
             return ""

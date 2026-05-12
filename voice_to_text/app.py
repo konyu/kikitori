@@ -2,6 +2,14 @@
 from pynput import keyboard
 
 from voice_to_text.audio_buffer import AudioBuffer
+from voice_to_text.config import (
+    CHANNELS,
+    DEFAULT_LANGUAGE,
+    DEFAULT_PROMPT,
+    MAX_DURATION,
+    MODEL_NAME,
+    SAMPLE_RATE,
+)
 from voice_to_text.hotkey_manager import HotkeyManager
 from voice_to_text.injector import Injector
 from voice_to_text.recorder import Recorder
@@ -11,12 +19,12 @@ from voice_to_text.transcriber import Transcriber
 class App:
     def __init__(
         self,
-        model_name: str = "mlx-community/whisper-large-v3-turbo",
-        sample_rate: int = 16000,
-        channels: int = 1,
-        prompt: str = "以下は日本語の音声認識結果です。",
-        language: str = "ja",
-        max_duration: float = 60.0,
+        model_name: str = MODEL_NAME,
+        sample_rate: int = SAMPLE_RATE,
+        channels: int = CHANNELS,
+        prompt: str = DEFAULT_PROMPT,
+        language: str = DEFAULT_LANGUAGE,
+        max_duration: float = MAX_DURATION,
     ):
         self._model_name = model_name
         self._sample_rate = sample_rate

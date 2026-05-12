@@ -3,6 +3,7 @@ import threading
 
 from pynput.keyboard import Key
 
+from voice_to_text.config import DEFAULT_LANGUAGE, MAX_DURATION
 from voice_to_text.injector import Injector
 from voice_to_text.recorder import Recorder
 from voice_to_text.transcriber import Transcriber
@@ -15,8 +16,8 @@ class HotkeyManager:
         transcriber: Transcriber,
         injector: Injector,
         prompt: str = "",
-        language: str = "ja",
-        max_duration: float = 60.0,
+        language: str = DEFAULT_LANGUAGE,
+        max_duration: float = MAX_DURATION,
         timer_factory=None,
     ):
         self._recorder = recorder
