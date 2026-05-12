@@ -1,10 +1,6 @@
 """クリップボード経由テキスト入力"""
-import time
-
 import pyperclip
 from pynput.keyboard import Controller, Key
-
-from voice_to_text.config import CLIPBOARD_MAX_WAIT, CLIPBOARD_POLL_INTERVAL
 
 
 class Injector:
@@ -12,19 +8,10 @@ class Injector:
         self._controller = controller or Controller()
         self._clipboard = clipboard or pyperclip
 
-    def inject(self, text: str, max_wait: float = CLIPBOARD_MAX_WAIT):
+    def inject(self, text: str):
         if not text:
             return
         self._clipboard.copy(text)
-        # クリップボード反映をポーリングで待つ
-        start = time.monotonic()
-        while time.monotonic() - start < max_wait:
-            try:
-                if self._clipboard.paste() == text:
-                    break
-            except Exception:
-                pass
-            time.sleep(CLIPBOARD_POLL_INTERVAL)
         try:
             self._controller.press(Key.cmd_l)
             self._controller.press("v")
