@@ -5,3 +5,4 @@ pynput
 pyperclip
 pytest
 rumps
+pyyaml

@@ -1,26 +1,24 @@
 #!/usr/bin/env python3
 """macOS メニューバー常駐型 Kikitori アプリ（ターミナル実行推奨）"""
-import json
 import os
 import threading
 from pathlib import Path
 
 import rumps
+import yaml
 
 from kikitori.app import App
 from kikitori.config import DEFAULT_HOTKEY, DEFAULT_LANGUAGE, DEFAULT_PROMPT, MIN_DURATION_MS, MODEL_NAME, SAMPLE_RATE
 from kikitori.hotkey_manager import resolve_hotkey
 
 
-SETTINGS_PATH = Path.home() / ".kikitori_settings.json"
+SETTINGS_PATH = Path.home() / ".kikitori_settings.yaml"
 
 
 def load_settings():
     if SETTINGS_PATH.exists():
         try:
-            raw = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
-            # _ で始まるキーはコメント/マニュアル用として無視
-            return {k: v for k, v in raw.items() if not k.startswith("_")}
+            return yaml.safe_load(SETTINGS_PATH.read_text(encoding="utf-8")) or {}
         except Exception:
             pass
     return {}
@@ -29,7 +27,7 @@ def load_settings():
 def save_settings(settings):
     try:
         SETTINGS_PATH.write_text(
-            json.dumps(settings, ensure_ascii=False, indent=2),
+            yaml.dump(settings, allow_unicode=True, default_flow_style=False, sort_keys=False),
             encoding="utf-8",
         )
     except Exception:
@@ -269,27 +267,27 @@ class KikitoriStatusBarApp(rumps.App):
     def _open_settings(self, _):
         """設定ファイルをデフォルトエディタで開く（初回はマニュアル付きで生成）"""
         if not SETTINGS_PATH.exists():
-            default = {
-                "_comment": "Kikitori 設定ファイル",
-                "_hotkey_manual": "hotkey は配列で指定。同時押ししたいキーを並べる。例: [\"caps_lock\"], [\"f13\"], [\"ctrl\",\"alt\"], [\"cmd\",\"shift\",\"a\"]",
-                "_available_keys": [
-                    "--- 修飾キー ---",
-                    "ctrl", "alt (option)", "cmd (command)", "shift",
-                    "--- 特殊キー ---",
-                    "esc", "space", "tab", "enter", "backspace", "delete",
-                    "caps_lock", "home", "end", "page_up", "page_down",
-                    "up", "down", "left", "right",
-                    "--- Fキー ---",
-                    "f1 〜 f20",
-                    "--- 英数字 ---",
-                    "a 〜 z", "0 〜 9"
-                ],
-                "language": self._language,
-                "prompt": self._prompt,
-                "hotkey": self._hotkey,
-                "min_duration_ms": self._min_duration_ms,
-            }
-            save_settings(default)
+            default_yaml = f"""# Kikitori 設定ファイル
+#
+# hotkey: 同時押ししたいキーを配列で指定
+#   例: ["option"], ["f13"], ["ctrl", "alt"], ["cmd", "shift", "a"]
+#
+# 利用可能なキー:
+#   修飾キー: ctrl, alt (option), cmd (command), shift
+#   特殊キー: esc, space, tab, enter, backspace, delete,
+#            caps_lock, home, end, page_up, page_down,
+#            up, down, left, right
+#   Fキー: f1 〜 f20
+#   英数字: a 〜 z, 0 〜 9
+
+language: {self._language}
+prompt: "{self._prompt}"
+hotkey:
+"""
+            for k in self._hotkey:
+                default_yaml += f"  - {k}\n"
+            default_yaml += f"min_duration_ms: {self._min_duration_ms}\n"
+            SETTINGS_PATH.write_text(default_yaml, encoding="utf-8")
 
         import subprocess
         subprocess.Popen(["open", str(SETTINGS_PATH)])

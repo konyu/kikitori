@@ -65,19 +65,20 @@ python main.py
 
 ### 設定のカスタマイズ
 
-メニューバーから **設定ファイルを開く** を選択すると `~/.kikitori_settings.json` が作成・表示されます。
+メニューバーから **設定ファイルを開く** を選択すると `~/.kikitori_settings.yaml` が作成・表示されます。
 
-```json
-{
-  "language": "ja",
-  "prompt": "以下は日本語の音声認識結果です。",
-  "hotkey": ["option"]
-}
+```yaml
+language: ja
+prompt: "以下は日本語の音声認識結果です。"
+hotkey:
+  - option
+min_duration_ms: 500
 ```
 
 - `language`: 認識言語（`ja`, `en`, `zh` など）
 - `prompt`: Whisper への指示文（文脈を与えると認識精度が向上）
 - `hotkey`: ホットキー（後述）
+- `min_duration_ms`: 最低録音長（ミリ秒）。これより短い録音はWhisperに渡さない（デフォルト: 500）
 
 ファイル保存後、自動的に設定が反映されます。
 
@@ -98,7 +99,7 @@ python main.py
 | 言語: ja | 現在の認識言語 |
 | プロンプト: ... | 現在のプロンプト（30文字まで表示） |
 | モデル: ... | 使用中のWhisperモデル |
-| 設定ファイルを開く | `~/.kikitori_settings.json` を編集 |
+| 設定ファイルを開く | `~/.kikitori_settings.yaml` を編集 |
 | 終了 | アプリを終了 |
 
 > 初回起動時、`mlx-whisper` が Hugging Face からモデルをダウンロードします（数百MB）。ネットワーク接続が必要です。
