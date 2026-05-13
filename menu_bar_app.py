@@ -8,7 +8,7 @@ from pathlib import Path
 import rumps
 
 from kikitori.app import App
-from kikitori.config import DEFAULT_HOTKEY, DEFAULT_LANGUAGE, DEFAULT_PROMPT, MODEL_NAME
+from kikitori.config import DEFAULT_HOTKEY, DEFAULT_LANGUAGE, DEFAULT_PROMPT, MIN_DURATION_MS, MODEL_NAME, SAMPLE_RATE
 from kikitori.hotkey_manager import resolve_hotkey
 
 
@@ -44,12 +44,14 @@ class KikitoriStatusBarApp(rumps.App):
         self._language = self._settings.get("language", DEFAULT_LANGUAGE)
         self._prompt = self._settings.get("prompt", DEFAULT_PROMPT)
         self._hotkey = self._settings.get("hotkey", DEFAULT_HOTKEY)
+        self._min_duration_ms = self._settings.get("min_duration_ms", MIN_DURATION_MS)
 
         # Core app with state-change callback
         self._app = App(
             language=self._language,
             prompt=self._prompt,
             hotkey=self._hotkey,
+            min_duration_ms=self._min_duration_ms,
             on_state_change=self._on_core_state_change,
         )
 
@@ -179,11 +181,18 @@ class KikitoriStatusBarApp(rumps.App):
             self._pending_prompt = self._prompt_preview(new_prompt)
             changed = True
 
+        new_min_dur = new_settings.get("min_duration_ms", MIN_DURATION_MS)
+        if new_min_dur != self._min_duration_ms:
+            self._min_duration_ms = new_min_dur
+            self._app._min_duration_ms = new_min_dur
+            self._app._hotkey._min_duration_samples = int(new_min_dur / 1000 * SAMPLE_RATE)
+            changed = True
+
         new_hotkey = new_settings.get("hotkey", DEFAULT_HOTKEY)
         if new_hotkey != self._hotkey:
             self._hotkey = new_hotkey
             self._app._hotkey_config = new_hotkey
-            self._app._hotkey._hotkey_groups = resolve_hotkey(new_hotkey)
+            self._app._hotkey.update_hotkey(new_hotkey)
             self._hotkey_item.title = f"ホットキー: {' + '.join(self._hotkey)}"
             changed = True
 
@@ -278,6 +287,7 @@ class KikitoriStatusBarApp(rumps.App):
                 "language": self._language,
                 "prompt": self._prompt,
                 "hotkey": self._hotkey,
+                "min_duration_ms": self._min_duration_ms,
             }
             save_settings(default)
 

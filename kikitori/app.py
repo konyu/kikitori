@@ -10,6 +10,7 @@ from kikitori.config import (
     DEFAULT_LANGUAGE,
     DEFAULT_PROMPT,
     MAX_DURATION,
+    MIN_DURATION_MS,
     MODEL_NAME,
     SAMPLE_RATE,
 )
@@ -28,6 +29,7 @@ class App:
         prompt: str = DEFAULT_PROMPT,
         language: str = DEFAULT_LANGUAGE,
         max_duration: float = MAX_DURATION,
+        min_duration_ms: float = MIN_DURATION_MS,
         hotkey: list[str] | None = None,
         on_state_change=None,
     ):
@@ -37,6 +39,7 @@ class App:
         self._prompt = prompt
         self._language = language
         self._max_duration = max_duration
+        self._min_duration_ms = min_duration_ms
         self._hotkey_config = hotkey if hotkey is not None else DEFAULT_HOTKEY
 
         self._buffer = AudioBuffer()
@@ -50,6 +53,7 @@ class App:
             prompt=prompt,
             language=language,
             max_duration=max_duration,
+            min_duration_ms=min_duration_ms,
             hotkey=self._hotkey_config,
             on_state_change=on_state_change,
         )

@@ -8,6 +8,8 @@ from kikitori.hotkey_manager import HotkeyManager
 
 
 DEFAULT_TEST_HOTKEY = ["ctrl", "alt"]
+# min_duration_ms=0 で最低録音長フィルタを無効化（テストでは短い音声データを使用）
+TEST_KWARGS = {"min_duration_ms": 0}
 from kikitori.injector import Injector
 from kikitori.recorder import Recorder
 from kikitori.transcriber import Transcriber
@@ -69,19 +71,19 @@ class FakeTimer:
 class TestHotkeyManager:
     def test_press_ctrl_alone_does_not_start(self):
         rec = FakeRecorder()
-        mgr = HotkeyManager(rec, FakeTranscriber(), FakeInjector(), hotkey=DEFAULT_TEST_HOTKEY)
+        mgr = HotkeyManager(rec, FakeTranscriber(), FakeInjector(), hotkey=DEFAULT_TEST_HOTKEY, **TEST_KWARGS)
         mgr.on_press(Key.ctrl_l)
         assert not rec.started
 
     def test_press_alt_alone_does_not_start(self):
         rec = FakeRecorder()
-        mgr = HotkeyManager(rec, FakeTranscriber(), FakeInjector(), hotkey=DEFAULT_TEST_HOTKEY)
+        mgr = HotkeyManager(rec, FakeTranscriber(), FakeInjector(), hotkey=DEFAULT_TEST_HOTKEY, **TEST_KWARGS)
         mgr.on_press(Key.alt)
         assert not rec.started
 
     def test_press_both_starts_recording(self):
         rec = FakeRecorder()
-        mgr = HotkeyManager(rec, FakeTranscriber(), FakeInjector(), hotkey=DEFAULT_TEST_HOTKEY)
+        mgr = HotkeyManager(rec, FakeTranscriber(), FakeInjector(), hotkey=DEFAULT_TEST_HOTKEY, **TEST_KWARGS)
         mgr.on_press(Key.ctrl_l)
         mgr.on_press(Key.alt)
         assert rec.started
@@ -90,7 +92,7 @@ class TestHotkeyManager:
         rec = FakeRecorder()
         trans = FakeTranscriber("こんにちは")
         inj = FakeInjector()
-        mgr = HotkeyManager(rec, trans, inj, hotkey=DEFAULT_TEST_HOTKEY)
+        mgr = HotkeyManager(rec, trans, inj, hotkey=DEFAULT_TEST_HOTKEY, **TEST_KWARGS)
 
         mgr.on_press(Key.ctrl_l)
         mgr.on_press(Key.alt)
@@ -102,7 +104,7 @@ class TestHotkeyManager:
 
     def test_release_other_key_ignored(self):
         rec = FakeRecorder()
-        mgr = HotkeyManager(rec, FakeTranscriber(), FakeInjector(), hotkey=DEFAULT_TEST_HOTKEY)
+        mgr = HotkeyManager(rec, FakeTranscriber(), FakeInjector(), hotkey=DEFAULT_TEST_HOTKEY, **TEST_KWARGS)
         mgr.on_press(Key.ctrl_l)
         mgr.on_press(Key.alt)
         mgr.on_release(Key.shift)
@@ -111,7 +113,7 @@ class TestHotkeyManager:
 
     def test_double_start_is_ignored(self):
         rec = FakeRecorder()
-        mgr = HotkeyManager(rec, FakeTranscriber(), FakeInjector(), hotkey=DEFAULT_TEST_HOTKEY)
+        mgr = HotkeyManager(rec, FakeTranscriber(), FakeInjector(), hotkey=DEFAULT_TEST_HOTKEY, **TEST_KWARGS)
         mgr.on_press(Key.ctrl_l)
         mgr.on_press(Key.alt)
         mgr.on_press(Key.ctrl_l)  # 再度
@@ -121,7 +123,7 @@ class TestHotkeyManager:
     def test_release_when_not_recording_does_nothing(self):
         rec = FakeRecorder()
         inj = FakeInjector()
-        mgr = HotkeyManager(rec, FakeTranscriber(), FakeInjector(), hotkey=DEFAULT_TEST_HOTKEY)
+        mgr = HotkeyManager(rec, FakeTranscriber(), FakeInjector(), hotkey=DEFAULT_TEST_HOTKEY, **TEST_KWARGS)
         mgr.on_release(Key.ctrl_l)
         assert not rec.stopped
         assert inj.injected == []
@@ -131,7 +133,7 @@ class TestHotkeyManager:
         rec._audio = np.array([], dtype=np.float32)
         trans = FakeTranscriber()
         inj = FakeInjector()
-        mgr = HotkeyManager(rec, trans, inj, hotkey=DEFAULT_TEST_HOTKEY)
+        mgr = HotkeyManager(rec, trans, inj, hotkey=DEFAULT_TEST_HOTKEY, **TEST_KWARGS)
 
         mgr.on_press(Key.ctrl_l)
         mgr.on_press(Key.alt)
@@ -145,7 +147,7 @@ class TestHotkeyManager:
         """Ctrl または Alt のどちらを先に離しても動作する"""
         rec = FakeRecorder()
         inj = FakeInjector()
-        mgr = HotkeyManager(rec, FakeTranscriber("A"), inj, hotkey=DEFAULT_TEST_HOTKEY)
+        mgr = HotkeyManager(rec, FakeTranscriber("A"), inj, hotkey=DEFAULT_TEST_HOTKEY, **TEST_KWARGS)
 
         mgr.on_press(Key.ctrl_l)
         mgr.on_press(Key.alt)
@@ -157,7 +159,7 @@ class TestHotkeyManager:
         rec = FakeRecorder()
         trans = FakeTranscriber("A")
         inj = FakeInjector()
-        mgr = HotkeyManager(rec, trans, inj, hotkey=DEFAULT_TEST_HOTKEY)
+        mgr = HotkeyManager(rec, trans, inj, hotkey=DEFAULT_TEST_HOTKEY, **TEST_KWARGS)
 
         for _ in range(2):
             rec.stopped = False
@@ -172,7 +174,7 @@ class TestHotkeyManager:
         rec = FakeRecorder()
         trans = FakeTranscriber()
         inj = FakeInjector()
-        mgr = HotkeyManager(rec, trans, inj, hotkey=DEFAULT_TEST_HOTKEY, prompt="テストプロンプト", language="en")
+        mgr = HotkeyManager(rec, trans, inj, hotkey=DEFAULT_TEST_HOTKEY, **TEST_KWARGS, prompt="テストプロンプト", language="en")
 
         mgr.on_press(Key.ctrl_l)
         mgr.on_press(Key.alt)
@@ -187,7 +189,7 @@ class TestHotkeyManager:
         timer = FakeTimer(0, None)
         mgr = HotkeyManager(
             rec, FakeTranscriber(), FakeInjector(),
-            hotkey=DEFAULT_TEST_HOTKEY,
+            hotkey=DEFAULT_TEST_HOTKEY, **TEST_KWARGS,
             max_duration=60.0,
             timer_factory=lambda interval, func: FakeTimer(interval, func),
         )
@@ -201,7 +203,7 @@ class TestHotkeyManager:
         rec = FakeRecorder()
         mgr = HotkeyManager(
             rec, FakeTranscriber(), FakeInjector(),
-            hotkey=DEFAULT_TEST_HOTKEY,
+            hotkey=DEFAULT_TEST_HOTKEY, **TEST_KWARGS,
             max_duration=60.0,
             timer_factory=lambda interval, func: FakeTimer(interval, func),
         )
@@ -218,7 +220,7 @@ class TestHotkeyManager:
         inj = FakeInjector()
         mgr = HotkeyManager(
             rec, trans, inj,
-            hotkey=DEFAULT_TEST_HOTKEY,
+            hotkey=DEFAULT_TEST_HOTKEY, **TEST_KWARGS,
             max_duration=60.0,
             timer_factory=lambda interval, func: FakeTimer(interval, func),
         )
@@ -243,7 +245,7 @@ class TestHotkeyManager:
         inj = FakeInjector()
         mgr = HotkeyManager(
             rec, trans, inj,
-            hotkey=DEFAULT_TEST_HOTKEY,
+            hotkey=DEFAULT_TEST_HOTKEY, **TEST_KWARGS,
             max_duration=60.0,
             timer_factory=lambda interval, func: FakeTimer(interval, func),
         )
@@ -266,7 +268,7 @@ class TestHotkeyManager:
         rec = FakeRecorder()
         trans = FakeTranscriber("F13テスト")
         inj = FakeInjector()
-        mgr = HotkeyManager(rec, trans, inj, hotkey=["f13"])
+        mgr = HotkeyManager(rec, trans, inj, hotkey=["f13"], **TEST_KWARGS)
 
         mgr.on_press(Key.f13)
         assert rec.started
@@ -281,7 +283,7 @@ class TestHotkeyManager:
         rec = FakeRecorder()
         trans = FakeTranscriber("文字キー")
         inj = FakeInjector()
-        mgr = HotkeyManager(rec, trans, inj, hotkey=["a"])
+        mgr = HotkeyManager(rec, trans, inj, hotkey=["a"], **TEST_KWARGS)
 
         key_a = KeyCode.from_char("a")
         mgr.on_press(key_a)
@@ -297,7 +299,7 @@ class TestHotkeyManager:
         rec = FakeRecorder()
         trans = FakeTranscriber("数字キー")
         inj = FakeInjector()
-        mgr = HotkeyManager(rec, trans, inj, hotkey=["1"])
+        mgr = HotkeyManager(rec, trans, inj, hotkey=["1"], **TEST_KWARGS)
 
         key_1 = KeyCode.from_char("1")
         mgr.on_press(key_1)
@@ -313,7 +315,7 @@ class TestHotkeyManager:
         rec = FakeRecorder()
         trans = FakeTranscriber("組み合わせ")
         inj = FakeInjector()
-        mgr = HotkeyManager(rec, trans, inj, hotkey=["ctrl", "a"])
+        mgr = HotkeyManager(rec, trans, inj, hotkey=["ctrl", "a"], **TEST_KWARGS)
 
         key_a = KeyCode.from_char("a")
         mgr.on_press(Key.ctrl_l)
@@ -329,4 +331,4 @@ class TestHotkeyManager:
     def test_invalid_hotkey_name_raises(self):
         """未知のキー名は ValueError を送出"""
         with pytest.raises(ValueError, match="未知のホットキー名"):
-            HotkeyManager(FakeRecorder(), FakeTranscriber(), FakeInjector(), hotkey=["unknown_key_xyz"])
+            HotkeyManager(FakeRecorder(), FakeTranscriber(), FakeInjector(), hotkey=["unknown_key_xyz"], **TEST_KWARGS)

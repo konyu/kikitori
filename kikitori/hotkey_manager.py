@@ -3,7 +3,7 @@ import threading
 
 from pynput.keyboard import Key, KeyCode
 
-from kikitori.config import DEFAULT_HOTKEY, DEFAULT_LANGUAGE, MAX_DURATION
+from kikitori.config import DEFAULT_HOTKEY, DEFAULT_LANGUAGE, MAX_DURATION, MIN_DURATION_MS, SAMPLE_RATE
 from kikitori.injector import Injector
 from kikitori.recorder import Recorder
 from kikitori.transcriber import Transcriber
@@ -65,6 +65,7 @@ class HotkeyManager:
         prompt: str = "",
         language: str = DEFAULT_LANGUAGE,
         max_duration: float = MAX_DURATION,
+        min_duration_ms: float = MIN_DURATION_MS,
         hotkey: list[str] | None = None,
         timer_factory=None,
         on_state_change=None,
@@ -75,6 +76,7 @@ class HotkeyManager:
         self._prompt = prompt
         self._language = language
         self._max_duration = max_duration
+        self._min_duration_samples = int(min_duration_ms / 1000 * SAMPLE_RATE)
         self._timer_factory = timer_factory or threading.Timer
         self._timer = None
         self._is_recording = False
@@ -113,13 +115,11 @@ class HotkeyManager:
             if self._on_state_change:
                 self._on_state_change(False)
         audio = self._recorder.stop()
-        if audio.size > 0:
+        if self._should_transcribe(audio):
             text = self._transcriber.transcribe(
                 audio, prompt=self._prompt, language=self._language
             )
             self._injector.inject(text)
-        else:
-            print("[INFO] 録音データが空です")
         # キーがまだ押されていれば再録音、そうでなければタイマーをクリア
         with self._lock:
             if self._all_hotkey_pressed():
@@ -130,6 +130,20 @@ class HotkeyManager:
                 self._start_auto_stop_timer()
             else:
                 self._timer = None
+
+    # ── 音声長判定 ────────────────────────────────────────────────────
+
+    def _should_transcribe(self, audio) -> bool:
+        """録音が最低長を満たしていればTrue。短すぎる場合はFalseを返しログ出力。"""
+        if audio.size == 0:
+            print("[INFO] 録音データが空です")
+            return False
+        if audio.size < self._min_duration_samples:
+            duration_ms = audio.size / SAMPLE_RATE * 1000
+            min_ms = self._min_duration_samples / SAMPLE_RATE * 1000
+            print(f"[INFO] 録音が短すぎます（{duration_ms:.0f}ms < {min_ms:.0f}ms） — Whisperに渡しません")
+            return False
+        return True
 
     # ── キー判定 ────────────────────────────────────────────────────────
 
@@ -176,13 +190,23 @@ class HotkeyManager:
         if should_stop:
             self._cancel_auto_stop_timer()
             audio = self._recorder.stop()
-            if audio.size > 0:
+            if self._should_transcribe(audio):
                 text = self._transcriber.transcribe(
                     audio, prompt=self._prompt, language=self._language
                 )
                 self._injector.inject(text)
-            else:
-                print("[INFO] 録音データが空です")
+
+    # ── 設定更新 ──────────────────────────────────────────────────────
+
+    def update_hotkey(self, names: list[str]):
+        """ホットキー設定を動的に更新（設定ファイル変更時）"""
+        self._hotkey_groups = resolve_hotkey(names)
+        self._hotkey_set = set()
+        self._hotkey_group_sets = []
+        for group in self._hotkey_groups:
+            key_ids = {_key_id(k) for k in group}
+            self._hotkey_set.update(key_ids)
+            self._hotkey_group_sets.append(key_ids)
 
     # ── 公開 API ───────────────────────────────────────────────────────
 
@@ -211,10 +235,8 @@ class HotkeyManager:
                 self._on_state_change(False)
         self._cancel_auto_stop_timer()
         audio = self._recorder.stop()
-        if audio.size > 0:
+        if self._should_transcribe(audio):
             text = self._transcriber.transcribe(
                 audio, prompt=self._prompt, language=self._language
             )
             self._injector.inject(text)
-        else:
-            print("[INFO] 録音データが空です")

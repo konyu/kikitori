@@ -46,4 +46,7 @@ class AudioBuffer:
             self._recording = False
             if self._pos == 0:
                 return np.array([], dtype=AUDIO_DTYPE)
-            return self._buf[:self._pos]
+            # Return a copy, not a view — the pre-allocated buffer may be reused
+            # (e.g. _on_auto_stop restarts recording) while the caller is still
+            # reading the returned audio.
+            return self._buf[:self._pos].copy()

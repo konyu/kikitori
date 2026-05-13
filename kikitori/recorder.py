@@ -47,7 +47,7 @@ class Recorder:
             import sys
 
             print(f"[WARN] オーディオステータス: {status}", file=sys.stderr)
-        # NOTE: is_recording() guard removed — AudioBuffer.append() checks _recording
-        # internally under lock. Avoids double lock acquire per chunk.
         if indata is not None:
-            self._buffer.append(indata.reshape(-1))
+            # Copy the input data so we own the memory — sounddevice may reuse
+            # indata after the callback returns.
+            self._buffer.append(indata.copy().reshape(-1))
