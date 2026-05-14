@@ -91,6 +91,8 @@ class KikitoriUIApp(QtWidgets.QApplication):
     def __init__(self, argv):
         super().__init__(argv)
 
+        self.setApplicationName("Kikitori")
+
         self._settings = load_settings()
         self._language = self._settings.get("language", DEFAULT_LANGUAGE)
         self._prompt = self._settings.get("prompt", DEFAULT_PROMPT)
@@ -149,6 +151,16 @@ class KikitoriUIApp(QtWidgets.QApplication):
         self._tray.setContextMenu(self._menu)
         self._tray.activated.connect(self._on_tray_activated)
         self._tray.show()
+
+        # macOS: ウィンドウがなくても終了しない + Dock非表示
+        self.setQuitOnLastWindowClosed(False)
+        try:
+            import objc
+            NSApplication = objc.lookUpClass("NSApplication")
+            ns_app = NSApplication.sharedApplication()
+            ns_app.setActivationPolicy_(1)  # NSApplicationActivationPolicyAccessory
+        except Exception:
+            pass
 
         # State
         self._recording = False
