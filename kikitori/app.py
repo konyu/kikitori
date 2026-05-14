@@ -61,9 +61,10 @@ class App:
         self._listener_thread = None
 
     def load(self):
-        print(f"[INFO] モデルを読み込み中: {self._model_name}")
+        import sys
+        print(f"[INFO] モデルを読み込み中: {self._model_name}", flush=True)
         self._transcriber.load()
-        print("[INFO] モデル読み込み完了")
+        print("[INFO] モデル読み込み完了", flush=True)
 
     def run(self, listener_factory=None):
         if listener_factory is None:
@@ -90,11 +91,13 @@ class App:
 
     def run_background(self, listener_factory=None):
         """デーモンスレッドでホットキーリスナーを開始（メニューバー用）"""
+        import sys
         if listener_factory is None:
             listener_factory = lambda on_press, on_release: keyboard.Listener(
                 on_press=on_press, on_release=on_release
             )
 
+        print("[INFO] ホットキーリスナーを開始します...", flush=True)
         self._listener = listener_factory(
             on_press=self._hotkey.on_press,
             on_release=self._hotkey.on_release,
@@ -102,6 +105,7 @@ class App:
         self._listener.start()
         self._listener_thread = threading.Thread(target=self._listener.join, daemon=True)
         self._listener_thread.start()
+        print("[INFO] ホットキーリスナー開始完了。待機中...", flush=True)
 
     def stop_background(self):
         """バックグラウンドリスナーを停止"""

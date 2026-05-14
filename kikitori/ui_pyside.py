@@ -1,5 +1,6 @@
 """PySide6 ベースの Kikitori UI（メニューバー + オーバーレイ）"""
 import os
+import signal
 import sys
 import threading
 from pathlib import Path
@@ -244,11 +245,12 @@ class KikitoriUIApp(QtWidgets.QApplication):
         self._model_ready = True
         self._model_action.setText(f"モデル: {MODEL_NAME}")
         self._status_action.setText("○ 待機中")
+        print("[INFO] モデル準備完了。アプリケーションを開始します...", flush=True)
         self._app.run_background()
 
     def _on_model_failed(self, message: str):
         self._model_action.setText(f"モデル読み込み失敗")
-        print(f"[ERROR] モデル読み込み失敗: {message}", file=sys.stderr)
+        print(f"[ERROR] モデル読み込み失敗: {message}", file=sys.stderr, flush=True)
 
     # ── Recording state ──────────────────────────────────────────────────
 
@@ -365,11 +367,32 @@ hotkey:
 
 
 def main():
-    # Dock非表示: QtがRegularに設定するのを防ぐ
-    import os
+    # macOS IMK の無害な mach port 警告を抑制（NSLog は fd 2 に直書きするため
+    # os.dup2 でフィルタする）
+    _stderr_fd = sys.stderr.fileno()
+    _saved_stderr_fd = os.dup(_stderr_fd)  # 元の stderr を退避
+    _stderr_pipe_r, _stderr_pipe_w = os.pipe()
+    os.dup2(_stderr_pipe_w, _stderr_fd)
+    os.close(_stderr_pipe_w)
+    def _filter_stderr():
+        while True:
+            data = os.read(_stderr_pipe_r, 4096)
+            if not data:
+                break
+            for line in data.decode(errors="replace").splitlines(True):
+                if "IMKCFRunLoopWakeUpReliable" not in line:
+                    os.write(_saved_stderr_fd, line.encode(errors="replace"))
+    import threading
+    threading.Thread(target=_filter_stderr, daemon=True).start()
+
     os.environ["QT_MAC_DISABLE_FOREGROUND_APPLICATION_TRANSFORM"] = "1"
 
     QtWidgets.QApplication.setApplicationName("Kikitori")
     QtWidgets.QApplication.setApplicationDisplayName("Kikitori")
     app = KikitoriUIApp(sys.argv)
+
+    # Ctrl+C (SIGINT) / kill (SIGTERM) でグレースフル終了
+    signal.signal(signal.SIGINT, lambda sig, frame: app._quit_app())
+    signal.signal(signal.SIGTERM, lambda sig, frame: app._quit_app())
+
     sys.exit(app.exec())
