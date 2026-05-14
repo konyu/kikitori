@@ -348,19 +348,11 @@ hotkey:
         self.quit()
 
 
-def _configure_macos_accessory():
-    """Dock非表示・メニューバーのみのアクセサリアプリとして設定。
-    QApplication生成前に呼ぶ必要がある。"""
-    try:
-        from AppKit import NSApplication, NSApplicationActivationPolicyAccessory
-        app = NSApplication.sharedApplication()
-        app.setActivationPolicy_(NSApplicationActivationPolicyAccessory)
-    except Exception:
-        pass
-
-
 def main():
-    _configure_macos_accessory()
+    # Dock非表示: QtがRegularに設定するのを防ぐ
+    import os
+    os.environ["QT_MAC_DISABLE_FOREGROUND_APPLICATION_TRANSFORM"] = "1"
+
     QtWidgets.QApplication.setApplicationName("Kikitori")
     QtWidgets.QApplication.setApplicationDisplayName("Kikitori")
     app = KikitoriUIApp(sys.argv)
