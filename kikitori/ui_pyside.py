@@ -126,11 +126,6 @@ class KikitoriUIApp(QtWidgets.QApplication):
     def __init__(self, argv):
         super().__init__(argv)
 
-        self.setApplicationName("Kikitori")
-
-        # Dockアイコン設定（macOS ネイティブ API）
-        _set_dock_icon()
-
         self._settings = load_settings()
         self._language = self._settings.get("language", DEFAULT_LANGUAGE)
         self._prompt = self._settings.get("prompt", DEFAULT_PROMPT)
@@ -353,30 +348,19 @@ hotkey:
         self.quit()
 
 
-def _configure_macos_app_name():
-    """macOS Dockに表示されるアプリ名を"Python"から"Kikitori"に変更する。
+def _configure_macos_accessory():
+    """Dock非表示・メニューバーのみのアクセサリアプリとして設定。
     QApplication生成前に呼ぶ必要がある。"""
     try:
-        # 方法1: 環境変数でCFBundleNameを指定（NSApplication初期化前に必要）
-        import os
-        os.environ.setdefault("__CFBundleName", "Kikitori")
-        os.environ.setdefault("__CFBundleDisplayName", "Kikitori")
-
-        # 方法2: NSProcessInfo でプロセス名を変更
-        from Foundation import NSProcessInfo
-        NSProcessInfo.processInfo().setProcessName_("Kikitori")
-
-        # 方法3: アクティベーションポリシーを通常アプリに設定しDockへの表示を有効化
-        from AppKit import NSApplication, NSApplicationActivationPolicyRegular
+        from AppKit import NSApplication, NSApplicationActivationPolicyAccessory
         app = NSApplication.sharedApplication()
-        app.setActivationPolicy_(NSApplicationActivationPolicyRegular)
+        app.setActivationPolicy_(NSApplicationActivationPolicyAccessory)
     except Exception:
         pass
 
 
 def main():
-    _configure_macos_app_name()
-    # macOS: QApplication生成前に必須（メニューバー表示名）
+    _configure_macos_accessory()
     QtWidgets.QApplication.setApplicationName("Kikitori")
     QtWidgets.QApplication.setApplicationDisplayName("Kikitori")
     app = KikitoriUIApp(sys.argv)

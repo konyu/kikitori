@@ -22,10 +22,10 @@ class Kikitori < Formula
     # アプリケーションファイルをコピー
     libexec.install Dir["*"]
 
-    # ランチャースクリプト（-a kikitori でプロセス名を設定）
+    # ランチャースクリプト
     (bin/"kikitori").write <<~EOS
       #!/bin/bash
-      exec -a kikitori "#{libexec}/bin/python" "#{libexec}/pyside_main.py" "$@"
+      exec "#{libexec}/bin/python" "#{libexec}/pyside_main.py" "$@"
     EOS
   end
 
