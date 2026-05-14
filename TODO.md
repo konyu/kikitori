@@ -18,7 +18,7 @@
 - [x] GitHub アーカイブ SHA256 を計算
 - [x] `homebrew-kikitori` Formula を更新（URL・SHA256）
 - [x] Homebrew インストールテスト（v1.0.2 インストール成功）
-- [ ] `homebrew-kikitori` tap への push（認証エラー：HTTPS credential 未設定）
+- [x] `homebrew-kikitori` tap への push（SSH 経由で成功）
 
 ## オプション / 今後の改善
 
