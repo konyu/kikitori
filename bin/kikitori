@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Kikitori ランチャースクリプト
+# Homebrew 経由でインストールされた場合のエントリポイント
+
+set -e
+
+PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+
+# mise で Python 3.14 を確保
+if command -v mise &> /dev/null; then
+    eval "$(mise activate bash)"
+fi
+
+# 仮想環境の確認
+if [ ! -d "$PROJECT_DIR/venv" ]; then
+    echo "[INFO] 仮想環境を作成しています..."
+    python3 -m venv "$PROJECT_DIR/venv"
+fi
+
+source "$PROJECT_DIR/venv/bin/activate"
+
+# 依存関係の確認（初回のみ）
+if ! python -c "import kikitori" 2>/dev/null; then
+    echo "[INFO] 依存関係をインストールしています..."
+    pip install -q -r "$PROJECT_DIR/requirements.txt"
+fi
+
+# 起動
+exec python "$PROJECT_DIR/pyside_main.py"
