@@ -178,13 +178,13 @@ class KikitoriUIApp(QtWidgets.QApplication):
     # ── Tray icons ───────────────────────────────────────────────────────
 
     def _set_tray_icon_idle(self):
-        icon = QtGui.QIcon(str(Path(__file__).parent.parent / "assets" / "icon-idle.svg"))
-        icon.setIsMask(True)
+        icon = QtGui.QIcon(str(Path(__file__).parent.parent / "assets" / "icon-idle.png"))
+        icon.setIsMask(True)  # ダーク/ライトモード自動対応
         self._tray.setIcon(icon)
 
     def _set_tray_icon_recording(self):
-        icon = QtGui.QIcon(str(Path(__file__).parent.parent / "assets" / "icon-recording.svg"))
-        icon.setIsMask(True)
+        icon = QtGui.QIcon(str(Path(__file__).parent.parent / "assets" / "icon-recording.png"))
+        # 赤いアイコンはマスクモードOFFで色付き表示
         self._tray.setIcon(icon)
 
     # ── Model loading callbacks ──────────────────────────────────────────
