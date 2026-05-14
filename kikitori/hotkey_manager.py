@@ -18,7 +18,6 @@ _KEY_MAP: dict[str, list] = {
     "cmd": [Key.cmd, Key.cmd_r],
     "command": [Key.cmd, Key.cmd_r],
     "shift": [Key.shift, Key.shift_r],
-    "fn": [KeyCode.from_vk(63)],  # macOS fn key (kVK_Function)
 }
 
 
