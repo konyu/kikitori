@@ -152,16 +152,6 @@ class KikitoriUIApp(QtWidgets.QApplication):
         self._tray.activated.connect(self._on_tray_activated)
         self._tray.show()
 
-        # macOS: ウィンドウがなくても終了しない + Dock非表示
-        self.setQuitOnLastWindowClosed(False)
-        try:
-            import objc
-            NSApplication = objc.lookUpClass("NSApplication")
-            ns_app = NSApplication.sharedApplication()
-            ns_app.setActivationPolicy_(1)  # NSApplicationActivationPolicyAccessory
-        except Exception:
-            pass
-
         # State
         self._recording = False
         self._model_ready = False
