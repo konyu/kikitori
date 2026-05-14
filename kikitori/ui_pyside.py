@@ -178,28 +178,14 @@ class KikitoriUIApp(QtWidgets.QApplication):
     # ── Tray icons ───────────────────────────────────────────────────────
 
     def _set_tray_icon_idle(self):
-        pixmap = QtGui.QPixmap(64, 64)
-        pixmap.fill(QtGui.QColor(80, 80, 80))
-        painter = QtGui.QPainter(pixmap)
-        painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
-        painter.setPen(QtGui.QPen(QtGui.QColor(255, 255, 255), 3))
-        painter.drawEllipse(8, 8, 48, 48)
-        painter.setBrush(QtGui.QColor(255, 255, 255))
-        painter.drawEllipse(24, 24, 16, 16)
-        painter.end()
-        self._tray.setIcon(QtGui.QIcon(pixmap))
+        icon = QtGui.QIcon(str(Path(__file__).parent.parent / "assets" / "icon-idle.svg"))
+        icon.setIsMask(True)
+        self._tray.setIcon(icon)
 
     def _set_tray_icon_recording(self):
-        pixmap = QtGui.QPixmap(64, 64)
-        pixmap.fill(QtGui.QColor(220, 50, 50))
-        painter = QtGui.QPainter(pixmap)
-        painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
-        painter.setPen(QtGui.QPen(QtGui.QColor(255, 255, 255), 3))
-        painter.drawEllipse(8, 8, 48, 48)
-        painter.setBrush(QtGui.QColor(255, 255, 255))
-        painter.drawEllipse(24, 24, 16, 16)
-        painter.end()
-        self._tray.setIcon(QtGui.QIcon(pixmap))
+        icon = QtGui.QIcon(str(Path(__file__).parent.parent / "assets" / "icon-recording.svg"))
+        icon.setIsMask(True)
+        self._tray.setIcon(icon)
 
     # ── Model loading callbacks ──────────────────────────────────────────
 
