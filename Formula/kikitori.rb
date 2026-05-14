@@ -2,9 +2,9 @@ class Kikitori < Formula
   include Language::Python::Virtualenv
 
   desc "macOS menu bar voice-to-text tool with overlay UI"
-  homepage "https://github.com/kon_yu/kikitori"
-  url "https://github.com/kon_yu/kikitori/archive/refs/tags/v1.0.0.tar.gz"
-  sha256 "PLACEHOLDER_SHA256"
+  homepage "https://github.com/konyu/kikitori"
+  url "https://github.com/konyu/kikitori/archive/refs/tags/v1.0.0.tar.gz"
+  sha256 "c494f62479cf3881979a9afaac70bad52f4b873433c6eae1a20053a72a72765a"
   license "MIT"
 
   depends_on "python@3.14"
