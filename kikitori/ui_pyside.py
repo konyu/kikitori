@@ -47,14 +47,36 @@ def _activate_app_by_pid(pid: int) -> bool:
 
 
 def _set_dock_icon():
-    """Dockアイコンを設定する。Homebrew / 開発 両方のパス解決に対応。"""
+    """Dockアイコンを設定する。Homebrew / 開発 両方のパス解決に対応。
+    透過背景を白に合成して設定する。"""
     try:
-        from AppKit import NSApp, NSImage
+        from AppKit import (
+            NSApp, NSImage, NSColor, NSRectFill,
+            NSCompositingOperationSourceOver,
+        )
+        from Foundation import NSMakeRect
         icon_path = Path(__file__).parent.parent / "assets" / "dock-icon.png"
-        if icon_path.exists():
-            ns_image = NSImage.alloc().initWithContentsOfFile_(str(icon_path))
-            if ns_image:
-                NSApp().setApplicationIconImage_(ns_image)
+        if not icon_path.exists():
+            return
+        original = NSImage.alloc().initWithContentsOfFile_(str(icon_path))
+        if original is None:
+            return
+
+        orig_size = original.size()
+        w, h = orig_size.width, orig_size.height
+
+        result = NSImage.alloc().initWithSize_(orig_size)
+        result.lockFocus()
+        NSColor.whiteColor().set()
+        NSRectFill(NSMakeRect(0, 0, w, h))
+        source_rect = NSMakeRect(0, 0, w, h)
+        dest_rect = NSMakeRect(0, 0, w, h)
+        original.drawInRect_fromRect_operation_fraction_(
+            dest_rect, source_rect, NSCompositingOperationSourceOver, 1.0
+        )
+        result.unlockFocus()
+
+        NSApp().setApplicationIconImage_(result)
     except Exception as e:
         print(f"[WARN] Dockアイコン設定に失敗: {e}", file=sys.stderr)
 
@@ -331,6 +353,31 @@ hotkey:
         self.quit()
 
 
+def _configure_macos_app_name():
+    """macOS Dockに表示されるアプリ名を"Python"から"Kikitori"に変更する。
+    QApplication生成前に呼ぶ必要がある。"""
+    try:
+        # 方法1: 環境変数でCFBundleNameを指定（NSApplication初期化前に必要）
+        import os
+        os.environ.setdefault("__CFBundleName", "Kikitori")
+        os.environ.setdefault("__CFBundleDisplayName", "Kikitori")
+
+        # 方法2: NSProcessInfo でプロセス名を変更
+        from Foundation import NSProcessInfo
+        NSProcessInfo.processInfo().setProcessName_("Kikitori")
+
+        # 方法3: アクティベーションポリシーを通常アプリに設定しDockへの表示を有効化
+        from AppKit import NSApplication, NSApplicationActivationPolicyRegular
+        app = NSApplication.sharedApplication()
+        app.setActivationPolicy_(NSApplicationActivationPolicyRegular)
+    except Exception:
+        pass
+
+
 def main():
+    _configure_macos_app_name()
+    # macOS: QApplication生成前に必須（メニューバー表示名）
+    QtWidgets.QApplication.setApplicationName("Kikitori")
+    QtWidgets.QApplication.setApplicationDisplayName("Kikitori")
     app = KikitoriUIApp(sys.argv)
     sys.exit(app.exec())
