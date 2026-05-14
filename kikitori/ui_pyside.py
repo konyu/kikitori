@@ -46,6 +46,19 @@ def _activate_app_by_pid(pid: int) -> bool:
         return False
 
 
+def _set_dock_icon():
+    """Dockアイコンを設定する。Homebrew / 開発 両方のパス解決に対応。"""
+    try:
+        from AppKit import NSApp, NSImage
+        icon_path = Path(__file__).parent.parent / "assets" / "dock-icon.png"
+        if icon_path.exists():
+            ns_image = NSImage.alloc().initWithContentsOfFile_(str(icon_path))
+            if ns_image:
+                NSApp().setApplicationIconImage_(ns_image)
+    except Exception as e:
+        print(f"[WARN] Dockアイコン設定に失敗: {e}", file=sys.stderr)
+
+
 def load_settings():
     if SETTINGS_PATH.exists():
         try:
@@ -92,6 +105,9 @@ class KikitoriUIApp(QtWidgets.QApplication):
         super().__init__(argv)
 
         self.setApplicationName("Kikitori")
+
+        # Dockアイコン設定（macOS ネイティブ API）
+        _set_dock_icon()
 
         self._settings = load_settings()
         self._language = self._settings.get("language", DEFAULT_LANGUAGE)

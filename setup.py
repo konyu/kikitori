@@ -8,7 +8,7 @@ from setuptools import setup
 
 # データファイル（アイコンなど）
 DATA_FILES = [
-    ("assets", ["assets/icon-idle.png", "assets/icon-recording.png"]),
+    ("assets", ["assets/dock-icon.png", "assets/icon-idle.png", "assets/icon-recording.png"]),
     ("_sounddevice_data/portaudio-binaries", [
         "/Users/kon_yu/development/whisper/venv/lib/python3.13/site-packages/_sounddevice_data/portaudio-binaries/libportaudio.dylib"
     ]),
