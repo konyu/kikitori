@@ -126,6 +126,9 @@ class KikitoriUIApp(QtWidgets.QApplication):
     def __init__(self, argv):
         super().__init__(argv)
 
+        # Dock非表示: QtがRegularに設定した後、イベントループでAccessoryに上書き
+        QtCore.QTimer.singleShot(100, self._hide_from_dock)
+
         self._settings = load_settings()
         self._language = self._settings.get("language", DEFAULT_LANGUAGE)
         self._prompt = self._settings.get("prompt", DEFAULT_PROMPT)
@@ -211,6 +214,19 @@ class KikitoriUIApp(QtWidgets.QApplication):
         self._settings_timer.start(1000)
 
     # ── Tray icons ───────────────────────────────────────────────────────
+
+    def _hide_from_dock(self):
+        """QtがRegularに設定した後にAccessoryにしてDock非表示にする。"""
+        try:
+            from AppKit import (
+                NSApplication,
+                NSApplicationActivationPolicyAccessory,
+            )
+            NSApplication.sharedApplication().setActivationPolicy_(
+                NSApplicationActivationPolicyAccessory
+            )
+        except Exception:
+            pass
 
     def _set_tray_icon_idle(self):
         icon = QtGui.QIcon(str(Path(__file__).parent.parent / "assets" / "icon-idle.png"))
