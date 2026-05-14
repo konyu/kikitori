@@ -5,7 +5,7 @@ from pynput.keyboard import Key, KeyCode
 
 from kikitori.config import DEFAULT_HOTKEY, DEFAULT_LANGUAGE, MAX_DURATION, MIN_DURATION_MS, SAMPLE_RATE
 from kikitori.injector import Injector
-from kikitori.recorder import Recorder
+from kikitori.recorder import Recorder, RecordError
 from kikitori.transcriber import Transcriber
 
 
@@ -171,7 +171,15 @@ class HotkeyManager:
                 self._is_recording = True
                 if self._on_state_change:
                     self._on_state_change(True)
-                self._recorder.start()
+                try:
+                    self._recorder.start()
+                except RecordError as e:
+                    import sys
+                    print(f"[ERROR] 録音開始失敗: {e}", file=sys.stderr)
+                    self._is_recording = False
+                    if self._on_state_change:
+                        self._on_state_change(False)
+                    return
                 self._start_auto_stop_timer()
 
     def on_release(self, key):
@@ -222,7 +230,16 @@ class HotkeyManager:
             self._is_recording = True
             if self._on_state_change:
                 self._on_state_change(True)
-        self._recorder.start()
+        try:
+            self._recorder.start()
+        except RecordError as e:
+            import sys
+            print(f"[ERROR] 録音開始失敗: {e}", file=sys.stderr)
+            with self._lock:
+                self._is_recording = False
+                if self._on_state_change:
+                    self._on_state_change(False)
+            return
         self._start_auto_stop_timer()
 
     def stop_recording(self):

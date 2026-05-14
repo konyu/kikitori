@@ -1,10 +1,16 @@
 """録音ストリーム制御"""
+import time
+import sys
 from typing import Callable
 
 import sounddevice as sd
 
 from kikitori.audio_buffer import AudioBuffer
 from kikitori.config import AUDIO_DTYPE, CHANNELS, SAMPLE_RATE
+
+
+class RecordError(Exception):
+    """録音開始時のエラー"""
 
 
 class Recorder:
@@ -30,10 +36,43 @@ class Recorder:
         )
 
     def start(self):
+        """録音ストリームを開始する。
+
+        スリープ復帰後などで PortAudio の内部状態が破損している場合、
+        再初期化してリトライする。
+        """
         self._buffer.start()
-        self._stream = self._stream_factory(callback=self._on_audio)
-        if self._stream is not None:
-            self._stream.start()
+        try:
+            self._stream = self._stream_factory(callback=self._on_audio)
+            if self._stream is not None:
+                self._stream.start()
+        except sd.PortAudioError as e:
+            print(
+                f"[ERROR] 録音ストリーム開始エラー: {e} - PortAudio を再初期化してリトライします",
+                file=sys.stderr,
+            )
+            self._buffer.stop()
+            self._reinit_portaudio()
+            # 再初期化後にリトライ
+            try:
+                self._buffer.start()
+                self._stream = self._stream_factory(callback=self._on_audio)
+                if self._stream is not None:
+                    self._stream.start()
+            except sd.PortAudioError as e2:
+                self._buffer.stop()
+                raise RecordError(
+                    f"PortAudio 再初期化後も録音ストリームを開始できません: {e2}"
+                ) from e2
+
+    def _reinit_portaudio(self):
+        """PortAudio を再初期化する。スリープ復帰後の破損状態から回復する。"""
+        try:
+            sd._terminate()
+        except Exception:
+            pass  # 終了に失敗しても続行
+        time.sleep(0.1)
+        sd._initialize()
 
     def stop(self):
         if self._stream:
