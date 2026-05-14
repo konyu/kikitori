@@ -100,6 +100,7 @@ min_duration_ms: 500
 
 **利用可能なホットキー例:**
 - `["option"]` — Option 単体
+- `["fn"]` — Fn 単体（※一部キーボードでは検出されない場合があります）
 - `["ctrl", "alt"]` — Ctrl + Option
 - `["f13"]` — F13 キー
 - `["cmd", "shift", "a"]` — Cmd + Shift + A
