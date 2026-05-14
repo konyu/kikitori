@@ -6,3 +6,5 @@ pyperclip
 pytest
 rumps
 pyyaml
+PySide6
+pyobjc-framework-Cocoa

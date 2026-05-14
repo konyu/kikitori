@@ -50,3 +50,20 @@ class AudioBuffer:
             # (e.g. _on_auto_stop restarts recording) while the caller is still
             # reading the returned audio.
             return self._buf[:self._pos].copy()
+
+    def get_recent_amplitudes(self, n_bars: int = 30, window_ms: float = 50.0) -> np.ndarray:
+        """直近の音声振幅を n_bars 個分取得する。UI 波形表示用。"""
+        with self._lock:
+            if self._pos == 0:
+                return np.zeros(n_bars, dtype=np.float32)
+            samples_per_bar = max(1, int(window_ms / 1000 * SAMPLE_RATE))
+            amplitudes = np.zeros(n_bars, dtype=np.float32)
+            for i in range(n_bars):
+                end = self._pos - i * samples_per_bar
+                start = max(0, end - samples_per_bar)
+                if end <= 0:
+                    break
+                chunk = self._buf[start:end]
+                if len(chunk) > 0:
+                    amplitudes[n_bars - 1 - i] = min(np.max(np.abs(chunk)) * 4.0, 1.0)
+            return amplitudes

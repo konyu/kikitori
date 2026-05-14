@@ -54,6 +54,22 @@ brew install ffmpeg
 - **Option 押下中**: 録音開始（🔴 アイコンに変化）
 - **Option 解放**: 録音停止 → 音声認識 → 自動ペースト
 
+### PySide6 版（画面中央下にオーバーレイUI）
+
+AQUA VOICE のような、録音中に画面中央下に波形アニメーションと「音声入力中...」の
+オーバーレイを表示するバージョンです。マウスクリックは下のアプリに透過します。
+
+```bash
+source venv/bin/activate
+python pyside_main.py
+```
+
+特徴:
+- **フレームレス・常時最前面**のオーバーレイウィンドウ
+- **マウスクリック透過**（後ろのアプリが操作可能）
+- **リアルタイム波形アニメーション**（30本のバーが音声の大きさに応じて変動）
+- **PySide6 QSystemTrayIcon** でメニューバー常駐
+
 ### コマンドラインから直接実行
 
 ```bash
@@ -118,7 +134,8 @@ python -m pytest tests/ -v
 ```
 .
 ├── main.py                  # CLI エントリポイント
-├── menu_bar_app.py          # macOS メニューバーアプリ
+├── menu_bar_app.py          # macOS メニューバーアプリ（rumps版）
+├── pyside_main.py           # PySide6 版エントリポイント（オーバーレイUI付き）
 ├── run.sh                   # 起動スクリプト
 ├── requirements.txt         # Python 依存関係
 └── kikitori/
@@ -127,8 +144,10 @@ python -m pytest tests/ -v
     ├── config.py            # 設定定数
     ├── hotkey_manager.py    # ホットキー状態管理
     ├── injector.py          # クリップボード経由テキスト入力
+    ├── overlay.py           # PySide6 オーバーレイUI
     ├── recorder.py          # 録音ストリーム制御
-    └── transcriber.py       # mlx-whisper ラッパー
+    ├── transcriber.py       # mlx-whisper ラッパー
+    └── ui_pyside.py         # PySide6 メニューバー＋オーバーレイ統合
 ```
 
 ## トラブルシューティング
@@ -170,6 +189,7 @@ macOS の TCC（Transparency, Consent, and Control）はアクセシビリティ
 | [pynput](https://pynput.readthedocs.io/) | グローバルホットキー監視 |
 | [pyperclip](https://pyperclip.readthedocs.io/) | クリップボード操作 |
 | [rumps](https://rumps.readthedocs.io/) | macOS メニューバー UI |
+| [PySide6](https://doc.qt.io/qtforpython-6/) | PySide6 版 GUI（オーバーレイ・メニューバー） |
 
 ## ライセンス
 
