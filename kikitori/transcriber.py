@@ -1,4 +1,5 @@
 """音声認識（mlx-whisper ラッパー）"""
+from pathlib import Path
 from typing import Callable
 
 import numpy as np
@@ -6,6 +7,34 @@ import numpy as np
 import mlx_whisper
 
 from kikitori.config import DEFAULT_LANGUAGE
+
+
+def _default_prepare_model(model_name: str) -> str:
+    """デフォルトのモデル準備: HuggingFace キャッシュ確認・ダウンロード。
+
+    実際の MLX モデルロードは初回 transcribe() 呼び出し時に
+    mlx_whisper が pynput スレッド内で行う（GPU Stream の制約のため）。
+    ここでは HuggingFace 上のモデルファイルの存在確認とダウンロードのみ行う。
+    """
+    model_path = Path(model_name)
+    try:
+        from huggingface_hub import try_to_load_from_cache
+        cached = try_to_load_from_cache(repo_id=model_name, filename="config.json")
+    except Exception:
+        cached = None
+
+    if model_path.exists():
+        print(f"[INFO] モデルパス確認: {model_name} (ローカル)", flush=True)
+    elif cached:
+        print(f"[INFO] モデルキャッシュ確認: {model_name}", flush=True)
+    else:
+        print(f"[INFO] モデルをHuggingFaceからダウンロード中: {model_name}", flush=True)
+        print("[INFO] （初回は数百MBのダウンロードが必要です。ネットワーク速度により数分かかります）", flush=True)
+        from huggingface_hub import snapshot_download
+        snapshot_download(repo_id=model_name)
+
+    print("[INFO] モデルファイル準備完了", flush=True)
+    return model_name
 
 
 class Transcriber:
@@ -17,39 +46,18 @@ class Transcriber:
     ):
         self._model_name = model_name
         self._transcribe = transcribe_func or mlx_whisper.transcribe
-        self._load_model = load_model_func or mlx_whisper.load_models.load_model
+        self._load_model = load_model_func or _default_prepare_model
         self._model = None
         self._call_count = 0  # デバッグ用: transcribe呼び出し回数
 
     def load(self):
-        """モデルファイルのキャッシュ確認のみ行う。
+        """モデルファイルの準備（キャッシュ確認・ダウンロード）。
 
         実際の MLX モデルロードは、初回 transcribe() 呼び出し時に
-        ModelHolder が pynput スレッド内で行う（GPU Stream の制約のため）。
+        mlx_whisper が pynput スレッド内で行う（GPU Stream の制約のため）。
         ここでは HuggingFace キャッシュの確認のみで、メモリ消費しない。
         """
-        import sys
-        from pathlib import Path
-
-        model_path = Path(self._model_name)
-        try:
-            from huggingface_hub import try_to_load_from_cache
-            cached = try_to_load_from_cache(repo_id=self._model_name, filename="config.json")
-        except Exception:
-            cached = None
-
-        if model_path.exists():
-            print(f"[INFO] モデルパス確認: {self._model_name} (ローカル)", flush=True)
-        elif cached:
-            print(f"[INFO] モデルキャッシュ確認: {self._model_name}", flush=True)
-        else:
-            print(f"[INFO] モデルをHuggingFaceからダウンロード中: {self._model_name}", flush=True)
-            print("[INFO] （初回は数百MBのダウンロードが必要です。ネットワーク速度により数分かかります）", flush=True)
-            # ダウンロードのみ実行（MLXへのロードはしない）
-            from huggingface_hub import snapshot_download
-            snapshot_download(repo_id=self._model_name)
-
-        print("[INFO] モデルファイル準備完了", flush=True)
+        self._model = self._load_model(self._model_name)
 
     def transcribe(
         self,

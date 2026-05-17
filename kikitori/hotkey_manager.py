@@ -161,12 +161,11 @@ class HotkeyManager:
     # ── イベントハンドラ ───────────────────────────────────────────────
 
     def on_press(self, key):
-        if self._is_hotkey_key(key):
-            self._pressed_keys.add(_key_id(key))
-        else:
+        if not self._is_hotkey_key(key):
             return
 
         with self._lock:
+            self._pressed_keys.add(_key_id(key))
             if self._all_hotkey_pressed() and not self._is_recording:
                 self._is_recording = True
                 if self._on_state_change:

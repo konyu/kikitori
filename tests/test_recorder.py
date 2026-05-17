@@ -88,10 +88,6 @@ class TestRecorder:
         """オーディオステータスエラーが標準エラーに出力される"""
         buf = AudioBuffer()
 
-        def callback_with_error(indata, frames, time_info, status):
-            # status 引数に文字列を渡してエラーシミュレート
-            pass
-
         class ErrorStream(FakeStream):
             def start(self):
                 self._started = True
@@ -103,3 +99,73 @@ class TestRecorder:
 
         captured = capsys.readouterr()
         assert "Input overflow" in captured.err
+
+    def test_on_audio_appends_data_to_buffer(self):
+        """_on_audio が indata を reshape してバッファに追加する"""
+        buf = AudioBuffer()
+        rec = Recorder(buf, stream_factory=lambda *, callback: FakeStream(callback))
+
+        # 直接 _on_audio を呼び出し
+        indata = np.array([[0.1], [0.2], [0.3]], dtype=np.float32)
+        buf.start()
+        rec._on_audio(indata, 3, None, None)
+        audio = buf.stop()
+
+        np.testing.assert_array_equal(audio, np.array([0.1, 0.2, 0.3], dtype=np.float32))
+
+    def test_on_audio_handles_none_indata(self):
+        """indata が None でもクラッシュしない"""
+        buf = AudioBuffer()
+        rec = Recorder(buf, stream_factory=lambda *, callback: FakeStream(callback))
+
+        buf.start()
+        # indata=None でも例外が発生しないこと
+        rec._on_audio(None, 0, None, None)
+        audio = buf.stop()
+        assert audio.size == 0
+
+    def test_on_audio_no_status_does_not_print(self, capsys):
+        """status が None の場合は何も出力しない"""
+        buf = AudioBuffer()
+        rec = Recorder(buf, stream_factory=lambda *, callback: FakeStream(callback))
+
+        buf.start()
+        indata = np.array([[0.1]], dtype=np.float32)
+        rec._on_audio(indata, 1, None, None)
+        buf.stop()
+
+        captured = capsys.readouterr()
+        assert captured.err == ""
+
+    def test_on_audio_creates_independent_copy(self):
+        """_on_audio が indata のコピーを作成する（元の配列変更に影響されない）"""
+        buf = AudioBuffer()
+        rec = Recorder(buf, stream_factory=lambda *, callback: FakeStream(callback))
+
+        indata = np.array([[0.1], [0.2]], dtype=np.float32)
+        buf.start()
+        rec._on_audio(indata, 2, None, None)
+        # 元の indata を変更
+        indata[0, 0] = 999.0
+        audio = buf.stop()
+
+        # コピーされているので変更の影響を受けない
+        np.testing.assert_array_equal(audio, np.array([0.1, 0.2], dtype=np.float32))
+
+    def test_multiple_stream_chunks_accumulate(self):
+        """複数回のストリームチャンクが正しく蓄積される"""
+        buf = AudioBuffer()
+        chunks = [
+            np.array([[0.1]], dtype=np.float32),
+            np.array([[0.2], [0.3]], dtype=np.float32),
+            np.array([[0.4]], dtype=np.float32),
+        ]
+
+        def factory(*, callback):
+            return FakeStream(callback, data_chunks=chunks)
+
+        rec = Recorder(buf, stream_factory=factory)
+        rec.start()
+        audio = rec.stop()
+
+        np.testing.assert_array_equal(audio, np.array([0.1, 0.2, 0.3, 0.4], dtype=np.float32))

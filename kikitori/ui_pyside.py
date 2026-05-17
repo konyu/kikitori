@@ -6,7 +6,6 @@ import threading
 from pathlib import Path
 
 import numpy as np
-import yaml
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from kikitori.app import App
@@ -18,33 +17,13 @@ from kikitori.config import (
     MODEL_NAME,
 )
 from kikitori.overlay import VoiceOverlay
-
-SETTINGS_PATH = Path.home() / ".kikitori_settings.yaml"
-
-
-def _get_frontmost_pid() -> int | None:
-    """現在フォーカスされているアプリケーションのPIDを取得する。"""
-    try:
-        from AppKit import NSWorkspace
-        app = NSWorkspace.sharedWorkspace().frontmostApplication()
-        return int(app.processIdentifier())
-    except Exception:
-        return None
-
-
-def _activate_app_by_pid(pid: int) -> bool:
-    """指定したPIDのアプリケーションをアクティブにする。"""
-    try:
-        from AppKit import NSRunningApplication
-        app = NSRunningApplication.runningApplicationWithProcessIdentifier_(pid)
-        if app is None:
-            return False
-        NSApplicationActivateAllWindows = 1 << 0
-        NSApplicationActivateIgnoringOtherApps = 1 << 1
-        app.activateWithOptions_(NSApplicationActivateAllWindows | NSApplicationActivateIgnoringOtherApps)
-        return True
-    except Exception:
-        return False
+from kikitori.settings import (
+    SETTINGS_PATH,
+    activate_app_by_pid,
+    get_frontmost_pid,
+    load_settings,
+    save_settings,
+)
 
 
 def _set_dock_icon():
@@ -80,25 +59,6 @@ def _set_dock_icon():
         NSApp().setApplicationIconImage_(result)
     except Exception as e:
         print(f"[WARN] Dockアイコン設定に失敗: {e}", file=sys.stderr)
-
-
-def load_settings():
-    if SETTINGS_PATH.exists():
-        try:
-            return yaml.safe_load(SETTINGS_PATH.read_text(encoding="utf-8")) or {}
-        except Exception:
-            pass
-    return {}
-
-
-def save_settings(settings):
-    try:
-        SETTINGS_PATH.write_text(
-            yaml.dump(settings, allow_unicode=True, default_flow_style=False, sort_keys=False),
-            encoding="utf-8",
-        )
-    except Exception:
-        pass
 
 
 class _ModelLoader(QtCore.QThread):
@@ -262,7 +222,7 @@ class KikitoriUIApp(QtWidgets.QApplication):
         self._recording = is_recording
         if is_recording:
             # 録音開始直前にフォーカスされているアプリのPIDを記憶
-            self._last_frontmost_pid = _get_frontmost_pid()
+            self._last_frontmost_pid = get_frontmost_pid()
             self._status_action.setText("🔴 録音中")
             self._record_action.setText("⏹ 録音停止")
             self._set_tray_icon_recording()
@@ -275,7 +235,7 @@ class KikitoriUIApp(QtWidgets.QApplication):
             self._overlay.update_amplitudes(np.zeros(30, dtype=np.float32))
             # 録音停止時に元のアプリにフォーカスを戻す
             if self._last_frontmost_pid is not None:
-                _activate_app_by_pid(self._last_frontmost_pid)
+                activate_app_by_pid(self._last_frontmost_pid)
                 self._last_frontmost_pid = None
 
     def _update_waveform(self):
@@ -332,7 +292,7 @@ hotkey:
 
     def _reload_settings(self):
         try:
-            settings = yaml.safe_load(SETTINGS_PATH.read_text(encoding="utf-8")) or {}
+            settings = load_settings()
         except Exception:
             return
 
