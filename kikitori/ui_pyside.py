@@ -139,11 +139,6 @@ class KikitoriUIApp(QtWidgets.QApplication):
 
         self._menu.addSeparator()
 
-        self._record_action = self._menu.addAction("🔴 録音開始")
-        self._record_action.triggered.connect(self._toggle_recording)
-
-        self._menu.addSeparator()
-
         settings_action = self._menu.addAction("設定...")
         settings_action.triggered.connect(self._open_settings_dialog)
 
@@ -325,10 +320,11 @@ class KikitoriUIApp(QtWidgets.QApplication):
 
     def _open_glossary_dialog(self):
         """キーワード管理ダイアログを開く。"""
-        dialog = GlossaryDialog(self._glossary, on_reload=self._reload_glossary)
-        result = dialog.exec()
+        self._dialog = GlossaryDialog(self._glossary, on_reload=self._reload_glossary)
+        result = self._dialog.exec()
         if result == QtWidgets.QDialog.DialogCode.Accepted:
             self._reload_glossary()
+        self._dialog = None
 
     def _reload_glossary(self):
         """Glossary を再読み込みし、内部状態を更新する。"""

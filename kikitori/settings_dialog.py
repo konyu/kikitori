@@ -37,13 +37,6 @@ _LANGUAGES: dict[str, str] = {
     "Tiếng Việt": "vi",
 }
 
-# 言語コードまたは表示名から表示名を得る
-def _lang_display(lang_code: str) -> str:
-    for display, code in _LANGUAGES.items():
-        if code == lang_code:
-            return display
-    return lang_code  # 未知のコードはそのまま表示
-
 # プリセットモデル一覧
 _MODEL_PRESETS: list[str] = [
     "mlx-community/whisper-large-v3-turbo",
