@@ -16,6 +16,7 @@ DEFAULT_PROMPT: str = "以下は日本語の音声認識結果です。"
 # 録音設定
 MAX_DURATION: float = 60.0  # 秒
 MIN_DURATION_MS: float = 500.0  # ミリ秒（これより短い録音は誤動作としてWhisperに渡さない）
+SILENCE_RMS_THRESHOLD: float = 0.01  # RMS閾値（これ以下は無音とみなしてWhisperに渡さない）
 
 # ホットキー設定（設定ファイルで変更可能）
 # 例: ["f13"], ["ctrl", "alt"], ["cmd"], ["shift", "f13"]

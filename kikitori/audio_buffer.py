@@ -51,6 +51,14 @@ class AudioBuffer:
             # reading the returned audio.
             return self._buf[:self._pos].copy()
 
+    def get_rms(self) -> float:
+        """録音データの RMS（実効値）を返す。無音判定用。"""
+        with self._lock:
+            if self._pos == 0:
+                return 0.0
+            chunk = self._buf[:self._pos]
+            return float(np.sqrt(np.mean(chunk * chunk)))
+
     def get_recent_amplitudes(self, n_bars: int = 30, window_ms: float = 50.0) -> np.ndarray:
         """直近の音声振幅を n_bars 個分取得する。UI 波形表示用。"""
         with self._lock:

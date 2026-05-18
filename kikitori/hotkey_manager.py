@@ -1,9 +1,17 @@
 """ホットキー状態管理（設定ファイルで変更可能）"""
 import threading
 
+import numpy as np
 from pynput.keyboard import Key, KeyCode
 
-from kikitori.config import DEFAULT_HOTKEY, DEFAULT_LANGUAGE, MAX_DURATION, MIN_DURATION_MS, SAMPLE_RATE
+from kikitori.config import (
+    DEFAULT_HOTKEY,
+    DEFAULT_LANGUAGE,
+    MAX_DURATION,
+    MIN_DURATION_MS,
+    SAMPLE_RATE,
+    SILENCE_RMS_THRESHOLD,
+)
 from kikitori.glossary import Glossary
 from kikitori.injector import Injector
 from kikitori.recorder import Recorder, RecordError
@@ -137,7 +145,7 @@ class HotkeyManager:
     # ── 音声長判定 ────────────────────────────────────────────────────
 
     def _should_transcribe(self, audio) -> bool:
-        """録音が最低長を満たしていればTrue。短すぎる場合はFalseを返しログ出力。"""
+        """録音が最低長を満たし、無音でなければTrue。短すぎるか無音の場合はFalseを返しログ出力。"""
         if audio.size == 0:
             print("[INFO] 録音データが空です")
             return False
@@ -145,6 +153,10 @@ class HotkeyManager:
             duration_ms = audio.size / SAMPLE_RATE * 1000
             min_ms = self._min_duration_samples / SAMPLE_RATE * 1000
             print(f"[INFO] 録音が短すぎます（{duration_ms:.0f}ms < {min_ms:.0f}ms） — Whisperに渡しません")
+            return False
+        rms = float(np.sqrt(np.mean(audio * audio)))
+        if rms < SILENCE_RMS_THRESHOLD:
+            print(f"[INFO] 無音と判定されました（RMS={rms:.4f} < {SILENCE_RMS_THRESHOLD}） — Whisperに渡しません")
             return False
         return True
 

@@ -120,3 +120,23 @@ class TestAudioBuffer:
         buf.append(np.array([0.5], dtype=np.float32))
         new_audio = buf.stop()
         assert new_audio[0] == pytest.approx(0.5)
+
+    def test_get_rms_silence_is_zero(self):
+        """無音データの RMS は 0"""
+        buf = AudioBuffer()
+        buf.start()
+        buf.append(np.zeros(1000, dtype=np.float32))
+        assert buf.get_rms() == pytest.approx(0.0, abs=1e-7)
+        buf.stop()
+
+    def test_get_rms_with_signal(self):
+        """正弦波の RMS は振幅 / sqrt(2)"""
+        buf = AudioBuffer()
+        buf.start()
+        amplitude = 0.5
+        t = np.linspace(0, 0.1, int(0.1 * 16000), dtype=np.float32)
+        audio = (np.sin(2 * np.pi * 440 * t) * amplitude).astype(np.float32)
+        buf.append(audio)
+        expected_rms = amplitude / np.sqrt(2)
+        assert buf.get_rms() == pytest.approx(expected_rms, rel=0.01)
+        buf.stop()

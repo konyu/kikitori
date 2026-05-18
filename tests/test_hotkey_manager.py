@@ -467,8 +467,9 @@ class TestHotkeyManager:
     def test_should_transcribe_at_min_duration(self):
         """最低録音長ちょうどの音声は Whisper に渡される"""
         rec = FakeRecorder()
-        # 500ms = 8000 samples
-        rec._audio = np.zeros(8000, dtype=np.float32)
+        # 500ms = 8000 samples — 無音ではなく小さな正弦波で RMS を閾値以上に保つ
+        t = np.linspace(0, 0.5, 8000, dtype=np.float32)
+        rec._audio = (np.sin(2 * np.pi * 440 * t) * 0.5).astype(np.float32)
         trans = FakeTranscriber("ちょうど")
         inj = FakeInjector()
         mgr = HotkeyManager(
@@ -482,6 +483,26 @@ class TestHotkeyManager:
 
         assert len(trans.calls) == 1
         assert inj.injected == ["ちょうど"]
+
+    def test_should_transcribe_silence_is_rejected(self):
+        """最低録音長を満たしても無音なら Whisper に渡されない"""
+        rec = FakeRecorder()
+        # 500ms = 8000 samples、完全無音
+        rec._audio = np.zeros(8000, dtype=np.float32)
+        trans = FakeTranscriber()
+        inj = FakeInjector()
+        mgr = HotkeyManager(
+            rec, trans, inj, hotkey=DEFAULT_TEST_HOTKEY,
+            min_duration_ms=500.0,
+        )
+
+        mgr.on_press(Key.ctrl_l)
+        mgr.on_press(Key.alt)
+        mgr.on_release(Key.alt)
+
+        assert rec.stopped
+        assert len(trans.calls) == 0  # 無音なので文字起こしされない
+        assert inj.injected == []
 
     # ── 非ホットキーキー ───────────────────────────────────────────
 
