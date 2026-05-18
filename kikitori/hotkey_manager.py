@@ -79,6 +79,7 @@ class HotkeyManager:
         timer_factory=None,
         on_state_change=None,
         glossary: "Glossary | None" = None,
+        silence_rms_threshold: float = SILENCE_RMS_THRESHOLD,
     ):
         self._recorder = recorder
         self._transcriber = transcriber
@@ -87,6 +88,7 @@ class HotkeyManager:
         self._language = language
         self._max_duration = max_duration
         self._min_duration_samples = int(min_duration_ms / 1000 * SAMPLE_RATE)
+        self._silence_rms_threshold = silence_rms_threshold
         self._timer_factory = timer_factory or threading.Timer
         self._timer = None
         self._is_recording = False
@@ -155,8 +157,8 @@ class HotkeyManager:
             print(f"[INFO] 録音が短すぎます（{duration_ms:.0f}ms < {min_ms:.0f}ms） — Whisperに渡しません")
             return False
         rms = float(np.sqrt(np.mean(audio * audio)))
-        if rms < SILENCE_RMS_THRESHOLD:
-            print(f"[INFO] 無音と判定されました（RMS={rms:.4f} < {SILENCE_RMS_THRESHOLD}） — Whisperに渡しません")
+        if rms < self._silence_rms_threshold:
+            print(f"[INFO] 無音と判定されました（RMS={rms:.4f} < {self._silence_rms_threshold}） — Whisperに渡しません")
             return False
         return True
 

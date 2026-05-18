@@ -13,6 +13,7 @@ from kikitori.config import (
     MIN_DURATION_MS,
     MODEL_NAME,
     SAMPLE_RATE,
+    SILENCE_RMS_THRESHOLD,
 )
 from kikitori.glossary import Glossary
 from kikitori.hotkey_manager import HotkeyManager
@@ -34,6 +35,7 @@ class App:
         hotkey: list[str] | None = None,
         on_state_change=None,
         glossary: "Glossary | None" = None,
+        silence_rms_threshold: float = SILENCE_RMS_THRESHOLD,
     ):
         self._model_name = model_name
         self._sample_rate = sample_rate
@@ -42,6 +44,7 @@ class App:
         self._language = language
         self._max_duration = max_duration
         self._min_duration_ms = min_duration_ms
+        self._silence_rms_threshold = silence_rms_threshold
         self._hotkey_config = hotkey if hotkey is not None else DEFAULT_HOTKEY
 
         self._buffer = AudioBuffer()
@@ -59,6 +62,7 @@ class App:
             hotkey=self._hotkey_config,
             on_state_change=on_state_change,
             glossary=glossary,
+            silence_rms_threshold=silence_rms_threshold,
         )
         self._listener = None
         self._listener_thread = None

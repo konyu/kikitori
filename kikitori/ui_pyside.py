@@ -16,6 +16,7 @@ from kikitori.config import (
     DEFAULT_PROMPT,
     MIN_DURATION_MS,
     MODEL_NAME,
+    SILENCE_RMS_THRESHOLD,
 )
 from kikitori.glossary import GLOSSARY_PATH, Glossary
 from kikitori.glossary_dialog import GlossaryDialog
@@ -103,6 +104,7 @@ class KikitoriUIApp(QtWidgets.QApplication):
         self._prompt = self._settings.get("prompt", DEFAULT_PROMPT)
         self._hotkey = self._settings.get("hotkey", DEFAULT_HOTKEY)
         self._min_duration_ms = self._settings.get("min_duration_ms", MIN_DURATION_MS)
+        self._silence_rms_threshold = self._settings.get("silence_rms_threshold", SILENCE_RMS_THRESHOLD)
 
         # Glossary（専門用語）
         self._glossary = Glossary()
@@ -114,6 +116,7 @@ class KikitoriUIApp(QtWidgets.QApplication):
             prompt=self._prompt,
             hotkey=self._hotkey,
             min_duration_ms=self._min_duration_ms,
+            silence_rms_threshold=self._silence_rms_threshold,
             on_state_change=self._on_core_state_change,
             glossary=self._glossary,
         )
@@ -139,10 +142,10 @@ class KikitoriUIApp(QtWidgets.QApplication):
 
         self._menu.addSeparator()
 
-        settings_action = self._menu.addAction("設定...")
+        settings_action = self._menu.addAction("設定")
         settings_action.triggered.connect(self._open_settings_dialog)
 
-        glossary_action = self._menu.addAction("キーワード設定...")
+        glossary_action = self._menu.addAction("キーワード設定")
         glossary_action.triggered.connect(self._open_glossary_dialog)
 
         self._menu.addSeparator()
@@ -276,6 +279,7 @@ class KikitoriUIApp(QtWidgets.QApplication):
             "prompt": self._prompt,
             "hotkey": list(self._hotkey),
             "min_duration_ms": self._min_duration_ms,
+            "silence_rms_threshold": self._silence_rms_threshold,
             "model_name": fresh.get("model_name", MODEL_NAME),
         }
         self._dialog = SettingsDialog(current, parent=None)
@@ -294,6 +298,7 @@ class KikitoriUIApp(QtWidgets.QApplication):
         self._prompt = settings.get("prompt", self._prompt)
         self._hotkey = settings.get("hotkey", self._hotkey)
         self._min_duration_ms = settings.get("min_duration_ms", self._min_duration_ms)
+        self._silence_rms_threshold = settings.get("silence_rms_threshold", self._silence_rms_threshold)
         model_name = settings.get("model_name", MODEL_NAME)
 
         # 内部状態に即時反映
@@ -305,6 +310,7 @@ class KikitoriUIApp(QtWidgets.QApplication):
         self._app._hotkey._min_duration_samples = int(
             self._min_duration_ms / 1000 * 16000
         )
+        self._app._hotkey._silence_rms_threshold = self._silence_rms_threshold
 
         # 設定ファイルに保存（内部キャッシュも更新）
         self._settings = {
@@ -312,6 +318,7 @@ class KikitoriUIApp(QtWidgets.QApplication):
             "prompt": self._prompt,
             "hotkey": self._hotkey,
             "min_duration_ms": self._min_duration_ms,
+            "silence_rms_threshold": self._silence_rms_threshold,
             "model_name": model_name,
         }
         save_settings(self._settings)
@@ -378,21 +385,25 @@ class KikitoriUIApp(QtWidgets.QApplication):
                 DEFAULT_LANGUAGE,
                 DEFAULT_PROMPT,
                 MIN_DURATION_MS,
+                SILENCE_RMS_THRESHOLD,
             )
             new_lang = DEFAULT_LANGUAGE
             new_prompt = DEFAULT_PROMPT
             new_hotkey = list(DEFAULT_HOTKEY)
             new_min_dur = MIN_DURATION_MS
+            new_silence = SILENCE_RMS_THRESHOLD
         else:
             new_lang = settings.get("language", self._language)
             new_prompt = settings.get("prompt", self._prompt)
             new_hotkey = settings.get("hotkey", self._hotkey)
             new_min_dur = settings.get("min_duration_ms", self._min_duration_ms)
+            new_silence = settings.get("silence_rms_threshold", self._silence_rms_threshold)
 
         self._language = new_lang
         self._prompt = new_prompt
         self._hotkey = new_hotkey
         self._min_duration_ms = new_min_dur
+        self._silence_rms_threshold = new_silence
 
         self._app._language = new_lang
         self._app._prompt = new_prompt
@@ -400,6 +411,7 @@ class KikitoriUIApp(QtWidgets.QApplication):
         self._app._hotkey._language = new_lang
         self._app._hotkey.update_hotkey(new_hotkey)
         self._app._hotkey._min_duration_samples = int(new_min_dur / 1000 * 16000)
+        self._app._hotkey._silence_rms_threshold = new_silence
 
         print(
             f"[INFO] 設定ファイル変更を反映しました: language={self._language}, hotkey={' + '.join(self._hotkey)}",

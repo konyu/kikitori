@@ -8,7 +8,7 @@ import rumps
 import yaml
 
 from kikitori.app import App
-from kikitori.config import DEFAULT_HOTKEY, DEFAULT_LANGUAGE, DEFAULT_PROMPT, MIN_DURATION_MS, MODEL_NAME, SAMPLE_RATE
+from kikitori.config import DEFAULT_HOTKEY, DEFAULT_LANGUAGE, DEFAULT_PROMPT, MIN_DURATION_MS, MODEL_NAME, SAMPLE_RATE, SILENCE_RMS_THRESHOLD
 from kikitori.glossary import Glossary, GLOSSARY_PATH
 from kikitori.hotkey_manager import resolve_hotkey
 
@@ -44,6 +44,7 @@ class KikitoriStatusBarApp(rumps.App):
         self._prompt = self._settings.get("prompt", DEFAULT_PROMPT)
         self._hotkey = self._settings.get("hotkey", DEFAULT_HOTKEY)
         self._min_duration_ms = self._settings.get("min_duration_ms", MIN_DURATION_MS)
+        self._silence_rms_threshold = self._settings.get("silence_rms_threshold", SILENCE_RMS_THRESHOLD)
 
         # 専門用語集の読み込み
         self._glossary = Glossary()
@@ -55,6 +56,7 @@ class KikitoriStatusBarApp(rumps.App):
             prompt=self._prompt,
             hotkey=self._hotkey,
             min_duration_ms=self._min_duration_ms,
+            silence_rms_threshold=self._silence_rms_threshold,
             on_state_change=self._on_core_state_change,
             glossary=self._glossary,
         )
@@ -177,6 +179,7 @@ class KikitoriStatusBarApp(rumps.App):
                 "prompt": DEFAULT_PROMPT,
                 "hotkey": DEFAULT_HOTKEY,
                 "min_duration_ms": MIN_DURATION_MS,
+                "silence_rms_threshold": SILENCE_RMS_THRESHOLD,
             }
 
         changed = False
@@ -210,6 +213,12 @@ class KikitoriStatusBarApp(rumps.App):
             self._app._hotkey_config = new_hotkey
             self._app._hotkey.update_hotkey(new_hotkey)
             self._hotkey_item.title = f"ホットキー: {' + '.join(self._hotkey)}"
+            changed = True
+
+        new_silence = new_settings.get("silence_rms_threshold", SILENCE_RMS_THRESHOLD)
+        if new_silence != self._silence_rms_threshold:
+            self._silence_rms_threshold = new_silence
+            self._app._hotkey._silence_rms_threshold = new_silence
             changed = True
 
         # 用語集ファイルの再読み込み

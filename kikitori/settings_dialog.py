@@ -12,6 +12,7 @@ from kikitori.config import (
     DEFAULT_PROMPT,
     MIN_DURATION_MS,
     MODEL_NAME,
+    SILENCE_RMS_THRESHOLD,
 )
 from kikitori.theme import apply_dialog_theme
 
@@ -219,6 +220,22 @@ class SettingsDialog(QtWidgets.QDialog):
         dur_layout.addStretch()
         form_layout.addRow("最低録音時間:", dur_layout)
 
+        # ── 無音判定閾値 ──
+        silence_layout = QtWidgets.QHBoxLayout()
+        self._silence_spin = QtWidgets.QSpinBox()
+        self._silence_spin.setRange(1, 50000)
+        self._silence_spin.setSingleStep(100)
+        self._silence_spin.setSuffix(" /10000")
+        silence_layout.addWidget(self._silence_spin)
+
+        silence_hint = QtWidgets.QLabel(
+            "（100=0.01、これ以下は無音として無視）"
+        )
+        silence_hint.setProperty("secondary", "true")
+        silence_layout.addWidget(silence_hint)
+        silence_layout.addStretch()
+        form_layout.addRow("無音判定閾値:", silence_layout)
+
         # ── モデル名 ──
         model_layout = QtWidgets.QVBoxLayout()
         model_layout.setSpacing(6)
@@ -285,6 +302,9 @@ class SettingsDialog(QtWidgets.QDialog):
         min_dur = self._current.get("min_duration_ms", MIN_DURATION_MS)
         self._min_dur_spin.setValue(int(min_dur))
 
+        silence = self._current.get("silence_rms_threshold", SILENCE_RMS_THRESHOLD)
+        self._silence_spin.setValue(int(float(silence) * 10000))
+
         model = self._current.get("model_name", MODEL_NAME)
         idx_model = self._model_combo.findText(model)
         if idx_model >= 0:
@@ -303,6 +323,7 @@ class SettingsDialog(QtWidgets.QDialog):
             "prompt": self._prompt_edit.toPlainText(),
             "hotkey": self._hotkey_editor.get_hotkey(),
             "min_duration_ms": self._min_dur_spin.value(),
+            "silence_rms_threshold": self._silence_spin.value() / 10000,
             "model_name": self._model_combo.currentText().strip(),
         }
 
