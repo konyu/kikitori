@@ -16,6 +16,8 @@ def _default_prepare_model(model_name: str) -> str:
     mlx_whisper が pynput スレッド内で行う（GPU Stream の制約のため）。
     ここでは HuggingFace 上のモデルファイルの存在確認とダウンロードのみ行う。
     """
+    import threading
+
     model_path = Path(model_name)
     try:
         from huggingface_hub import try_to_load_from_cache
@@ -28,10 +30,43 @@ def _default_prepare_model(model_name: str) -> str:
     elif cached:
         print(f"[INFO] モデルキャッシュ確認: {model_name}", flush=True)
     else:
-        print(f"[INFO] モデルをHuggingFaceからダウンロード中: {model_name}", flush=True)
-        print("[INFO] （初回は数百MBのダウンロードが必要です。ネットワーク速度により数分かかります）", flush=True)
-        from huggingface_hub import snapshot_download
-        snapshot_download(repo_id=model_name)
+        print("=" * 50, flush=True)
+        print(f"[INFO] モデルを HuggingFace からダウンロードします: {model_name}", flush=True)
+        print("[INFO] 初回は数百MBのダウンロードが必要です（数分かかります）", flush=True)
+        print("[INFO] ダウンロード完了後はアプリを再起動してください", flush=True)
+        print("=" * 50, flush=True)
+
+        # tqdm プログレスバーを無効化（Homebrew/バックグラウンド対応）
+        import os
+        old_disable = os.environ.get("HF_HUB_DISABLE_PROGRESS_BARS")
+        os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
+
+        stop_spinner = threading.Event()
+
+        def _spinner():
+            while not stop_spinner.wait(timeout=5.0):
+                print("[INFO] モデルダウンロード中...", flush=True)
+
+        t = threading.Thread(target=_spinner, daemon=True)
+        t.start()
+
+        try:
+            from huggingface_hub import snapshot_download
+            snapshot_download(repo_id=model_name)
+        finally:
+            stop_spinner.set()
+            t.join(timeout=1.0)
+            if old_disable is not None:
+                os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = old_disable
+            else:
+                os.environ.pop("HF_HUB_DISABLE_PROGRESS_BARS", None)
+
+        print("=" * 50, flush=True)
+        print("[INFO] モデルダウンロードが完了しました", flush=True)
+        print("[INFO] アプリを再起動してください:", flush=True)
+        print("       brew services restart konyu/kikitori/kikitori", flush=True)
+        print("       または killall kikitori && kikitori", flush=True)
+        print("=" * 50, flush=True)
 
     print("[INFO] モデルファイル準備完了", flush=True)
     return model_name
