@@ -4,6 +4,7 @@ import threading
 from pynput.keyboard import Key, KeyCode
 
 from kikitori.config import DEFAULT_HOTKEY, DEFAULT_LANGUAGE, MAX_DURATION, MIN_DURATION_MS, SAMPLE_RATE
+from kikitori.glossary import Glossary
 from kikitori.injector import Injector
 from kikitori.recorder import Recorder, RecordError
 from kikitori.transcriber import Transcriber
@@ -69,6 +70,7 @@ class HotkeyManager:
         hotkey: list[str] | None = None,
         timer_factory=None,
         on_state_change=None,
+        glossary: "Glossary | None" = None,
     ):
         self._recorder = recorder
         self._transcriber = transcriber
@@ -82,6 +84,7 @@ class HotkeyManager:
         self._is_recording = False
         self._lock = threading.Lock()
         self._on_state_change = on_state_change
+        self._glossary: "Glossary | None" = glossary
 
         # ホットキー設定
         names = hotkey if hotkey is not None else DEFAULT_HOTKEY
@@ -117,7 +120,7 @@ class HotkeyManager:
         audio = self._recorder.stop()
         if self._should_transcribe(audio):
             text = self._transcriber.transcribe(
-                audio, prompt=self._prompt, language=self._language
+                audio, prompt=self._get_effective_prompt(), language=self._language
             )
             self._injector.inject(text)
         # キーがまだ押されていれば再録音、そうでなければタイマーをクリア
@@ -199,7 +202,7 @@ class HotkeyManager:
             audio = self._recorder.stop()
             if self._should_transcribe(audio):
                 text = self._transcriber.transcribe(
-                    audio, prompt=self._prompt, language=self._language
+                    audio, prompt=self._get_effective_prompt(), language=self._language
                 )
                 self._injector.inject(text)
 
@@ -253,6 +256,18 @@ class HotkeyManager:
         audio = self._recorder.stop()
         if self._should_transcribe(audio):
             text = self._transcriber.transcribe(
-                audio, prompt=self._prompt, language=self._language
+                audio, prompt=self._get_effective_prompt(), language=self._language
             )
             self._injector.inject(text)
+
+    # ── プロンプト生成 ───────────────────────────────────────────────
+
+    def _get_effective_prompt(self) -> str:
+        """glossary があれば用語追記したプロンプト、なければベースプロンプトを返す。"""
+        if self._glossary is not None:
+            terms = self._glossary.get_terms()
+            if terms:
+                prompt = self._glossary.build_prompt(self._prompt)
+                print(f"[DEBUG] プロンプトに専門用語を追記: {terms}", flush=True)
+                return prompt
+        return self._prompt

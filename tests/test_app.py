@@ -168,6 +168,18 @@ class TestApp:
         # App.run は join でブロックするので、ここでは単体で検証
         assert trans.loaded is False  # このテストでは load していない
 
+    def test_app_accepts_glossary_param(self):
+        """glossary パラメータが App に受け入れられ HotkeyManager に渡される。"""
+        from kikitori.glossary import Glossary
+        glossary = Glossary()
+        app = App(glossary=glossary)
+        assert app._hotkey._glossary is glossary
+
+    def test_app_glossary_none_by_default(self):
+        """glossary 未指定時は None で HotkeyManager に渡される。"""
+        app = App()
+        assert app._hotkey._glossary is None
+
 
 class TestAppRunWithDI:
     """依存注入を使った App.run のテスト"""

@@ -14,6 +14,7 @@ from kikitori.config import (
     MODEL_NAME,
     SAMPLE_RATE,
 )
+from kikitori.glossary import Glossary
 from kikitori.hotkey_manager import HotkeyManager
 from kikitori.injector import Injector
 from kikitori.recorder import Recorder
@@ -32,6 +33,7 @@ class App:
         min_duration_ms: float = MIN_DURATION_MS,
         hotkey: list[str] | None = None,
         on_state_change=None,
+        glossary: "Glossary | None" = None,
     ):
         self._model_name = model_name
         self._sample_rate = sample_rate
@@ -56,6 +58,7 @@ class App:
             min_duration_ms=min_duration_ms,
             hotkey=self._hotkey_config,
             on_state_change=on_state_change,
+            glossary=glossary,
         )
         self._listener = None
         self._listener_thread = None

@@ -69,7 +69,7 @@ class Transcriber:
             return ""
         self._call_count += 1
         duration = audio.size / 16000
-        print(f"[DEBUG] transcribe呼び出し #{self._call_count} (音声長: {duration:.1f}秒)", flush=True)
+        print(f"[DEBUG] transcribe呼び出し #{self._call_count} (音声長: {duration:.1f}秒) prompt={prompt!r}", flush=True)
         result = self._transcribe(
             audio,
             path_or_hf_repo=self._model_name,

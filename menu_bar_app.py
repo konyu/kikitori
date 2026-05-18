@@ -9,6 +9,7 @@ import yaml
 
 from kikitori.app import App
 from kikitori.config import DEFAULT_HOTKEY, DEFAULT_LANGUAGE, DEFAULT_PROMPT, MIN_DURATION_MS, MODEL_NAME, SAMPLE_RATE
+from kikitori.glossary import Glossary, GLOSSARY_PATH
 from kikitori.hotkey_manager import resolve_hotkey
 
 
@@ -44,6 +45,10 @@ class KikitoriStatusBarApp(rumps.App):
         self._hotkey = self._settings.get("hotkey", DEFAULT_HOTKEY)
         self._min_duration_ms = self._settings.get("min_duration_ms", MIN_DURATION_MS)
 
+        # 専門用語集の読み込み
+        self._glossary = Glossary()
+        self._glossary.load()
+
         # Core app with state-change callback
         self._app = App(
             language=self._language,
@@ -51,6 +56,7 @@ class KikitoriStatusBarApp(rumps.App):
             hotkey=self._hotkey,
             min_duration_ms=self._min_duration_ms,
             on_state_change=self._on_core_state_change,
+            glossary=self._glossary,
         )
 
         # Menu items
@@ -84,6 +90,7 @@ class KikitoriStatusBarApp(rumps.App):
             self._hotkey_item,
             None,
             rumps.MenuItem("設定ファイルを開く", callback=self._open_settings),
+            rumps.MenuItem("用語集ファイルを開く", callback=self._open_glossary),
             None,
             rumps.MenuItem("終了", callback=self._quit_app),
         ]
@@ -194,6 +201,9 @@ class KikitoriStatusBarApp(rumps.App):
             self._hotkey_item.title = f"ホットキー: {' + '.join(self._hotkey)}"
             changed = True
 
+        # 用語集ファイルの再読み込み
+        self._glossary.load()
+
         if changed:
             self._settings = new_settings
             self._pending_updated = f"最終更新: {now}"
@@ -292,6 +302,15 @@ hotkey:
         import subprocess
         subprocess.Popen(["open", str(SETTINGS_PATH)])
         self._start_settings_watcher()
+
+    def _open_glossary(self, _):
+        """用語集ファイルをデフォルトエディタで開く（初回は雛形を生成）。"""
+        if not GLOSSARY_PATH.exists():
+            GLOSSARY_PATH.write_text(Glossary.generate_template(), encoding="utf-8")
+            self._glossary.load()
+
+        import subprocess
+        subprocess.Popen(["open", str(GLOSSARY_PATH)])
 
     def _quit_app(self, _):
         self._app.stop_background()
