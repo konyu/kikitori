@@ -16,6 +16,8 @@ from kikitori.config import (
     MIN_DURATION_MS,
     MODEL_NAME,
 )
+from kikitori.glossary import GLOSSARY_PATH, Glossary
+from kikitori.glossary_dialog import GlossaryDialog
 from kikitori.overlay import VoiceOverlay
 from kikitori.settings import (
     SETTINGS_PATH,
@@ -24,6 +26,7 @@ from kikitori.settings import (
     load_settings,
     save_settings,
 )
+from kikitori.settings_dialog import SettingsDialog
 
 
 def _set_dock_icon():
@@ -96,6 +99,10 @@ class KikitoriUIApp(QtWidgets.QApplication):
         self._hotkey = self._settings.get("hotkey", DEFAULT_HOTKEY)
         self._min_duration_ms = self._settings.get("min_duration_ms", MIN_DURATION_MS)
 
+        # Glossary（専門用語）
+        self._glossary = Glossary()
+        self._glossary.load()
+
         # Core app
         self._app = App(
             language=self._language,
@@ -103,6 +110,7 @@ class KikitoriUIApp(QtWidgets.QApplication):
             hotkey=self._hotkey,
             min_duration_ms=self._min_duration_ms,
             on_state_change=self._on_core_state_change,
+            glossary=self._glossary,
         )
 
         # Overlay
@@ -135,10 +143,17 @@ class KikitoriUIApp(QtWidgets.QApplication):
         self._hotkey_action = self._menu.addAction(f"ホットキー: {' + '.join(self._hotkey)}")
         self._hotkey_action.setEnabled(False)
 
+        kw_count = len(self._glossary.get_terms())
+        self._glossary_action = self._menu.addAction(f"キーワード: {kw_count}件")
+        self._glossary_action.setEnabled(False)
+
         self._menu.addSeparator()
 
-        open_settings_action = self._menu.addAction("設定ファイルを開く")
-        open_settings_action.triggered.connect(self._open_settings)
+        settings_action = self._menu.addAction("設定...")
+        settings_action.triggered.connect(self._open_settings_dialog)
+
+        glossary_action = self._menu.addAction("キーワード設定...")
+        glossary_action.triggered.connect(self._open_glossary_dialog)
 
         self._menu.addSeparator()
 
@@ -170,6 +185,7 @@ class KikitoriUIApp(QtWidgets.QApplication):
 
         # Settings watcher
         self._settings_mtime = None
+        self._glossary_mtime = None
         self._settings_timer = QtCore.QTimer(self)
         self._settings_timer.timeout.connect(self._check_settings_change)
         self._settings_timer.start(1000)
@@ -257,44 +273,107 @@ class KikitoriUIApp(QtWidgets.QApplication):
 
     # ── Settings ─────────────────────────────────────────────────────────
 
-    def _open_settings(self):
-        default_yaml = f"""# Kikitori 設定ファイル
-language: {self._language}
-prompt: {self._prompt}
-hotkey:
-"""
-        for k in self._hotkey:
-            default_yaml += f"  - {k}\n"
-        default_yaml += f"min_duration_ms: {self._min_duration_ms}\n"
+    def _open_settings_dialog(self):
+        """設定編集ダイアログを開く。"""
+        # ファイルから最新の設定を読み込む（model_name など即時反映しない項目のため）
+        fresh = load_settings()
+        current = {
+            "language": self._language,
+            "prompt": self._prompt,
+            "hotkey": list(self._hotkey),
+            "min_duration_ms": self._min_duration_ms,
+            "model_name": fresh.get("model_name", MODEL_NAME),
+        }
+        self._dialog = SettingsDialog(current, parent=None)
+        result = self._dialog.exec()
+        if result == QtWidgets.QDialog.DialogCode.Accepted:
+            settings = self._dialog._collect_values()
+            self._on_settings_changed(settings)
+        self._dialog = None
 
-        if not SETTINGS_PATH.exists():
+    def _on_settings_changed(self, settings: dict):
+        """SettingsDialog からの変更通知を受け取り、即時反映する。"""
+        self._language = settings.get("language", self._language)
+        self._prompt = settings.get("prompt", self._prompt)
+        self._hotkey = settings.get("hotkey", self._hotkey)
+        self._min_duration_ms = settings.get("min_duration_ms", self._min_duration_ms)
+        model_name = settings.get("model_name", MODEL_NAME)
+
+        # 内部状態に即時反映
+        self._app._prompt = self._prompt
+        self._app._hotkey._prompt = self._prompt
+        self._app._language = self._language
+        self._app._hotkey._language = self._language
+        self._app._hotkey.update_hotkey(self._hotkey)
+        self._app._hotkey._min_duration_samples = int(
+            self._min_duration_ms / 1000 * 16000
+        )
+
+        # 設定ファイルに保存（内部キャッシュも更新）
+        self._settings = {
+            "language": self._language,
+            "prompt": self._prompt,
+            "hotkey": self._hotkey,
+            "min_duration_ms": self._min_duration_ms,
+            "model_name": model_name,
+        }
+        save_settings(self._settings)
+
+        # メニュー表示更新
+        self._lang_action.setText(f"言語: {self._language}")
+        self._hotkey_action.setText(f"ホットキー: {' + '.join(self._hotkey)}")
+
+        print(f"[INFO] 設定を更新しました: language={self._language}, hotkey={' + '.join(self._hotkey)}, min_duration_ms={self._min_duration_ms}", flush=True)
+
+    def _open_glossary_dialog(self):
+        """キーワード管理ダイアログを開く。"""
+        dialog = GlossaryDialog(self._glossary, on_reload=self._reload_glossary)
+        result = dialog.exec()
+        if result == QtWidgets.QDialog.DialogCode.Accepted:
+            self._reload_glossary()
+
+    def _reload_glossary(self):
+        """Glossary を再読み込みし、メニュー表示と内部状態を更新する。"""
+        self._glossary.load()
+        kw_count = len(self._glossary.get_terms())
+        self._glossary_action.setText(f"キーワード: {kw_count}件")
+        # HotkeyManager が次回 _get_effective_prompt() で新しい用語を使う
+        # （glossary は参照で共有されているため load() だけで反映される）
+        print(f"[INFO] キーワードを再読み込みしました: {kw_count}件", flush=True)
+
+    def _check_settings_change(self):
+        """設定ファイルと用語集ファイルの変更を監視する。"""
+        # 設定ファイルの変更検知
+        if SETTINGS_PATH.exists():
             try:
-                SETTINGS_PATH.write_text(default_yaml, encoding="utf-8")
+                mtime = SETTINGS_PATH.stat().st_mtime
+                if self._settings_mtime is None:
+                    self._settings_mtime = mtime
+                elif mtime != self._settings_mtime:
+                    self._settings_mtime = mtime
+                    self._reload_settings()
             except Exception:
                 pass
 
-        import subprocess
-        subprocess.call(["open", str(SETTINGS_PATH)])
-
-    def _check_settings_change(self):
-        if not SETTINGS_PATH.exists():
-            return
-        try:
-            mtime = SETTINGS_PATH.stat().st_mtime
-            if self._settings_mtime is None:
-                self._settings_mtime = mtime
-                return
-            if mtime != self._settings_mtime:
-                self._settings_mtime = mtime
-                self._reload_settings()
-        except Exception:
-            pass
+        # 用語集ファイルの変更検知
+        if GLOSSARY_PATH.exists():
+            try:
+                mtime = GLOSSARY_PATH.stat().st_mtime
+                if self._glossary_mtime is None:
+                    self._glossary_mtime = mtime
+                elif mtime != self._glossary_mtime:
+                    self._glossary_mtime = mtime
+                    self._reload_glossary()
+            except Exception:
+                pass
 
     def _reload_settings(self):
         try:
             settings = load_settings()
         except Exception:
             return
+
+        self._settings = settings
 
         new_lang = settings.get("language", self._language)
         new_prompt = settings.get("prompt", self._prompt)
@@ -315,8 +394,6 @@ hotkey:
 
         self._lang_action.setText(f"言語: {self._language}")
         self._hotkey_action.setText(f"ホットキー: {' + '.join(self._hotkey)}")
-
-        save_settings(settings)
 
     # ── Quit ─────────────────────────────────────────────────────────────
 
@@ -350,6 +427,11 @@ def main():
     QtWidgets.QApplication.setApplicationName("Kikitori")
     QtWidgets.QApplication.setApplicationDisplayName("Kikitori")
     app = KikitoriUIApp(sys.argv)
+
+    # ダイアログを閉じたときにアプリが終了しないようにする
+    # （システムトレイアイコンは「ウィンドウ」としてカウントされないため、
+    #  ダイアログが唯一のウィンドウとみなされ quitOnLastWindowClosed で終了する）
+    app.setQuitOnLastWindowClosed(False)
 
     # Ctrl+C (SIGINT) / kill (SIGTERM) でグレースフル終了
     signal.signal(signal.SIGINT, lambda sig, frame: app._quit_app())
