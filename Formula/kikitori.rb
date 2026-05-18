@@ -1,8 +1,8 @@
 class Kikitori < Formula
   desc "macOS menu bar voice-to-text tool with overlay UI"
   homepage "https://github.com/konyu/kikitori"
-  url "https://github.com/konyu/kikitori/archive/refs/tags/v0.1.tar.gz"
-  sha256 "25b53c2b613241fa306a77dc0f69ff23904dc0434c72255b0860065f97691dcb"
+  url "https://github.com/konyu/kikitori/archive/refs/tags/v0.2.tar.gz"
+  sha256 "cada15c0e48e79f3adf14eaa8a9dd55190d712cc02718ab7415ac469e5a2aa87"
   license "MIT"
 
   depends_on "python@3.14"
