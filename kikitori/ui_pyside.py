@@ -225,7 +225,7 @@ class KikitoriUIApp(QtWidgets.QApplication):
         self._app.run_background()
 
     def _on_model_failed(self, message: str):
-        self._model_action.setText(f"モデル読み込み失敗")
+        self._status_action.setText("⚠ モデル読み込み失敗")
         print(f"[ERROR] モデル読み込み失敗: {message}", file=sys.stderr, flush=True)
 
     # ── Recording state ──────────────────────────────────────────────────
@@ -333,10 +333,9 @@ class KikitoriUIApp(QtWidgets.QApplication):
             self._reload_glossary()
 
     def _reload_glossary(self):
-        """Glossary を再読み込みし、メニュー表示と内部状態を更新する。"""
+        """Glossary を再読み込みし、内部状態を更新する。"""
         self._glossary.load()
         kw_count = len(self._glossary.get_terms())
-        self._glossary_action.setText(f"キーワード: {kw_count}件")
         # HotkeyManager が次回 _get_effective_prompt() で新しい用語を使う
         # （glossary は参照で共有されているため load() だけで反映される）
         print(f"[INFO] キーワードを再読み込みしました: {kw_count}件", flush=True)
@@ -392,8 +391,7 @@ class KikitoriUIApp(QtWidgets.QApplication):
         self._app._hotkey.update_hotkey(new_hotkey)
         self._app._hotkey._min_duration_samples = int(new_min_dur / 1000 * 16000)
 
-        self._lang_action.setText(f"言語: {self._language}")
-        self._hotkey_action.setText(f"ホットキー: {' + '.join(self._hotkey)}")
+        print(f"[INFO] 設定ファイル変更を反映しました: language={self._language}, hotkey={' + '.join(self._hotkey)}", flush=True)
 
     # ── Quit ─────────────────────────────────────────────────────────────
 
