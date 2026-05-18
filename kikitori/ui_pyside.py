@@ -281,8 +281,11 @@ class KikitoriUIApp(QtWidgets.QApplication):
         self._dialog = SettingsDialog(current, parent=None)
         result = self._dialog.exec()
         if result == QtWidgets.QDialog.DialogCode.Accepted:
-            settings = self._dialog._collect_values()
-            self._on_settings_changed(settings)
+            if self._dialog.reset_requested:
+                self._reload_settings()
+            else:
+                settings = self._dialog._collect_values()
+                self._on_settings_changed(settings)
         self._dialog = None
 
     def _on_settings_changed(self, settings: dict):
@@ -368,10 +371,23 @@ class KikitoriUIApp(QtWidgets.QApplication):
 
         self._settings = settings
 
-        new_lang = settings.get("language", self._language)
-        new_prompt = settings.get("prompt", self._prompt)
-        new_hotkey = settings.get("hotkey", self._hotkey)
-        new_min_dur = settings.get("min_duration_ms", self._min_duration_ms)
+        # 設定ファイルが存在しない場合はデフォルト値に戻す
+        if not settings:
+            from kikitori.config import (
+                DEFAULT_HOTKEY,
+                DEFAULT_LANGUAGE,
+                DEFAULT_PROMPT,
+                MIN_DURATION_MS,
+            )
+            new_lang = DEFAULT_LANGUAGE
+            new_prompt = DEFAULT_PROMPT
+            new_hotkey = list(DEFAULT_HOTKEY)
+            new_min_dur = MIN_DURATION_MS
+        else:
+            new_lang = settings.get("language", self._language)
+            new_prompt = settings.get("prompt", self._prompt)
+            new_hotkey = settings.get("hotkey", self._hotkey)
+            new_min_dur = settings.get("min_duration_ms", self._min_duration_ms)
 
         self._language = new_lang
         self._prompt = new_prompt

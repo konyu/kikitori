@@ -249,6 +249,10 @@ class SettingsDialog(QtWidgets.QDialog):
         open_file_btn.clicked.connect(self._open_settings_file)
         btn_layout.addWidget(open_file_btn)
 
+        reset_btn = QtWidgets.QPushButton("デフォルトに戻す")
+        reset_btn.clicked.connect(self._reset_to_defaults)
+        btn_layout.addWidget(reset_btn)
+
         btn_layout.addStretch()
 
         cancel_btn = QtWidgets.QPushButton("キャンセル")
@@ -302,8 +306,20 @@ class SettingsDialog(QtWidgets.QDialog):
             "model_name": self._model_combo.currentText().strip(),
         }
 
+    @property
+    def reset_requested(self) -> bool:
+        """デフォルトに戻すが押されたかどうか。"""
+        return getattr(self, "_reset_requested", False)
+
     def _save_and_apply(self):
         """ダイアログを Accepted で閉じる。親は exec() の戻り値で判断する。"""
+        self.accept()
+
+    def _reset_to_defaults(self):
+        """設定をデフォルトに戻してダイアログを閉じる。"""
+        from kikitori.settings import reset_settings
+        reset_settings()
+        self._reset_requested = True
         self.accept()
 
     def _open_settings_file(self):

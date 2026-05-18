@@ -90,6 +90,7 @@ class KikitoriStatusBarApp(rumps.App):
             self._hotkey_item,
             None,
             rumps.MenuItem("設定ファイルを開く", callback=self._open_settings),
+            rumps.MenuItem("設定をデフォルトに戻す", callback=self._reset_settings),
             rumps.MenuItem("用語集ファイルを開く", callback=self._open_glossary),
             None,
             rumps.MenuItem("終了", callback=self._quit_app),
@@ -166,9 +167,19 @@ class KikitoriStatusBarApp(rumps.App):
     def _reload_settings(self):
         """設定ファイルを再読み込みしてアプリに反映"""
         new_settings = load_settings()
-        changed = False
         from datetime import datetime
         now = datetime.now().strftime("%H:%M:%S")
+
+        # 設定ファイルが存在しない場合はデフォルト値に戻す
+        if not new_settings:
+            new_settings = {
+                "language": DEFAULT_LANGUAGE,
+                "prompt": DEFAULT_PROMPT,
+                "hotkey": DEFAULT_HOTKEY,
+                "min_duration_ms": MIN_DURATION_MS,
+            }
+
+        changed = False
 
         new_lang = new_settings.get("language", DEFAULT_LANGUAGE)
         if new_lang != self._language:
@@ -204,8 +215,8 @@ class KikitoriStatusBarApp(rumps.App):
         # 用語集ファイルの再読み込み
         self._glossary.load()
 
+        self._settings = new_settings
         if changed:
-            self._settings = new_settings
             self._pending_updated = f"最終更新: {now}"
             self._flash_icon("✅")
             try:
@@ -302,6 +313,20 @@ hotkey:
         import subprocess
         subprocess.Popen(["open", str(SETTINGS_PATH)])
         self._start_settings_watcher()
+
+    def _reset_settings(self, _):
+        """設定をデフォルトに戻してアプリを再起動する。"""
+        from kikitori.settings import reset_settings
+        reset_settings()
+        self._reload_settings()
+        try:
+            rumps.notification(
+                "Kikitori",
+                "設定をリセットしました",
+                "デフォルト値に戻りました。",
+            )
+        except RuntimeError:
+            pass
 
     def _open_glossary(self, _):
         """用語集ファイルをデフォルトエディタで開く（初回は雛形を生成）。"""

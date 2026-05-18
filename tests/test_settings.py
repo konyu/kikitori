@@ -8,6 +8,7 @@ from kikitori.settings import (
     SETTINGS_PATH,
     load_settings,
     save_settings,
+    reset_settings,
     get_frontmost_pid,
     activate_app_by_pid,
 )
@@ -46,6 +47,26 @@ class TestSettingsIO:
         monkeypatch.setattr("kikitori.settings.SETTINGS_PATH", BrokenPath())
         # 例外が発生しないこと
         save_settings({"key": "value"})
+
+    def test_reset_settings_deletes_file(self, monkeypatch):
+        """reset_settings で設定ファイルが削除される"""
+        tmp = tempfile.mktemp(suffix=".yaml")
+        path = Path(tmp)
+        monkeypatch.setattr("kikitori.settings.SETTINGS_PATH", path)
+        save_settings({"language": "en", "prompt": "test"})
+        assert path.exists()
+        reset_settings()
+        assert not path.exists()
+        assert load_settings() == {}
+
+    def test_reset_settings_does_not_raise_when_missing(self, monkeypatch):
+        """設定ファイルが存在しなくても reset_settings は例外を出さない"""
+        tmp = tempfile.mktemp(suffix=".yaml")
+        path = Path(tmp)
+        monkeypatch.setattr("kikitori.settings.SETTINGS_PATH", path)
+        assert not path.exists()
+        # 例外が発生しないこと
+        reset_settings()
 
 
 class TestMacOSUtils:

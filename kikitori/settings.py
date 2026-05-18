@@ -31,6 +31,15 @@ def save_settings(settings: dict) -> None:
         pass
 
 
+def reset_settings() -> None:
+    """設定ファイルを削除してデフォルト値に戻す。"""
+    try:
+        if SETTINGS_PATH.exists():
+            SETTINGS_PATH.unlink()
+    except Exception:
+        pass
+
+
 def get_frontmost_pid() -> int | None:
     """現在フォーカスされているアプリケーションの PID を取得する。
 
