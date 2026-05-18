@@ -1,4 +1,5 @@
 """PySide6 ベースの Kikitori UI（メニューバー + オーバーレイ）"""
+
 import os
 import signal
 import sys
@@ -34,10 +35,14 @@ def _set_dock_icon():
     透過背景を白に合成して設定する。"""
     try:
         from AppKit import (
-            NSApp, NSImage, NSColor, NSRectFill,
+            NSApp,
+            NSColor,
             NSCompositingOperationSourceOver,
+            NSImage,
+            NSRectFill,
         )
         from Foundation import NSMakeRect
+
         icon_path = Path(__file__).parent.parent / "assets" / "dock-icon.png"
         if not icon_path.exists():
             return
@@ -134,18 +139,8 @@ class KikitoriUIApp(QtWidgets.QApplication):
 
         self._menu.addSeparator()
 
-        self._model_action = self._menu.addAction("モデルを読み込み中...")
-        self._model_action.setEnabled(False)
-
-        self._lang_action = self._menu.addAction(f"言語: {self._language}")
-        self._lang_action.setEnabled(False)
-
-        self._hotkey_action = self._menu.addAction(f"ホットキー: {' + '.join(self._hotkey)}")
-        self._hotkey_action.setEnabled(False)
-
-        kw_count = len(self._glossary.get_terms())
-        self._glossary_action = self._menu.addAction(f"キーワード: {kw_count}件")
-        self._glossary_action.setEnabled(False)
+        self._record_action = self._menu.addAction("🔴 録音開始")
+        self._record_action.triggered.connect(self._toggle_recording)
 
         self._menu.addSeparator()
 
@@ -199,6 +194,7 @@ class KikitoriUIApp(QtWidgets.QApplication):
                 NSApplication,
                 NSApplicationActivationPolicyAccessory,
             )
+
             NSApplication.sharedApplication().setActivationPolicy_(
                 NSApplicationActivationPolicyAccessory
             )
@@ -206,12 +202,16 @@ class KikitoriUIApp(QtWidgets.QApplication):
             pass
 
     def _set_tray_icon_idle(self):
-        icon = QtGui.QIcon(str(Path(__file__).parent.parent / "assets" / "icon-idle.png"))
+        icon = QtGui.QIcon(
+            str(Path(__file__).parent.parent / "assets" / "icon-idle.png")
+        )
         icon.setIsMask(True)  # ダーク/ライトモード自動対応
         self._tray.setIcon(icon)
 
     def _set_tray_icon_recording(self):
-        icon = QtGui.QIcon(str(Path(__file__).parent.parent / "assets" / "icon-recording.png"))
+        icon = QtGui.QIcon(
+            str(Path(__file__).parent.parent / "assets" / "icon-recording.png")
+        )
         # 赤いアイコンはマスクモードOFFで色付き表示
         self._tray.setIcon(icon)
 
@@ -219,7 +219,6 @@ class KikitoriUIApp(QtWidgets.QApplication):
 
     def _on_model_loaded(self):
         self._model_ready = True
-        self._model_action.setText(f"モデル: {MODEL_NAME}")
         self._status_action.setText("○ 待機中")
         print("[INFO] モデル準備完了。アプリケーションを開始します...", flush=True)
         self._app.run_background()
@@ -319,11 +318,10 @@ class KikitoriUIApp(QtWidgets.QApplication):
         }
         save_settings(self._settings)
 
-        # メニュー表示更新
-        self._lang_action.setText(f"言語: {self._language}")
-        self._hotkey_action.setText(f"ホットキー: {' + '.join(self._hotkey)}")
-
-        print(f"[INFO] 設定を更新しました: language={self._language}, hotkey={' + '.join(self._hotkey)}, min_duration_ms={self._min_duration_ms}", flush=True)
+        print(
+            f"[INFO] 設定を更新しました: language={self._language}, hotkey={' + '.join(self._hotkey)}, min_duration_ms={self._min_duration_ms}",
+            flush=True,
+        )
 
     def _open_glossary_dialog(self):
         """キーワード管理ダイアログを開く。"""
@@ -391,7 +389,10 @@ class KikitoriUIApp(QtWidgets.QApplication):
         self._app._hotkey.update_hotkey(new_hotkey)
         self._app._hotkey._min_duration_samples = int(new_min_dur / 1000 * 16000)
 
-        print(f"[INFO] 設定ファイル変更を反映しました: language={self._language}, hotkey={' + '.join(self._hotkey)}", flush=True)
+        print(
+            f"[INFO] 設定ファイル変更を反映しました: language={self._language}, hotkey={' + '.join(self._hotkey)}",
+            flush=True,
+        )
 
     # ── Quit ─────────────────────────────────────────────────────────────
 
@@ -409,6 +410,7 @@ def main():
     _stderr_pipe_r, _stderr_pipe_w = os.pipe()
     os.dup2(_stderr_pipe_w, _stderr_fd)
     os.close(_stderr_pipe_w)
+
     def _filter_stderr():
         while True:
             data = os.read(_stderr_pipe_r, 4096)
@@ -417,7 +419,9 @@ def main():
             for line in data.decode(errors="replace").splitlines(True):
                 if "IMKCFRunLoopWakeUpReliable" not in line:
                     os.write(_saved_stderr_fd, line.encode(errors="replace"))
+
     import threading
+
     threading.Thread(target=_filter_stderr, daemon=True).start()
 
     os.environ["QT_MAC_DISABLE_FOREGROUND_APPLICATION_TRANSFORM"] = "1"
