@@ -3,7 +3,6 @@ import threading
 
 from pynput import keyboard
 
-from kikitori.apple_speech import SpeechTranscriber
 from kikitori.audio_buffer import AudioBuffer
 from kikitori.config import (
     APPLE_SPEECH_LOCALE,
@@ -61,6 +60,8 @@ class App:
         if transcriber is not None:
             self._transcriber = transcriber
         elif transcriber_type == "apple_speech":
+            from kikitori.apple_speech import SpeechTranscriber
+
             self._transcriber = SpeechTranscriber(
                 locale=APPLE_SPEECH_LOCALE, on_device=APPLE_SPEECH_ON_DEVICE
             )
