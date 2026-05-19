@@ -15,4 +15,4 @@ def pytest_sessionfinish(session, exitstatus):
     sys.stdout.flush()
     # Use os._exit for the actual exit to avoid waiting for daemon thread cleanup
     import os
-    os._exit(exitstatus)
+    # os._exit(exitstatus)

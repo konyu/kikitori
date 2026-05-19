@@ -3,12 +3,16 @@ import threading
 
 from pynput import keyboard
 
+from kikitori.apple_speech import SpeechTranscriber
 from kikitori.audio_buffer import AudioBuffer
 from kikitori.config import (
+    APPLE_SPEECH_LOCALE,
+    APPLE_SPEECH_ON_DEVICE,
     CHANNELS,
     DEFAULT_HOTKEY,
     DEFAULT_LANGUAGE,
     DEFAULT_PROMPT,
+    DEFAULT_TRANSCRIBER_TYPE,
     MAX_DURATION,
     MIN_DURATION_MS,
     MODEL_NAME,
@@ -38,6 +42,8 @@ class App:
         glossary: "Glossary | None" = None,
         corrections: "Corrections | None" = None,
         silence_rms_threshold: float = SILENCE_RMS_THRESHOLD,
+        transcriber_type: str = DEFAULT_TRANSCRIBER_TYPE,
+        transcriber: object | None = None,
     ):
         self._model_name = model_name
         self._sample_rate = sample_rate
@@ -52,7 +58,14 @@ class App:
 
         self._buffer = AudioBuffer()
         self._recorder = Recorder(self._buffer, sample_rate, channels)
-        self._transcriber = Transcriber(model_name)
+        if transcriber is not None:
+            self._transcriber = transcriber
+        elif transcriber_type == "apple_speech":
+            self._transcriber = SpeechTranscriber(
+                locale=APPLE_SPEECH_LOCALE, on_device=APPLE_SPEECH_ON_DEVICE
+            )
+        else:
+            self._transcriber = Transcriber(model_name)
         self._injector = Injector()
         self._hotkey = HotkeyManager(
             self._recorder,
