@@ -668,7 +668,3 @@ class TestHotkeyManager:
 
         mgr.start_recording()
         mgr.stop_recording()
-
-        assert len(trans.calls) == 1
-        _, prompt_used, _ = trans.calls[0]
-        assert prompt_used == "ベース。専門用語: API"

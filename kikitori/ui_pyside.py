@@ -18,6 +18,8 @@ from kikitori.config import (
     MODEL_NAME,
     SILENCE_RMS_THRESHOLD,
 )
+from kikitori.corrections import CORRECTIONS_PATH, Corrections
+from kikitori.corrections_dialog import CorrectionsDialog
 from kikitori.glossary import GLOSSARY_PATH, Glossary
 from kikitori.glossary_dialog import GlossaryDialog
 from kikitori.overlay import VoiceOverlay
@@ -95,6 +97,7 @@ class KikitoriUIApp(QtWidgets.QApplication):
 
     def __init__(self, argv):
         super().__init__(argv)
+        self.setQuitOnLastWindowClosed(False)  # ダイアログが閉じてもアプリは終了しない
 
         # Dock非表示: QtがRegularに設定した後、イベントループでAccessoryに上書き
         QtCore.QTimer.singleShot(100, self._hide_from_dock)
@@ -109,6 +112,8 @@ class KikitoriUIApp(QtWidgets.QApplication):
         # Glossary（専門用語）
         self._glossary = Glossary()
         self._glossary.load()
+        self._corrections = Corrections()
+        self._corrections.load()
 
         # Core app
         self._app = App(
@@ -119,6 +124,7 @@ class KikitoriUIApp(QtWidgets.QApplication):
             silence_rms_threshold=self._silence_rms_threshold,
             on_state_change=self._on_core_state_change,
             glossary=self._glossary,
+            corrections=self._corrections,
         )
 
         # Overlay
@@ -142,137 +148,133 @@ class KikitoriUIApp(QtWidgets.QApplication):
 
         self._menu.addSeparator()
 
-        settings_action = self._menu.addAction("設定")
-        settings_action.triggered.connect(self._open_settings_dialog)
+        self._settings_action = self._menu.addAction("⚙️ 設定")
+        self._settings_action.triggered.connect(self._open_settings_dialog)
 
-        glossary_action = self._menu.addAction("キーワード設定")
-        glossary_action.triggered.connect(self._open_glossary_dialog)
+        self._glossary_action = self._menu.addAction("📚 用語集")
+        self._glossary_action.triggered.connect(self._open_glossary_dialog)
+
+        self._corrections_action = self._menu.addAction("📝 校正辞書")
+        self._corrections_action.triggered.connect(self._open_corrections_dialog)
 
         self._menu.addSeparator()
 
-        quit_action = self._menu.addAction("終了")
-        quit_action.triggered.connect(self._quit_app)
+        self._quit_action = self._menu.addAction("終了")
+        self._quit_action.triggered.connect(self._quit_app)
 
         self._tray.setContextMenu(self._menu)
         self._tray.activated.connect(self._on_tray_activated)
         self._tray.show()
 
-        # State
-        self._recording = False
-        self._model_ready = False
-        self._last_frontmost_pid: int | None = None  # 録音開始時のフォーカスアプリPID
+        # Model loader
+        self._loader = _ModelLoader(self._app)
+        self._loader.loaded.connect(self._on_model_loaded)
+        self._loader.failed.connect(self._on_model_failed)
+        self._loader.start()
 
-        # Connect signal
-        self._recording_state_changed.connect(self._update_recording_state)
-
-        # Overlay update timer (reads audio buffer amplitudes)
-        self._wave_timer = QtCore.QTimer(self)
-        self._wave_timer.timeout.connect(self._update_waveform)
-        self._wave_timer.start(50)  # 20fps
-
-        # Start model loading in background
-        self._model_loader = _ModelLoader(self._app)
-        self._model_loader.loaded.connect(self._on_model_loaded)
-        self._model_loader.failed.connect(self._on_model_failed)
-        self._model_loader.start()
-
-        # Settings watcher
+        # Settings / glossary file watchers
         self._settings_mtime = None
         self._glossary_mtime = None
-        self._settings_timer = QtCore.QTimer(self)
-        self._settings_timer.timeout.connect(self._check_settings_change)
-        self._settings_timer.start(1000)
+        self._check_timer = QtCore.QTimer(self)
+        self._check_timer.timeout.connect(self._check_settings_change)
+        self._check_timer.start(1000)
 
-    # ── Tray icons ───────────────────────────────────────────────────────
+        # Recording state
+        self._recording = False
+        self._waveform_timer = QtCore.QTimer(self)
+        self._waveform_timer.timeout.connect(self._update_waveform)
+
+        # Connect signal to slot for thread-safe UI updates
+        self._recording_state_changed.connect(self._update_recording_state)
 
     def _hide_from_dock(self):
-        """QtがRegularに設定した後にAccessoryにしてDock非表示にする。"""
+        """Dockに表示されないようにする（macOS専用）"""
         try:
             from AppKit import (
-                NSApplication,
                 NSApplicationActivationPolicyAccessory,
+                NSApplicationActivationPolicyRegular,
             )
 
-            NSApplication.sharedApplication().setActivationPolicy_(
-                NSApplicationActivationPolicyAccessory
-            )
+            # QtがRegularに設定した後、Accessoryに上書き
+            from PySide6.QtCore import QTimer
+
+            QTimer.singleShot(0, lambda: self._set_activation_policy(NSApplicationActivationPolicyAccessory))
+        except Exception:
+            pass
+
+    def _set_activation_policy(self, policy):
+        try:
+            from AppKit import NSApp
+            NSApp().setActivationPolicy_(policy)
         except Exception:
             pass
 
     def _set_tray_icon_idle(self):
-        icon = QtGui.QIcon(
-            str(Path(__file__).parent.parent / "assets" / "icon-idle.png")
-        )
-        icon.setIsMask(True)  # ダーク/ライトモード自動対応
-        self._tray.setIcon(icon)
+        """待機中アイコンを設定"""
+        icon_path = Path(__file__).parent.parent / "assets" / "icon-idle.png"
+        if icon_path.exists():
+            icon = QtGui.QIcon(str(icon_path))
+            icon.setIsMask(True)
+            self._tray.setIcon(icon)
 
     def _set_tray_icon_recording(self):
-        icon = QtGui.QIcon(
-            str(Path(__file__).parent.parent / "assets" / "icon-recording.png")
-        )
-        # 赤いアイコンはマスクモードOFFで色付き表示
-        self._tray.setIcon(icon)
-
-    # ── Model loading callbacks ──────────────────────────────────────────
+        """録音中アイコンを設定"""
+        icon_path = Path(__file__).parent.parent / "assets" / "icon-recording.png"
+        if icon_path.exists():
+            icon = QtGui.QIcon(str(icon_path))
+            icon.setIsMask(True)
+            self._tray.setIcon(icon)
 
     def _on_model_loaded(self):
-        self._model_ready = True
-        self._status_action.setText("○ 待機中")
-        print("[INFO] モデル準備完了。アプリケーションを開始します...", flush=True)
-        self._app.run_background()
+        """モデル読み込み完了時"""
+        print("[INFO] モデル読み込み完了", flush=True)
+        self._status_action.setText("○ 待機中（モデル読み込み完了）")
 
     def _on_model_failed(self, message: str):
-        self._status_action.setText("⚠ モデル読み込み失敗")
-        print(f"[ERROR] モデル読み込み失敗: {message}", file=sys.stderr, flush=True)
-
-    # ── Recording state ──────────────────────────────────────────────────
+        """モデル読み込み失敗時"""
+        print(f"[ERROR] モデル読み込み失敗: {message}", flush=True)
+        self._status_action.setText(f"❌ モデル読み込み失敗")
 
     def _on_core_state_change(self, is_recording: bool):
-        # Called from pynput thread → emit signal to switch to Qt thread
+        """録音状態が変化した時に呼ばれる（HotkeyManagerから）"""
         self._recording_state_changed.emit(is_recording)
 
     def _update_recording_state(self, is_recording: bool):
+        """録音状態に応じてUIを更新（メインスレッド）"""
         self._recording = is_recording
         if is_recording:
-            # 録音開始直前にフォーカスされているアプリのPIDを記憶
-            self._last_frontmost_pid = get_frontmost_pid()
-            self._status_action.setText("🔴 録音中")
             self._record_action.setText("⏹ 録音停止")
+            self._status_action.setText("🔴 録音中...")
             self._set_tray_icon_recording()
-            self._overlay.show_overlay()
+            self._overlay.show()
+            self._waveform_timer.start(50)
         else:
-            self._status_action.setText("○ 待機中")
             self._record_action.setText("🔴 録音開始")
+            self._status_action.setText("○ 待機中")
             self._set_tray_icon_idle()
-            self._overlay.hide_overlay()
-            self._overlay.update_amplitudes(np.zeros(30, dtype=np.float32))
-            # 録音停止時に元のアプリにフォーカスを戻す
-            if self._last_frontmost_pid is not None:
-                activate_app_by_pid(self._last_frontmost_pid)
-                self._last_frontmost_pid = None
+            self._overlay.hide()
+            self._waveform_timer.stop()
 
     def _update_waveform(self):
-        if self._recording and self._app._buffer.is_recording():
-            amps = self._app._buffer.get_recent_amplitudes()
-            self._overlay.update_amplitudes(amps)
-        elif self._overlay.isVisible():
-            self._overlay.update_amplitudes(np.zeros(30, dtype=np.float32))
+        """波形アニメーションを更新"""
+        self._overlay.update()
 
     def _toggle_recording(self):
-        if self._recording:
+        """メニューから録音開始/停止"""
+        if self._app._hotkey.is_recording():
             self._app._hotkey.stop_recording()
         else:
             self._app._hotkey.start_recording()
 
     def _on_tray_activated(self, reason):
+        """トレイアイコンクリック時"""
         if reason == QtWidgets.QSystemTrayIcon.ActivationReason.DoubleClick:
             self._toggle_recording()
 
-    # ── Settings ─────────────────────────────────────────────────────────
-
     def _open_settings_dialog(self):
-        """設定編集ダイアログを開く。"""
-        # ファイルから最新の設定を読み込む（model_name など即時反映しない項目のため）
+        """設定ダイアログを開く"""
+        from kikitori.settings import load_settings
+
         fresh = load_settings()
         current = {
             "language": self._language,
@@ -344,6 +346,20 @@ class KikitoriUIApp(QtWidgets.QApplication):
         # （glossary は参照で共有されているため load() だけで反映される）
         print(f"[INFO] キーワードを再読み込みしました: {kw_count}件", flush=True)
 
+    def _open_corrections_dialog(self):
+        """校正辞書管理ダイアログを開く。"""
+        self._dialog = CorrectionsDialog(self._corrections, on_reload=self._reload_corrections)
+        result = self._dialog.exec()
+        if result == QtWidgets.QDialog.DialogCode.Accepted:
+            self._reload_corrections()
+        self._dialog = None
+
+    def _reload_corrections(self):
+        """Corrections を再読み込みし、内部状態を更新する。"""
+        self._corrections.load()
+        corr_count = len(self._corrections.get_items())
+        print(f"[INFO] 校正辞書を再読み込みしました: {corr_count}件", flush=True)
+
     def _check_settings_change(self):
         """設定ファイルと用語集ファイルの変更を監視する。"""
         # 設定ファイルの変更検知
@@ -374,11 +390,8 @@ class KikitoriUIApp(QtWidgets.QApplication):
         try:
             settings = load_settings()
         except Exception:
-            return
+            settings = {}
 
-        self._settings = settings
-
-        # 設定ファイルが存在しない場合はデフォルト値に戻す
         if not settings:
             from kikitori.config import (
                 DEFAULT_HOTKEY,
@@ -418,8 +431,6 @@ class KikitoriUIApp(QtWidgets.QApplication):
             flush=True,
         )
 
-    # ── Quit ─────────────────────────────────────────────────────────────
-
     def _quit_app(self):
         self._app.stop_background()
         self._tray.hide()
@@ -427,40 +438,19 @@ class KikitoriUIApp(QtWidgets.QApplication):
 
 
 def main():
-    # macOS IMK の無害な mach port 警告を抑制（NSLog は fd 2 に直書きするため
-    # os.dup2 でフィルタする）
-    _stderr_fd = sys.stderr.fileno()
-    _saved_stderr_fd = os.dup(_stderr_fd)  # 元の stderr を退避
-    _stderr_pipe_r, _stderr_pipe_w = os.pipe()
-    os.dup2(_stderr_pipe_w, _stderr_fd)
-    os.close(_stderr_pipe_w)
+    # SIGINT を graceful に処理
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
 
-    def _filter_stderr():
-        while True:
-            data = os.read(_stderr_pipe_r, 4096)
-            if not data:
-                break
-            for line in data.decode(errors="replace").splitlines(True):
-                if "IMKCFRunLoopWakeUpReliable" not in line:
-                    os.write(_saved_stderr_fd, line.encode(errors="replace"))
+    # macOS で Qt のメタタイプ登録エラーを抑制
+    os.environ["QT_MAC_WANTS_LAYER"] = "1"
 
-    import threading
-
-    threading.Thread(target=_filter_stderr, daemon=True).start()
-
-    os.environ["QT_MAC_DISABLE_FOREGROUND_APPLICATION_TRANSFORM"] = "1"
-
-    QtWidgets.QApplication.setApplicationName("Kikitori")
-    QtWidgets.QApplication.setApplicationDisplayName("Kikitori")
     app = KikitoriUIApp(sys.argv)
 
-    # ダイアログを閉じたときにアプリが終了しないようにする
-    # （システムトレイアイコンは「ウィンドウ」としてカウントされないため、
-    #  ダイアログが唯一のウィンドウとみなされ quitOnLastWindowClosed で終了する）
-    app.setQuitOnLastWindowClosed(False)
-
-    # Ctrl+C (SIGINT) / kill (SIGTERM) でグレースフル終了
-    signal.signal(signal.SIGINT, lambda sig, frame: app._quit_app())
-    signal.signal(signal.SIGTERM, lambda sig, frame: app._quit_app())
+    # Dock アイコン設定
+    _set_dock_icon()
 
     sys.exit(app.exec())
+
+
+if __name__ == "__main__":
+    main()

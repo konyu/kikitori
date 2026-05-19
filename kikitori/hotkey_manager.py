@@ -79,6 +79,7 @@ class HotkeyManager:
         timer_factory=None,
         on_state_change=None,
         glossary: "Glossary | None" = None,
+        corrections = None,
         silence_rms_threshold: float = SILENCE_RMS_THRESHOLD,
     ):
         self._recorder = recorder
@@ -95,6 +96,7 @@ class HotkeyManager:
         self._lock = threading.Lock()
         self._on_state_change = on_state_change
         self._glossary: "Glossary | None" = glossary
+        self._corrections = corrections
 
         # ホットキー設定
         names = hotkey if hotkey is not None else DEFAULT_HOTKEY
@@ -129,10 +131,7 @@ class HotkeyManager:
                 self._on_state_change(False)
         audio = self._recorder.stop()
         if self._should_transcribe(audio):
-            text = self._transcriber.transcribe(
-                audio, prompt=self._get_effective_prompt(), language=self._language
-            )
-            self._injector.inject(text)
+            self._transcribe_and_inject(audio)
         # キーがまだ押されていれば再録音、そうでなければタイマーをクリア
         with self._lock:
             if self._all_hotkey_pressed():
@@ -214,11 +213,7 @@ class HotkeyManager:
         if should_stop:
             self._cancel_auto_stop_timer()
             audio = self._recorder.stop()
-            if self._should_transcribe(audio):
-                text = self._transcriber.transcribe(
-                    audio, prompt=self._get_effective_prompt(), language=self._language
-                )
-                self._injector.inject(text)
+            self._transcribe_and_inject(audio)
 
     # ── 設定更新 ──────────────────────────────────────────────────────
 
@@ -268,11 +263,18 @@ class HotkeyManager:
                 self._on_state_change(False)
         self._cancel_auto_stop_timer()
         audio = self._recorder.stop()
-        if self._should_transcribe(audio):
-            text = self._transcriber.transcribe(
-                audio, prompt=self._get_effective_prompt(), language=self._language
-            )
-            self._injector.inject(text)
+        self._transcribe_and_inject(audio)
+
+    def _transcribe_and_inject(self, audio):
+        """音声を認識・校正してクリップボード経由でペーストする。"""
+        if not self._should_transcribe(audio):
+            return
+        text = self._transcriber.transcribe(
+            audio, prompt=self._get_effective_prompt(), language=self._language
+        )
+        if self._corrections is not None:
+            text = self._corrections.correct(text)
+        self._injector.inject(text)
 
     # ── プロンプト生成 ───────────────────────────────────────────────
 

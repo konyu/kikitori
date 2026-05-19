@@ -15,6 +15,7 @@ from kikitori.config import (
     SAMPLE_RATE,
     SILENCE_RMS_THRESHOLD,
 )
+from kikitori.corrections import Corrections
 from kikitori.glossary import Glossary
 from kikitori.hotkey_manager import HotkeyManager
 from kikitori.injector import Injector
@@ -35,6 +36,7 @@ class App:
         hotkey: list[str] | None = None,
         on_state_change=None,
         glossary: "Glossary | None" = None,
+        corrections: "Corrections | None" = None,
         silence_rms_threshold: float = SILENCE_RMS_THRESHOLD,
     ):
         self._model_name = model_name
@@ -46,6 +48,7 @@ class App:
         self._min_duration_ms = min_duration_ms
         self._silence_rms_threshold = silence_rms_threshold
         self._hotkey_config = hotkey if hotkey is not None else DEFAULT_HOTKEY
+        self._corrections = corrections if corrections is not None else Corrections()
 
         self._buffer = AudioBuffer()
         self._recorder = Recorder(self._buffer, sample_rate, channels)
@@ -62,6 +65,7 @@ class App:
             hotkey=self._hotkey_config,
             on_state_change=on_state_change,
             glossary=glossary,
+            corrections=self._corrections,
             silence_rms_threshold=silence_rms_threshold,
         )
         self._listener = None
@@ -72,6 +76,8 @@ class App:
         print(f"[INFO] モデルを読み込み中: {self._model_name}", flush=True)
         self._transcriber.load()
         print("[INFO] モデル読み込み完了", flush=True)
+        self._corrections.load()
+        print(f"[INFO] 校正辞書を読み込みました（{len(self._corrections.get_items())} 件）", flush=True)
 
     def run(self, listener_factory=None):
         if listener_factory is None:

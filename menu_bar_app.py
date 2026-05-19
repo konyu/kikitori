@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """macOS メニューバー常駐型 Kikitori アプリ（ターミナル実行推奨）"""
 import os
 import threading
@@ -9,9 +8,9 @@ import yaml
 
 from kikitori.app import App
 from kikitori.config import DEFAULT_HOTKEY, DEFAULT_LANGUAGE, DEFAULT_PROMPT, MIN_DURATION_MS, MODEL_NAME, SAMPLE_RATE, SILENCE_RMS_THRESHOLD
+from kikitori.corrections import Corrections, CORRECTIONS_PATH
 from kikitori.glossary import Glossary, GLOSSARY_PATH
 from kikitori.hotkey_manager import resolve_hotkey
-
 
 SETTINGS_PATH = Path.home() / ".kikitori_settings.yaml"
 
@@ -94,6 +93,7 @@ class KikitoriStatusBarApp(rumps.App):
             rumps.MenuItem("設定ファイルを開く", callback=self._open_settings),
             rumps.MenuItem("設定をデフォルトに戻す", callback=self._reset_settings),
             rumps.MenuItem("用語集ファイルを開く", callback=self._open_glossary),
+            rumps.MenuItem("校正辞書ファイルを開く", callback=self._open_corrections),
             None,
             rumps.MenuItem("終了", callback=self._quit_app),
         ]
@@ -103,44 +103,56 @@ class KikitoriStatusBarApp(rumps.App):
         self._model_ready = False
         self._loading_item_removed = False
 
-        # Pending menu updates (applied in _update_ui for thread safety)
+        # Pending UI updates
         self._pending_language = None
         self._pending_prompt = None
         self._pending_updated = None
 
-        # Polling timer for UI refresh (0.1s)
-        self._poll_timer = rumps.Timer(self._update_ui, 0.1)
-
-        # Start background tasks
-        self._poll_timer.start()
+        # Start background loading
         threading.Thread(target=self._load_model, daemon=True).start()
-        self._app.run_background()
 
-    # ── Background tasks ────────────────────────────────────────────────
+        # Settings watcher
+        self._settings_mtime = 0
+        self._settings_timer = None
+
+        # Glossary watcher
+        self._glossary_mtime = 0
 
     def _load_model(self):
-        self._app.load()
-        self._model_ready = True
+        """バックグラウンドでモデルを読み込み、完了後にメニューを更新"""
         try:
-            rumps.notification(
-                "Kikitori",
-                "準備完了",
-                f"モデルの読み込みが完了しました。{' + '.join(self._hotkey)} で録音開始",
-            )
-        except RuntimeError:
-            pass
+            self._app.load()
+            self._model_ready = True
+            if not self._loading_item_removed:
+                self._loading_item_removed = True
+                self._remove_loading_item()
+        except Exception as e:
+            print(f"[ERROR] モデル読み込み失敗: {e}", flush=True)
+
+    def _remove_loading_item(self):
+        """メインスレッドで安全にメニュー項目を削除"""
+        def remove(timer):
+            if self._model_loading_item in self.menu:
+                self.menu.pop(self._model_loading_item)
+        rumps.Timer(remove, 0.5).start()
 
     def _on_core_state_change(self, is_recording: bool):
-        """Called from hotkey listener thread when recording starts/stops."""
+        """録音状態変更時にUIを更新"""
         self._recording = is_recording
+        if is_recording:
+            self.title = "🔴"
+            self._status_item.title = "🔴 録音中..."
+            self._record_toggle_item.title = "⏹ 録音停止"
+        else:
+            self.title = "🎤"
+            self._status_item.title = "○ 待機中"
+            self._record_toggle_item.title = "🔴 録音開始"
 
     def _prompt_preview(self, prompt: str) -> str:
-        """プロンプトをメニュー表示用に短縮"""
-        max_len = 30
-        text = prompt.replace("\n", " ")
-        if len(text) > max_len:
-            return f"プロンプト: {text[:max_len]}…"
-        return f"プロンプト: {text}" if text else "プロンプト: (未設定)"
+        """長いプロンプトを省略して表示"""
+        if len(prompt) > 20:
+            return f"プロンプト: {prompt[:20]}..."
+        return f"プロンプト: {prompt}" if prompt else "プロンプト: (未設定)"
 
     def _start_settings_watcher(self):
         """設定ファイルの変更を監視し、変更があれば自動再読み込み"""
@@ -245,47 +257,21 @@ class KikitoriStatusBarApp(rumps.App):
             return
         self.title = icon
         def restore(timer):
-            if self.title == icon:
-                self.title = "🎤"
-        timer = rumps.Timer(restore, duration)
-        timer.start()
+            if not self._recording:
+                self.title = original
+        rumps.Timer(restore, duration).start()
 
     def _update_ui(self, timer):
-        """Called on main thread by rumps.Timer."""
-        is_recording = self._app._hotkey.is_recording()
-
-        # Update icon
-        self.title = "🔴" if is_recording else "🎤"
-
-        # Update status text
-        status = "● 録音中..." if is_recording else "○ 待機中"
-        if self._status_item.title != status:
-            self._status_item.title = status
-
-        # Update record toggle button label
-        toggle_label = "⏹ 録音停止" if is_recording else "🔴 録音開始"
-        if self._record_toggle_item.title != toggle_label:
-            self._record_toggle_item.title = toggle_label
-
-        # Apply pending settings updates
-        if self._pending_language is not None:
+        """定期的にメニュー項目を更新（設定変更反映用）"""
+        if self._pending_language:
             self._language_item.title = self._pending_language
             self._pending_language = None
-        if self._pending_prompt is not None:
+        if self._pending_prompt:
             self._prompt_item.title = self._pending_prompt
             self._pending_prompt = None
-        if self._pending_updated is not None:
+        if self._pending_updated:
             self._updated_item.title = self._pending_updated
             self._pending_updated = None
-
-        # Update model loading indicator
-        if self._model_ready and not self._loading_item_removed:
-            title = self._model_loading_item.title
-            if title in self.menu:
-                self.menu.pop(title)
-            self._loading_item_removed = True
-
-    # ── Menu actions ────────────────────────────────────────────────────
 
     def _toggle_recording(self, _):
         """メニューから録音開始/停止"""
@@ -298,17 +284,7 @@ class KikitoriStatusBarApp(rumps.App):
         """設定ファイルをデフォルトエディタで開く（初回はマニュアル付きで生成）"""
         if not SETTINGS_PATH.exists():
             default_yaml = f"""# Kikitori 設定ファイル
-#
-# hotkey: 同時押ししたいキーを配列で指定
-#   例: ["option"], ["f13"], ["ctrl", "alt"], ["cmd", "shift", "a"]
-#
-# 利用可能なキー:
-#   修飾キー: ctrl, alt (option), cmd (command), shift
-#   特殊キー: esc, space, tab, enter, backspace, delete,
-#            caps_lock, home, end, page_up, page_down,
-#            up, down, left, right
-#   Fキー: f1 〜 f20
-#   英数字: a 〜 z, 0 〜 9
+# 設定変更後は自動的に反映されます（再起動不要）
 
 language: {self._language}
 prompt: "{self._prompt}"
@@ -338,20 +314,16 @@ hotkey:
             pass
 
     def _open_glossary(self, _):
-        """用語集ファイルをデフォルトエディタで開く（初回は雛形を生成）。"""
+        """用語集ファイルを開く（存在しない場合は雛形を生成）"""
         if not GLOSSARY_PATH.exists():
-            GLOSSARY_PATH.write_text(Glossary.generate_template(), encoding="utf-8")
-            self._glossary.load()
-
+            GLOSSARY_PATH.write_text(
+                "# 専門用語リスト\n# Whisper の認識精度向上のために使用\n\nterms:\n  - MLX\n  - Transformer\n",
+                encoding="utf-8",
+            )
         import subprocess
         subprocess.Popen(["open", str(GLOSSARY_PATH)])
 
     def _quit_app(self, _):
-        self._app.stop_background()
-        self._poll_timer.stop()
-        if hasattr(self, "_settings_timer") and self._settings_timer is not None:
-            self._settings_timer.stop()
-            self._settings_timer = None
         rumps.quit_application()
 
 
