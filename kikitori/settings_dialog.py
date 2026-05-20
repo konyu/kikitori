@@ -79,7 +79,7 @@ class HotkeyEditor(QtWidgets.QWidget):
         self._checkboxes: dict[str, QtWidgets.QCheckBox] = {}
         for key, label in self.MODIFIER_MAP.items():
             cb = QtWidgets.QCheckBox(label)
-            cb.toggled.connect(self.hotkey_changed.emit)
+            cb.toggled.connect(lambda checked: self.hotkey_changed.emit())
             row1.addWidget(cb)
             self._checkboxes[key] = cb
         row1.addStretch()
@@ -93,7 +93,7 @@ class HotkeyEditor(QtWidgets.QWidget):
         self._extra_key = QtWidgets.QLineEdit()
         self._extra_key.setPlaceholderText("F13, a, 1...")
         self._extra_key.setMinimumWidth(120)
-        self._extra_key.textChanged.connect(self.hotkey_changed.emit)
+        self._extra_key.textChanged.connect(lambda text: self.hotkey_changed.emit())
         row2.addWidget(self._extra_key)
 
         row2.addStretch()

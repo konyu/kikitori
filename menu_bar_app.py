@@ -323,6 +323,19 @@ hotkey:
         import subprocess
         subprocess.Popen(["open", str(GLOSSARY_PATH)])
 
+    def _open_corrections(self, _):
+        """校正辞書ファイルを開く（存在しない場合は雛形を生成）"""
+        if not CORRECTIONS_PATH.exists():
+            CORRECTIONS_PATH.write_text(
+                "# Kikitori 校正辞書\n"
+                "# Whisper の音声認識結果に対し、以下の「間違い: 訂正」ペアを自動適用します。\n"
+                "# 大文字小文字は無視して置換されます。\n\n"
+                "corrections:\n  '間違い例': '訂正例'\n",
+                encoding="utf-8",
+            )
+        import subprocess
+        subprocess.Popen(["open", str(CORRECTIONS_PATH)])
+
     def _quit_app(self, _):
         rumps.quit_application()
 
