@@ -16,6 +16,7 @@ from kikitori.glossary import Glossary
 from kikitori.injector import Injector
 from kikitori.recorder import Recorder, RecordError
 from kikitori.transcriber import Transcriber
+from kikitori.settings import get_frontmost_pid, activate_app_by_pid
 
 
 # キー名 → pynput Key/KeyCode 一覧（左右どちらでも反応）
@@ -93,6 +94,7 @@ class HotkeyManager:
         self._timer_factory = timer_factory or threading.Timer
         self._timer = None
         self._is_recording = False
+        self._target_pid = None  # 録音開始時のフォーカスPID
         self._lock = threading.Lock()
         self._on_state_change = on_state_change
         self._glossary: "Glossary | None" = glossary
@@ -184,6 +186,8 @@ class HotkeyManager:
             self._pressed_keys.add(_key_id(key))
             if self._all_hotkey_pressed() and not self._is_recording:
                 self._is_recording = True
+                # 録音開始時のフォーカスアプリを記憶
+                self._target_pid = get_frontmost_pid()
                 if self._on_state_change:
                     self._on_state_change(True)
                 try:
@@ -239,6 +243,8 @@ class HotkeyManager:
             if self._is_recording:
                 return
             self._is_recording = True
+            # 録音開始時のフォーカスアプリを記憶
+            self._target_pid = get_frontmost_pid()
             if self._on_state_change:
                 self._on_state_change(True)
         try:
@@ -274,6 +280,13 @@ class HotkeyManager:
         )
         if self._corrections is not None:
             text = self._corrections.correct(text)
+
+        # ターゲットアプリを再アクティブ化してから注入
+        if self._target_pid:
+            activate_app_by_pid(self._target_pid)
+            import time
+            time.sleep(0.2)  # アプリ切り替えの完了を待機
+
         self._injector.inject(text)
 
     # ── プロンプト生成 ───────────────────────────────────────────────

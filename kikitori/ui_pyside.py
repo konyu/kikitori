@@ -217,14 +217,6 @@ class KikitoriUIApp(QtWidgets.QApplication):
             icon.setIsMask(True)
             self._tray.setIcon(icon)
 
-    def _set_tray_icon_recording(self):
-        """録音中アイコンを設定"""
-        icon_path = Path(__file__).parent.parent / "assets" / "icon-recording.png"
-        if icon_path.exists():
-            icon = QtGui.QIcon(str(icon_path))
-            icon.setIsMask(True)
-            self._tray.setIcon(icon)
-
     def _on_model_loaded(self):
         """モデル読み込み完了時"""
         print("[INFO] モデル読み込み完了", flush=True)
@@ -245,20 +237,28 @@ class KikitoriUIApp(QtWidgets.QApplication):
         """録音状態に応じてUIを更新（メインスレッド）"""
         self._recording = is_recording
         if is_recording:
+            # 録音開始
             self._record_action.setText("⏹ 録音停止")
             self._status_action.setText("🔴 録音中...")
-            self._set_tray_icon_recording()
-            self._overlay.show()
+            self._overlay.show_overlay()
             self._waveform_timer.start(50)
+
+            # OSのマイクインジケータが表示された後に、アイコンを再セットして表示を維持させる
+            QtCore.QTimer.singleShot(500, self._set_tray_icon_idle)
         else:
+            # 停止時
+            self._set_tray_icon_idle()
             self._record_action.setText("🔴 録音開始")
             self._status_action.setText("○ 待機中")
-            self._set_tray_icon_idle()
-            self._overlay.hide()
+            self._overlay.hide_overlay()
             self._waveform_timer.stop()
 
     def _update_waveform(self):
         """波形アニメーションを更新"""
+        if self._recording:
+            # バッファから直近の振幅を取得してオーバーレイに渡す
+            amplitudes = self._app._buffer.get_recent_amplitudes(n_bars=36)
+            self._overlay.update_amplitudes(amplitudes)
         self._overlay.update()
 
     def _toggle_recording(self):

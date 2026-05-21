@@ -1,4 +1,5 @@
 """クリップボード経由テキスト入力"""
+import time
 import pyperclip
 from pynput.keyboard import Controller, Key
 
@@ -11,11 +12,18 @@ class Injector:
     def inject(self, text: str):
         if not text:
             return
+        
+        # クリップボードへのコピー（少し待機してOS側に確実に反映させる）
         self._clipboard.copy(text)
+        time.sleep(0.1)
+
         try:
-            self._controller.press(Key.cmd_l)
-            self._controller.press("v")
-            self._controller.release("v")
-            self._controller.release(Key.cmd_l)
+            # 修飾キーを確実に押下
+            with self._controller.pressed(Key.cmd_l):
+                time.sleep(0.05)
+                self._controller.press("v")
+                time.sleep(0.05)
+                self._controller.release("v")
+                time.sleep(0.05)
         except Exception as e:
             print(f"[WARN] pynput での送信に失敗: {e}")
