@@ -96,6 +96,19 @@ class TestInjector:
         # 復元された
         assert clip.copied == "original content"
 
+    def test_inject_preserves_empty_clipboard(self):
+        """元のクリップボードが空（非テキスト）の場合、復元しない"""
+        clip = FakeClipboard(initial="")  # 空クリップボード（画像など）
+        ctrl = FakeController()
+        inj = Injector(controller=ctrl, clipboard=clip)
+
+        inj.inject("hello")
+
+        # 注入後は "hello" のまま（復元スレッドが開始されない）
+        import time
+        time.sleep(0.1)  # 十分待っても変わらない
+        assert clip.copied == "hello", "空クリップボードは復元されない（非テキスト保護）"
+
     def test_inject_long_text_uses_clipboard_fallback(self):
         """閾値超過のテキストはクリップボード経由 Cmd+V"""
         clip = FakeClipboard()

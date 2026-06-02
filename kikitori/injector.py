@@ -28,6 +28,8 @@ class Injector:
         """クリップボード経由 Cmd+V でテキストを注入する。
 
         注入後に元のクリップボードを非同期で復元する。
+        元のクリップボードが空だった場合（画像・ファイル等の非テキスト）、
+        復元をスキップして内容を保護する。
         """
         import time as _time
         t0 = _time.perf_counter()
@@ -48,11 +50,13 @@ class Injector:
             print(f"[WARN] pynput での送信に失敗: {e}")
 
         # Cmd+V が処理された後で元のクリップボードを復元（非同期）
-        threading.Thread(
-            target=self._restore_clipboard,
-            args=(original, self._clipboard),
-            daemon=True,
-        ).start()
+        # 元が空の場合は復元しない（画像など非テキストクリップボードを保護）
+        if original:
+            threading.Thread(
+                target=self._restore_clipboard,
+                args=(original, self._clipboard),
+                daemon=True,
+            ).start()
 
         if BENCHMARK_MODE:
             elapsed = (_time.perf_counter() - t0) * 1000
