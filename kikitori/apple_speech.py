@@ -136,16 +136,16 @@ class SpeechTranscriber:
         request.endAudio()
 
         done_event = threading.Event()
+        final_event = threading.Event()
         transcription = [""]
-        callback_count = [0]
 
         def _result_handler(
             result: SFSpeechRecognitionResult | None, error: object
         ) -> None:
-            callback_count[0] += 1
             if error is not None:
                 transcription[0] = ""
                 done_event.set()
+                final_event.set()
                 return
 
             if result is not None:
@@ -155,10 +155,14 @@ class SpeechTranscriber:
                     transcription[0] = text if text is not None else ""
 
                 if result.isFinal():
+                    final_event.set()
                     done_event.set()
+                elif transcription[0]:
+                    done_event.set()  # 部分テキスト到着
             else:
                 transcription[0] = ""
                 done_event.set()
+                final_event.set()
 
         task = self._recognizer.recognitionTaskWithRequest_resultHandler_(
             request, _result_handler
@@ -166,12 +170,17 @@ class SpeechTranscriber:
         if task is None:
             return ""
 
+        # フェーズ1: 最初のテキストが来るまで待つ
         start_time = time.time()
         while not done_event.is_set():
             remaining = 10.0 - (time.time() - start_time)
             if remaining <= 0:
                 break
             done_event.wait(timeout=0.05)
+
+        # フェーズ2: 最初のテキスト到着後、isFinal または 50ms 追加待機
+        if transcription[0] and not final_event.is_set():
+            final_event.wait(timeout=0.05)
 
         result_text = transcription[0]
 
