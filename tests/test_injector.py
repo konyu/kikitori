@@ -65,20 +65,20 @@ class TestInjector:
         assert ctrl.events == []
 
     def test_inject_short_text_types_directly(self):
-        """閾値以下のテキストは直接キー入力される"""
+        """すべてのテキストがクリップボード経由 Cmd+V で注入される"""
         clip = FakeClipboard()
         ctrl = FakeController()
         inj = Injector(controller=ctrl, clipboard=clip)
 
         inj.inject("hi")
 
-        # 直接入力された
-        assert ctrl.typed == ["hi"]
-        # Cmd+V は呼ばれない
+        # クリップボード経由で注入
+        assert clip.copied == "hi"
+        # Cmd+V が呼ばれる
         has_cmd_v = any(
             ev == ("press", "v") for ev in ctrl.events
         )
-        assert not has_cmd_v, "直接入力モードで Cmd+V が呼ばれた"
+        assert has_cmd_v, "Cmd+V が呼ばれた"
 
     def test_inject_short_text_backs_up_to_clipboard(self):
         """直接入力後にクリップボードへバックアップコピーされる"""
@@ -122,7 +122,7 @@ class TestInjector:
         assert elapsed < 0.01, f"sleep がある（{elapsed:.3f}s）"
 
     def test_inject_boundary(self):
-        """閾値ちょうどでの挙動（直接入力）"""
+        """閾値にかかわらずクリップボード経由で注入"""
         clip = FakeClipboard()
         ctrl = FakeController()
         inj = Injector(controller=ctrl, clipboard=clip, type_threshold=5)
@@ -130,7 +130,12 @@ class TestInjector:
         text = "12345"  # ちょうど5文字
         inj.inject(text)
 
-        assert ctrl.typed == [text]
+        # クリップボード経由で注入される
+        assert clip.copied == text
+        has_cmd_v = any(
+            ev == ("press", "v") for ev in ctrl.events
+        )
+        assert has_cmd_v
 
     def test_inject_boundary_exceeds(self):
         """閾値+1でクリップボード方式にフォールバック"""
@@ -145,13 +150,18 @@ class TestInjector:
         assert ctrl.typed == []  # type() は呼ばれない
 
     def test_inject_custom_threshold(self):
-        """コンストラクタで閾値を変更可能"""
+        """コンストラクタで閾値を変更可能だが、常にクリップボード経由"""
         clip = FakeClipboard()
         ctrl = FakeController()
         inj = Injector(controller=ctrl, clipboard=clip, type_threshold=10)
 
         inj.inject("1234567890")  # ちょうど10文字
-        assert ctrl.typed == ["1234567890"]
+        # クリップボード経由で注入される
+        assert clip.copied == "1234567890"
+        has_cmd_v = any(
+            ev == ("press", "v") for ev in ctrl.events
+        )
+        assert has_cmd_v
 
     def test_inject_key_error_is_caught(self):
         """pynput でのキー送信失敗をハンドリング（直接入力 → クリップボードフォールバック）"""

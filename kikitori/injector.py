@@ -8,8 +8,7 @@ from kikitori.config import BENCHMARK_MODE
 class Injector:
     """テキスト注入クラス。
 
-    短いテキスト（デフォルト50文字以下）は pynput.Controller.type() で
-    直接キー入力し、長いテキストはクリップボード経由 Cmd+V で注入する。
+    常にクリップボード経由 Cmd+V で注入し、注入後に元のクリップボードを復元する。
     """
 
     def __init__(self, controller=None, clipboard=None, type_threshold: int = 50):
@@ -21,10 +20,8 @@ class Injector:
         if not text:
             return
 
-        if len(text) <= self._type_threshold:
-            self._inject_direct(text)
-        else:
-            self._inject_via_clipboard(text)
+        # 常にクリップボード経由で注入（高速）
+        self._inject_via_clipboard(text)
 
     def _inject_direct(self, text: str):
         """pynput.Controller.type() で直接キー入力する。
