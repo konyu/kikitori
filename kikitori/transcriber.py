@@ -4,8 +4,6 @@ from typing import Callable
 
 import numpy as np
 
-import mlx_whisper
-
 from kikitori.config import DEFAULT_LANGUAGE
 
 
@@ -80,10 +78,18 @@ class Transcriber:
         load_model_func: Callable = None,
     ):
         self._model_name = model_name
-        self._transcribe = transcribe_func or mlx_whisper.transcribe
+        self._transcribe_func = transcribe_func  # None = lazy import
         self._load_model = load_model_func or _default_prepare_model
         self._model = None
         self._call_count = 0  # デバッグ用: transcribe呼び出し回数
+
+    def _get_transcribe_func(self):
+        """mlx_whisper の遅延インポート。初回 transcribe 呼び出し時までインポートを遅らせる。"""
+        if self._transcribe_func is not None:
+            return self._transcribe_func
+        import mlx_whisper
+        self._transcribe_func = mlx_whisper.transcribe
+        return self._transcribe_func
 
     def load(self):
         """モデルファイルの準備（キャッシュ確認・ダウンロード）。
@@ -105,7 +111,7 @@ class Transcriber:
         self._call_count += 1
         duration = audio.size / 16000
         print(f"[DEBUG] transcribe呼び出し #{self._call_count} (音声長: {duration:.1f}秒) prompt={prompt!r}", flush=True)
-        result = self._transcribe(
+        result = self._get_transcribe_func()(
             audio,
             path_or_hf_repo=self._model_name,
             initial_prompt=prompt,
