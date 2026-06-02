@@ -238,7 +238,7 @@ class SpeechAnalyzer:
             return
         self._running = False
         if self._thread is not None and self._thread.is_alive():
-            self._thread.join(timeout=2.0)
+            self._thread.join(timeout=0.5)
         self._thread = None
 
     def cancel(self) -> None:
@@ -373,8 +373,8 @@ class SpeechAnalyzer:
             if not self._running and not audio_ended:
                 request.endAudio()
                 audio_ended = True
-                # 最終結果を待つためにループ継続（最大 1 秒）
-                deadline = time.perf_counter() + 1.0
+                # 最終結果を待つ（短い発話なら 200ms で十分）
+                deadline = time.perf_counter() + 0.2
                 while time.perf_counter() < deadline:
                     run_loop.runMode_beforeDate_(
                         NSDefaultRunLoopMode,

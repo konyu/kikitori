@@ -135,6 +135,11 @@ class HotkeyManager:
             if self._on_state_change:
                 self._on_state_change(False)
         audio = self._recorder.stop()
+
+        # ストリーミング認識を停止
+        if self._speech_analyzer is not None:
+            self._speech_analyzer.stop()
+
         if self._should_transcribe(audio):
             self._transcribe_and_inject(audio)
         # キーがまだ押されていれば再録音、そうでなければタイマーをクリア
@@ -143,6 +148,13 @@ class HotkeyManager:
                 self._is_recording = True
                 if self._on_state_change:
                     self._on_state_change(True)
+
+                # ストリーミング認識を再開
+                if self._speech_analyzer is not None:
+                    self._speech_analyzer.on_partial_result = self._on_partial_speech
+                    self._speech_analyzer.on_final_result = self._on_final_speech
+                    self._speech_analyzer.start()
+
                 self._recorder.start()
                 self._start_auto_stop_timer()
             else:
