@@ -193,14 +193,24 @@ class HotkeyManager:
                 self._target_pid = get_frontmost_pid()
                 if self._on_state_change:
                     self._on_state_change(True)
+
+                # ストリーミング認識を開始（録音と並行）
+                if self._speech_analyzer is not None:
+                    self._speech_analyzer.on_partial_result = self._on_partial_speech
+                    self._speech_analyzer.on_final_result = self._on_final_speech
+                    self._speech_analyzer.start()
+
                 try:
                     self._recorder.start()
                 except RecordError as e:
                     import sys
                     print(f"[ERROR] 録音開始失敗: {e}", file=sys.stderr)
-                    self._is_recording = False
-                    if self._on_state_change:
-                        self._on_state_change(False)
+                    if self._speech_analyzer is not None:
+                        self._speech_analyzer.stop()
+                    with self._lock:
+                        self._is_recording = False
+                        if self._on_state_change:
+                            self._on_state_change(False)
                     return
                 self._start_auto_stop_timer()
 
@@ -220,6 +230,15 @@ class HotkeyManager:
         if should_stop:
             self._cancel_auto_stop_timer()
             audio = self._recorder.stop()
+
+            # アプリ切替を認識終了待ちとオーバーラップさせる
+            if self._target_pid is not None:
+                activate_app_by_pid(self._target_pid)
+
+            # ストリーミング認識を停止
+            if self._speech_analyzer is not None:
+                self._speech_analyzer.stop()
+
             self._transcribe_and_inject(audio)
 
     # ── 設定更新 ──────────────────────────────────────────────────────
@@ -289,6 +308,10 @@ class HotkeyManager:
         self._cancel_auto_stop_timer()
         audio = self._recorder.stop()
 
+        # アプリ切替を認識終了待ちとオーバーラップさせる
+        if self._target_pid is not None:
+            activate_app_by_pid(self._target_pid)
+
         # ストリーミング認識を停止し、スレッドの終了を待つ
         if self._speech_analyzer is not None:
             self._speech_analyzer.stop()
@@ -303,12 +326,8 @@ class HotkeyManager:
         if not self._should_transcribe(audio):
             return
 
-        # ターゲットアプリをアクティブ化（transcribe の前に実行し、
-        # 認識待ち時間とアプリ切替をオーバーラップさせる）
-        if self._target_pid is not None:
-            activate_app_by_pid(self._target_pid)
-
-        t1 = _time.perf_counter()
+        # activate_app_by_pid は呼び出し元（stop_recording/on_release）で
+        # speech_analyzer.stop() より先に実行済み。ここではベンチマーク開始。
 
         # ストリーミング認識の結果を取得
         text = ""
@@ -330,10 +349,11 @@ class HotkeyManager:
         t3 = _time.perf_counter()
 
         if BENCHMARK_MODE:
-            print(f"[BENCH] pipeline: transcribe={(t2-t1)*1000:.1f}ms "
-                  f"activate_app={(t1-t0)*1000:.1f}ms "
+            print(f"[BENCH] pipeline: transcribe={(t2-t0)*1000:.1f}ms "
                   f"inject={(t3-t2)*1000:.1f}ms "
-                  f"total={(t3-t0)*1000:.1f}ms", flush=True)
+                  f"total={(t3-t0)*1000:.1f}ms "
+                  f"stream={'yes' if self._speech_analyzer is not None else 'no'}",
+                  flush=True)
 
     # ── プロンプト生成 ───────────────────────────────────────────────
 
