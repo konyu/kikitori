@@ -116,27 +116,3 @@ class App:
         ) as listener:
             listener.join()
 
-    def run_background(self, listener_factory=None):
-        """デーモンスレッドでホットキーリスナーを開始（メニューバー用）"""
-        import sys
-        if listener_factory is None:
-            listener_factory = lambda on_press, on_release: keyboard.Listener(
-                on_press=on_press, on_release=on_release
-            )
-
-        print("[INFO] ホットキーリスナーを開始します...", flush=True)
-        self._listener = listener_factory(
-            on_press=self._hotkey.on_press,
-            on_release=self._hotkey.on_release,
-        )
-        self._listener.start()
-        self._listener_thread = threading.Thread(target=self._listener.join, daemon=True)
-        self._listener_thread.start()
-        print("[INFO] ホットキーリスナー開始完了。待機中...", flush=True)
-
-    def stop_background(self):
-        """バックグラウンドリスナーを停止"""
-        if self._listener is not None:
-            self._listener.stop()
-            self._listener = None
-        self._listener_thread = None

@@ -221,13 +221,15 @@ class KikitoriUIApp(QtWidgets.QApplication):
         """モデル読み込み完了時"""
         print("[INFO] モデル読み込み完了", flush=True)
         self._status_action.setText("○ 待機中（モデル読み込み完了）")
-        self._app.run_background()
+        import threading
+        threading.Thread(target=self._app.run, daemon=True).start()
 
     def _on_model_failed(self, message: str):
         """モデル読み込み失敗時"""
         print(f"[ERROR] モデル読み込み失敗: {message}", flush=True)
         self._status_action.setText(f"❌ モデル読み込み失敗")
-        self._app.run_background()
+        import threading
+        threading.Thread(target=self._app.run, daemon=True).start()
 
     def _on_core_state_change(self, is_recording: bool):
         """録音状態が変化した時に呼ばれる（HotkeyManagerから）"""
@@ -434,7 +436,6 @@ class KikitoriUIApp(QtWidgets.QApplication):
         )
 
     def _quit_app(self):
-        self._app.stop_background()
         self._tray.hide()
         self.quit()
 
