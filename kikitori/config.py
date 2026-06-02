@@ -25,7 +25,7 @@ DEFAULT_HOTKEY: list[str] = ["option"]
 # Apple Speech Framework 設定
 APPLE_SPEECH_LOCALE: str = "ja-JP"
 APPLE_SPEECH_ON_DEVICE: bool = True
-DEFAULT_TRANSCRIBER_TYPE: str = "mlx_whisper"  # "mlx_whisper" or "apple_speech"
+DEFAULT_TRANSCRIBER_TYPE: str = "apple_speech"  # "mlx_whisper" or "apple_speech"
 
 # 専門用語集ファイルパス
 GLOSSARY_PATH: Path = Path.home() / ".kikitori_glossary.yaml"

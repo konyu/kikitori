@@ -1,9 +1,6 @@
 """Apple Speech Framework による音声認識"""
-import ctypes
-import os
-import tempfile
 import threading
-import wave
+import time
 from typing import Callable
 
 import numpy as np
@@ -11,21 +8,19 @@ import numpy as np
 # PyObjC は実行環境でのみ利用可能
 try:
     from AVFoundation import AVAudioFormat, AVAudioPCMBuffer
-    from Foundation import NSURL
+    from Foundation import NSLocale
     from Speech import (
         SFSpeechAudioBufferRecognitionRequest,
         SFSpeechRecognizer,
-        SFSpeechRecognitionTaskResult,
-        SFSpeechURLRecognitionRequest,
+        SFSpeechRecognitionResult,
     )
 except ImportError:
     AVAudioFormat = None  # type: ignore[misc,assignment]
     AVAudioPCMBuffer = None  # type: ignore[misc,assignment]
-    NSURL = None  # type: ignore[misc,assignment]
+    NSLocale = None  # type: ignore[misc,assignment]
     SFSpeechAudioBufferRecognitionRequest = None  # type: ignore[misc,assignment]
     SFSpeechRecognizer = None  # type: ignore[misc,assignment]
-    SFSpeechRecognitionTaskResult = None  # type: ignore[misc,assignment]
-    SFSpeechURLRecognitionRequest = None  # type: ignore[misc,assignment]
+    SFSpeechRecognitionResult = None  # type: ignore[misc,assignment]
 
 
 class SpeechTranscriber:
@@ -51,6 +46,9 @@ class SpeechTranscriber:
 
         初回実行時は macOS の音声認識権限ダイアログが表示される可能性がある。
         """
+        if SFSpeechRecognizer is None:
+            raise RuntimeError("Apple Speech Framework (PyObjC) が利用できません。")
+
         if self._request_auth:
             auth_event = threading.Event()
             auth_status = [None]
@@ -62,7 +60,8 @@ class SpeechTranscriber:
             SFSpeechRecognizer.requestAuthorization_(_auth_handler)
             auth_event.wait(timeout=10.0)
 
-        recognizer = SFSpeechRecognizer.alloc().initWithLocale_(self._locale)
+        locale = NSLocale.alloc().initWithLocaleIdentifier_(self._locale)
+        recognizer = SFSpeechRecognizer.alloc().initWithLocale_(locale)
         if recognizer is None:
             raise RuntimeError(
                 f"SFSpeechRecognizer の作成に失敗しました: locale={self._locale}"
@@ -86,70 +85,122 @@ class SpeechTranscriber:
         Returns:
             認識結果の文字列。認識失敗時は空文字列。
         """
+        import sys
+
         if audio.size == 0:
+            print("[DEBUG] transcribe: audio is empty", flush=True)
             return ""
 
         if self._recognizer is None:
+            print("[DEBUG] transcribe: recognizer is None", flush=True)
             return ""
 
-        # float32 を int16 に変換して一時 WAV ファイルに書き出す
-        # （wave モジュールは PCM フォーマットのみ対応のため）
-        audio_normalized = np.clip(audio, -1.0, 1.0)
-        audio_int16 = (audio_normalized * 32767.0).astype(np.int16)
+        print(f"[DEBUG] transcribe: audio={audio.shape}, dtype={audio.dtype}, rms={float(np.sqrt(np.mean(audio * audio))):.6f}", flush=True)
 
-        fd, wav_path = tempfile.mkstemp(suffix=".wav")
-        os.close(fd)
+        if audio.dtype != np.float32:
+            audio = audio.astype(np.float32)
 
+        fmt = AVAudioFormat.alloc().initStandardFormatWithSampleRate_channels_(16000.0, 1)
+        if fmt is None:
+            print("[DEBUG] transcribe: AVAudioFormat failed", flush=True)
+            return ""
+        print(f"[DEBUG] transcribe: AVAudioFormat OK", flush=True)
+
+        buffer = AVAudioPCMBuffer.alloc().initWithPCMFormat_frameCapacity_(
+            fmt, len(audio)
+        )
+        if buffer is None:
+            print("[DEBUG] transcribe: AVAudioPCMBuffer alloc failed", flush=True)
+            return ""
+        print(f"[DEBUG] transcribe: AVAudioPCMBuffer OK, frames={len(audio)}", flush=True)
+
+        buffer.setFrameLength_(len(audio))
+
+        float_data = buffer.floatChannelData()
+        if float_data is None:
+            print("[DEBUG] transcribe: floatChannelData is None", flush=True)
+            return ""
+
+        channel_ptr = float_data[0]
+        if channel_ptr is None:
+            print("[DEBUG] transcribe: channel_ptr is None", flush=True)
+            return ""
+
+        # PyObjC varlist → memoryview → numpy 経由でコピー
+        # ctypes.memmove は objc.varlist を受け付けないため
         try:
-            with wave.open(wav_path, "wb") as wf:
-                wf.setnchannels(1)
-                wf.setsampwidth(2)
-                wf.setframerate(16000)
-                wf.writeframes(audio_int16.tobytes())
+            buf = channel_ptr.as_buffer(len(audio))
+            np_buf = np.frombuffer(buf, dtype=np.float32)
+            np_buf[:] = audio[:len(np_buf)]
+        except Exception as e:
+            print(f"[DEBUG] transcribe: buffer copy failed: {e}", flush=True)
+            return ""
+        print(f"[DEBUG] transcribe: buffer copy OK", flush=True)
 
-            file_url = NSURL.fileURLWithPath_(wav_path)
-            if file_url is None:
-                return ""
+        request = SFSpeechAudioBufferRecognitionRequest.alloc().init()
+        if request is None:
+            print("[DEBUG] transcribe: request alloc failed", flush=True)
+            return ""
 
-            request = SFSpeechURLRecognitionRequest.alloc().initWithURL_(file_url)
-            if request is None:
-                return ""
+        request.setRequiresOnDeviceRecognition_(self._on_device)
+        request.setAddsPunctuation_(True)
+        request.appendAudioPCMBuffer_(buffer)
+        request.endAudio()
+        print(f"[DEBUG] transcribe: request created, audio appended, endAudio called", flush=True)
 
-            request.setRequiresOnDeviceRecognition_(self._on_device)
+        done_event = threading.Event()
+        transcription = [""]
+        callback_count = [0]
 
-            done_event = threading.Event()
-            transcription = [""]
+        def _result_handler(
+            result: SFSpeechRecognitionResult | None, error: object
+        ) -> None:
+            callback_count[0] += 1
+            print(f"[DEBUG] transcribe: result_handler called (#{callback_count[0]}), result={result}, error={error}", flush=True)
+            if error is not None:
+                print(f"[DEBUG] transcribe: error in result_handler: {error}", flush=True)
+                transcription[0] = ""
+                done_event.set()
+                return
 
-            def _result_handler(
-                result: SFSpeechRecognitionTaskResult | None, error: object
-            ) -> None:
-                if error is not None:
-                    transcription[0] = ""
-                elif result is not None:
-                    best = result.bestTranscription()
-                    if best is not None:
-                        text = best.formattedString()
-                        transcription[0] = text if text is not None else ""
-                    else:
-                        transcription[0] = ""
-                else:
-                    transcription[0] = ""
+            if result is not None:
+                best = result.bestTranscription()
+                if best is not None:
+                    text = best.formattedString()
+                    transcription[0] = text if text is not None else ""
+                    print(f"[DEBUG] transcribe: partial text='{transcription[0]}'", flush=True)
+
+                if result.isFinal():
+                    print(f"[DEBUG] transcribe: result is final", flush=True)
+                    done_event.set()
+            else:
+                print(f"[DEBUG] transcribe: result is None in handler", flush=True)
+                transcription[0] = ""
                 done_event.set()
 
-            task = self._recognizer.recognitionTaskWithRequest_resultHandler_(
-                request, _result_handler
-            )
-            if task is None:
-                return ""
+        task = self._recognizer.recognitionTaskWithRequest_resultHandler_(
+            request, _result_handler
+        )
+        if task is None:
+            print("[DEBUG] transcribe: recognitionTaskWithRequest failed", flush=True)
+            return ""
+        print(f"[DEBUG] transcribe: task started, waiting...", flush=True)
 
-            done_event.wait(timeout=60.0)
+        # PyObjC のコールバックはメインスレッドの run loop で処理される。
+        # pynput の listener スレッドから呼ばれた場合、run loop が回っていないため
+        # コールバックが来ない。タイムアウトまでポーリングしつつ run loop を回す。
+        start_time = time.time()
+        while not done_event.is_set():
+            # 残りタイムアウトを計算
+            remaining = 60.0 - (time.time() - start_time)
+            if remaining <= 0:
+                print(f"[DEBUG] transcribe: timeout after {callback_count[0]} callbacks", flush=True)
+                break
+            done_event.wait(timeout=0.1)
 
-            return transcription[0]
-        finally:
-            try:
-                os.remove(wav_path)
-            except OSError:
-                pass
+        result_text = transcription[0]
+        print(f"[DEBUG] transcribe: returning '{result_text}' (callbacks={callback_count[0]})", flush=True)
+        return result_text
 
 
 class SpeechAnalyzer:
@@ -181,7 +232,8 @@ class SpeechAnalyzer:
         if self._task is not None:
             self.stop()
 
-        recognizer = SFSpeechRecognizer.alloc().initWithLocale_(self._locale)
+        locale = NSLocale.alloc().initWithLocaleIdentifier_(self._locale)
+        recognizer = SFSpeechRecognizer.alloc().initWithLocale_(locale)
         if recognizer is None:
             if self.on_error is not None:
                 self.on_error(
@@ -200,10 +252,11 @@ class SpeechAnalyzer:
             return
 
         request.setRequiresOnDeviceRecognition_(self._on_device)
+        request.setAddsPunctuation_(True)
         self._request = request
 
         def _result_handler(
-            result: SFSpeechRecognitionTaskResult | None, error: object
+            result: SFSpeechRecognitionResult | None, error: object
         ) -> None:
             if error is not None:
                 if self.on_error is not None:
@@ -266,7 +319,7 @@ class SpeechAnalyzer:
         if audio.dtype != np.float32:
             audio = audio.astype(np.float32)
 
-        fmt = AVAudioFormat(16000.0, 1)
+        fmt = AVAudioFormat.alloc().initStandardFormatWithSampleRate_channels_(16000.0, 1)
         if fmt is None:
             return
 
@@ -287,7 +340,9 @@ class SpeechAnalyzer:
             return
 
         try:
-            ctypes.memmove(int(channel_ptr), audio.ctypes.data, audio.nbytes)
+            buf = channel_ptr.as_buffer(len(audio))
+            np_buf = np.frombuffer(buf, dtype=np.float32)
+            np_buf[:] = audio[:len(np_buf)]
         except Exception:
             return
 
