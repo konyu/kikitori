@@ -102,8 +102,6 @@ class HotkeyManager:
         self._glossary: "Glossary | None" = glossary
         self._corrections = corrections
         self._speech_analyzer = speech_analyzer
-        self._async_text: str = ""  # ストリーミング認識の最新テキスト
-        self._async_done: threading.Event = threading.Event()
 
         # ホットキー設定
         names = hotkey if hotkey is not None else DEFAULT_HOTKEY
@@ -254,8 +252,6 @@ class HotkeyManager:
 
         # ストリーミング認識を開始（transcribe を録音と並行実行するため）
         if self._speech_analyzer is not None:
-            self._async_text = ""
-            self._async_done.clear()
             self._speech_analyzer.on_partial_result = self._on_partial_speech
             self._speech_analyzer.on_final_result = self._on_final_speech
             self._speech_analyzer.start()
@@ -275,13 +271,12 @@ class HotkeyManager:
         self._start_auto_stop_timer()
 
     def _on_partial_speech(self, text: str) -> None:
-        """ストリーミング認識の部分結果を保存。"""
-        self._async_text = text
+        """ストリーミング認識の部分結果（コールバック用）。"""
+        pass  # get_latest_text() で取得するため、ここでは何もしない
 
     def _on_final_speech(self, text: str) -> None:
-        """ストリーミング認識の最終結果を保存して done をセット。"""
-        self._async_text = text
-        self._async_done.set()
+        """ストリーミング認識の最終結果（コールバック用）。"""
+        pass  # get_latest_text() で取得するため、ここでは何もしない
 
     def stop_recording(self):
         """メニューなど外部から録音を停止（ホットキー以外の入力手段用）"""
@@ -294,9 +289,9 @@ class HotkeyManager:
         self._cancel_auto_stop_timer()
         audio = self._recorder.stop()
 
-        # ストリーミング認識に音声終了を通知
+        # ストリーミング認識を停止し、スレッドの終了を待つ
         if self._speech_analyzer is not None:
-            self._speech_analyzer.end_audio()
+            self._speech_analyzer.stop()
 
         self._transcribe_and_inject(audio)
 
@@ -314,14 +309,19 @@ class HotkeyManager:
             activate_app_by_pid(self._target_pid)
 
         t1 = _time.perf_counter()
-        text = self._transcriber.transcribe(
-            audio, prompt=self._get_effective_prompt(), language=self._language
-        )
-        t2 = _time.perf_counter()
 
-        # ストリーミング認識の後片付け
+        # ストリーミング認識の結果を取得
+        text = ""
         if self._speech_analyzer is not None:
-            self._speech_analyzer.cancel()
+            text = self._speech_analyzer.get_latest_text()
+
+        # ストリーミング結果がなければバッチ認識にフォールバック
+        if not text:
+            text = self._transcriber.transcribe(
+                audio, prompt=self._get_effective_prompt(), language=self._language
+            )
+
+        t2 = _time.perf_counter()
 
         if self._corrections is not None:
             text = self._corrections.correct(text)

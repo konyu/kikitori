@@ -180,9 +180,13 @@ class SpeechTranscriber:
 
 
 class SpeechAnalyzer:
-    """Apple Speech Framework を使ったリアルタイム音声分析クラス。
+    """Apple Speech Framework を使ったリアルタイム音声認識クラス。
 
-    録音中に逐次音声認識結果をコールバックで通知する。
+    専用バックグラウンドスレッド上で SFSpeechRecognizer を実行し、
+    録音と並行して音声認識を行う。認識結果はコールバックで通知される。
+
+    すべての SFSpeechRecognizer 操作は同一スレッド（専用スレッド）上で
+    実行されるため、スレッド間競合が発生しない。
     """
 
     def __init__(
@@ -194,34 +198,102 @@ class SpeechAnalyzer:
         self._on_device = on_device
         self._request = None
         self._task = None
+        self._recognizer = None
 
-        # SFSpeechRecognizer はメインスレッドで作成する必要がある。
-        # __init__ は App.__init__ からメインスレッドで呼ばれる。
-        locale_obj = NSLocale.alloc().initWithLocaleIdentifier_(self._locale)
-        self._recognizer = SFSpeechRecognizer.alloc().initWithLocale_(locale_obj)
+        # スレッド間通信用
+        self._audio_queue: list[np.ndarray] = []
+        self._audio_lock = threading.Lock()
+        self._running = False
+        self._thread: threading.Thread | None = None
+
+        # 認識結果
+        self._latest_text = ""
+        self._is_final = False
+        self._text_lock = threading.Lock()
 
         self.on_partial_result: Callable[[str], None] | None = None
         self.on_final_result: Callable[[str], None] | None = None
         self.on_error: Callable[[str], None] | None = None
 
     def start(self) -> None:
-        """音声認識セッションを開始する。メインスレッドから呼ぶこと。
+        """音声認識スレッドを開始する。
 
-        新しい SFSpeechAudioBufferRecognitionRequest を作成し、
-        事前に作成済みの SFSpeechRecognizer で認識タスクを開始する。
+        専用スレッド上で SFSpeechRecognizer と認識タスクを作成し、
+        そのスレッドの NSRunLoop でコールバックを処理する。
         """
-        import sys
-        from Foundation import NSThread
-        if not NSThread.isMainThread():
-            print("[WARN] SpeechAnalyzer.start() is not on main thread", file=sys.stderr)
-
-        if self._task is not None:
-            self.stop()
-
-        if self._recognizer is None:
-            if self.on_error is not None:
-                self.on_error("SFSpeechRecognizer が初期化されていません")
+        if self._running:
             return
+
+        self._running = True
+        self._latest_text = ""
+        self._is_final = False
+        self._audio_queue.clear()
+
+        self._thread = threading.Thread(target=self._run, daemon=True)
+        self._thread.start()
+
+    def stop(self) -> None:
+        """音声認識を停止し、スレッドの終了を待つ。"""
+        if not self._running:
+            return
+        self._running = False
+        if self._thread is not None and self._thread.is_alive():
+            self._thread.join(timeout=2.0)
+        self._thread = None
+
+    def cancel(self) -> None:
+        """認識タスクをキャンセルする（stop のシノニム）。"""
+        self.stop()
+
+    def end_audio(self) -> None:
+        """音声入力の終了を通知する（専用スレッド上で処理）。"""
+        pass  # _run ループ内で _running=False を検出して endAudio を呼ぶ
+
+    def append_audio(self, audio: np.ndarray) -> None:
+        """音声データを認識キューに追加する。
+
+        スレッドセーフ。録音コールバックから任意のスレッドで呼び出し可能。
+
+        Args:
+            audio: 16000Hz、モノラル、float32 の numpy 配列。
+        """
+        if audio.size == 0:
+            return
+        if audio.dtype != np.float32:
+            audio = audio.astype(np.float32)
+        with self._audio_lock:
+            self._audio_queue.append(audio.copy())
+
+    def get_latest_text(self) -> str:
+        """最新の認識テキストを取得する（スレッドセーフ）。"""
+        with self._text_lock:
+            return self._latest_text
+
+    def is_final(self) -> bool:
+        """最終認識結果が得られたかどうかを返す。"""
+        with self._text_lock:
+            return self._is_final
+
+    # ----------------------------------------------------------------
+    # 専用スレッド
+    # ----------------------------------------------------------------
+
+    def _run(self) -> None:
+        """専用スレッドのエントリポイント。
+
+        SFSpeechRecognizer を作成し、NSRunLoop を駆動しながら
+        音声データを逐次認識リクエストに追加する。
+        """
+        from Foundation import NSRunLoop, NSDate, NSDefaultRunLoopMode
+
+        locale_obj = NSLocale.alloc().initWithLocaleIdentifier_(self._locale)
+        recognizer = SFSpeechRecognizer.alloc().initWithLocale_(locale_obj)
+        if recognizer is None:
+            if self.on_error is not None:
+                self.on_error("SFSpeechRecognizer の作成に失敗しました")
+            return
+
+        self._recognizer = recognizer
 
         request = SFSpeechAudioBufferRecognitionRequest.alloc().init()
         if request is None:
@@ -235,6 +307,11 @@ class SpeechAnalyzer:
         request.setAddsPunctuation_(True)
         self._request = request
 
+        # 事前に AVAudioFormat を作成しておく
+        fmt = AVAudioFormat.alloc().initStandardFormatWithSampleRate_channels_(
+            16000.0, 1
+        )
+
         def _result_handler(
             result: SFSpeechRecognitionResult | None, error: object
         ) -> None:
@@ -242,19 +319,20 @@ class SpeechAnalyzer:
                 if self.on_error is not None:
                     self.on_error(str(error))
                 return
-
             if result is None:
                 return
-
             best = result.bestTranscription()
             if best is None:
                 return
-
             text = best.formattedString()
             if text is None:
                 text = ""
 
             is_final = result.isFinal()
+            with self._text_lock:
+                self._latest_text = text
+                self._is_final = is_final
+
             if is_final:
                 if self.on_final_result is not None:
                     self.on_final_result(text)
@@ -262,57 +340,65 @@ class SpeechAnalyzer:
                 if self.on_partial_result is not None:
                     self.on_partial_result(text)
 
-        self._task = self._recognizer.recognitionTaskWithRequest_resultHandler_(
+        task = recognizer.recognitionTaskWithRequest_resultHandler_(
             request, _result_handler
         )
-        if self._task is None:
+        if task is None:
             if self.on_error is not None:
                 self.on_error("認識タスクの開始に失敗しました")
+            return
+        self._task = task
 
-    def stop(self) -> None:
-        """音声認識セッションを完全に終了する。
+        run_loop = NSRunLoop.currentRunLoop()
+        audio_ended = False
 
-        end_audio → cancel の順で実行する。
-        """
-        self.end_audio()
-        self.cancel()
+        while self._running or not audio_ended:
+            # NSRunLoop をポンプ（コールバック処理）
+            run_loop.runMode_beforeDate_(
+                NSDefaultRunLoopMode,
+                NSDate.dateWithTimeIntervalSinceNow_(0.01),
+            )
 
-    def end_audio(self) -> None:
-        """音声入力の終了を通知する。
+            # 音声データがあれば認識リクエストに追加
+            chunks: list[np.ndarray] = []
+            with self._audio_lock:
+                if self._audio_queue:
+                    chunks = self._audio_queue[:]
+                    self._audio_queue.clear()
 
-        認識タスクはキャンセルせず、最終結果コールバックを待つ。
-        """
-        if self._request is not None:
-            self._request.endAudio()
+            for chunk in chunks:
+                self._append_to_request(request, fmt, chunk)
 
-    def cancel(self) -> None:
-        """認識タスクをキャンセルしてリソースを解放する。"""
-        if self._request is not None:
-            self._request = None
+            # 停止指示が出ていて、まだ endAudio を呼んでいない場合
+            if not self._running and not audio_ended:
+                request.endAudio()
+                audio_ended = True
+                # 最終結果を待つためにループ継続（最大 1 秒）
+                deadline = time.perf_counter() + 1.0
+                while time.perf_counter() < deadline:
+                    run_loop.runMode_beforeDate_(
+                        NSDefaultRunLoopMode,
+                        NSDate.dateWithTimeIntervalSinceNow_(0.01),
+                    )
+                    if self._is_final:
+                        break
+
         if self._task is not None:
             self._task.cancel()
             self._task = None
+        self._request = None
         self._recognizer = None
 
-    def append_audio(self, audio: np.ndarray) -> None:
-        """音声データを認識リクエストに追加する。
+    @staticmethod
+    def _append_to_request(
+        request: object,
+        fmt: object,
+        audio: np.ndarray,
+    ) -> None:
+        """PCM バッファを作成し、認識リクエストに追加する。
 
-        Args:
-            audio: 16000Hz、モノラル、float32 の numpy 配列。
+        認識スレッド上で呼ばれることを前提とする（スレッドセーフではない）。
         """
-        if self._request is None:
-            return
-
-        if audio.size == 0:
-            return
-
-        if audio.dtype != np.float32:
-            audio = audio.astype(np.float32)
-
-        fmt = AVAudioFormat.alloc().initStandardFormatWithSampleRate_channels_(16000.0, 1)
-        if fmt is None:
-            return
-
         buffer = AVAudioPCMBuffer.alloc().initWithPCMFormat_frameCapacity_(
             fmt, len(audio)
         )
@@ -336,4 +422,4 @@ class SpeechAnalyzer:
         except Exception:
             return
 
-        self._request.appendAudioPCMBuffer_(buffer)
+        request.appendAudioPCMBuffer_(buffer)
