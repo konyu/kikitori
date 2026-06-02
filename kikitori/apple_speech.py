@@ -196,15 +196,13 @@ class SpeechAnalyzer:
     ):
         self._locale = locale
         self._on_device = on_device
-        self._request = None
-        self._task = None
-        self._recognizer = None
 
         # スレッド間通信用
         self._audio_queue: list[np.ndarray] = []
         self._audio_lock = threading.Lock()
         self._running = False
         self._thread: threading.Thread | None = None
+        self._generation = 0  # start() ごとにインクリメント、古いスレッドの干渉防止
 
         # 認識結果
         self._latest_text = ""
@@ -224,6 +222,7 @@ class SpeechAnalyzer:
         if self._running:
             return
 
+        self._generation += 1
         self._running = True
         self._latest_text = ""
         self._is_final = False
@@ -233,13 +232,17 @@ class SpeechAnalyzer:
         self._thread.start()
 
     def stop(self) -> None:
-        """音声認識を停止し、スレッドの終了を待つ。"""
+        """音声認識を停止する。
+
+        スレッドの終了は待たず、即座に戻る。
+        daemon スレッドがバックグラウンドで endAudio → 最終結果取得 → 終了を行う。
+        古いスレッドの後始末は _generation カウンタで保護される。
+        """
         if not self._running:
             return
         self._running = False
-        if self._thread is not None and self._thread.is_alive():
-            self._thread.join(timeout=0.5)
-        self._thread = None
+        self._generation += 1
+        # join しない — daemon スレッドがバックグラウンドで後始末
 
     def cancel(self) -> None:
         """認識タスクをキャンセルする（stop のシノニム）。"""
@@ -283,8 +286,14 @@ class SpeechAnalyzer:
 
         SFSpeechRecognizer を作成し、NSRunLoop を駆動しながら
         音声データを逐次認識リクエストに追加する。
+
+        _generation カウンタで古いスレッドの干渉を防止:
+        - stop() → start() で _generation が進むと、古いスレッドは即座にループを抜ける
+        - 後始末はローカル変数に対して行い、新スレッドの状態を壊さない
         """
         from Foundation import NSRunLoop, NSDate, NSDefaultRunLoopMode
+
+        my_gen = self._generation
 
         locale_obj = NSLocale.alloc().initWithLocaleIdentifier_(self._locale)
         recognizer = SFSpeechRecognizer.alloc().initWithLocale_(locale_obj)
@@ -292,8 +301,6 @@ class SpeechAnalyzer:
             if self.on_error is not None:
                 self.on_error("SFSpeechRecognizer の作成に失敗しました")
             return
-
-        self._recognizer = recognizer
 
         request = SFSpeechAudioBufferRecognitionRequest.alloc().init()
         if request is None:
@@ -305,7 +312,6 @@ class SpeechAnalyzer:
 
         request.setRequiresOnDeviceRecognition_(self._on_device)
         request.setAddsPunctuation_(True)
-        self._request = request
 
         # 事前に AVAudioFormat を作成しておく
         fmt = AVAudioFormat.alloc().initStandardFormatWithSampleRate_channels_(
@@ -347,12 +353,12 @@ class SpeechAnalyzer:
             if self.on_error is not None:
                 self.on_error("認識タスクの開始に失敗しました")
             return
-        self._task = task
 
         run_loop = NSRunLoop.currentRunLoop()
         audio_ended = False
 
-        while self._running or not audio_ended:
+        # ループ条件: 記録中 or 音声終了未処理、かつ世代が一致する
+        while (self._running or not audio_ended) and self._generation == my_gen:
             # NSRunLoop をポンプ（コールバック処理）
             run_loop.runMode_beforeDate_(
                 NSDefaultRunLoopMode,
@@ -383,11 +389,8 @@ class SpeechAnalyzer:
                     if self._is_final:
                         break
 
-        if self._task is not None:
-            self._task.cancel()
-            self._task = None
-        self._request = None
-        self._recognizer = None
+        # 後始末（ローカル変数に対してのみ行い、次世代の状態を壊さない）
+        task.cancel()
 
     @staticmethod
     def _append_to_request(

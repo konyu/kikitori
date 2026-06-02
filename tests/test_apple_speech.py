@@ -166,10 +166,11 @@ class TestSpeechAnalyzer:
         assert sa._running
         assert sa._thread is not None
         assert sa._thread.is_alive()
-        # スレッドを停止
+        # 非同期停止: stop() は join しない。スレッドは daemon で残る。
         sa.stop()
         assert not sa._running
-        assert sa._thread is None
+        # スレッドは join されないので None ではない
+        assert sa._thread is not None
 
     @patch("kikitori.apple_speech.SFSpeechRecognizer")
     @patch("kikitori.apple_speech.SFSpeechAudioBufferRecognitionRequest")
@@ -181,18 +182,21 @@ class TestSpeechAnalyzer:
         sa = SpeechAnalyzer()
         sa.on_error = errors.append
         sa.start()
-        sa.stop()  # スレッドを停止
+        # 非同期 stop(): スレッドに少し時間を与えて実行させる
+        sa._thread.join(timeout=1.0)  # エラーで即座に終了するはず
+        sa.stop()
 
         assert len(errors) >= 1
         assert "失敗" in errors[0]
 
     def test_stop_calls_end_audio_and_cancel(self):
-        """stop() は _running を False にし、スレッドの終了を待つ。"""
+        """stop() は _running を False にし、_generation を進める。
+
+        非同期 stop(): join しない。スレッドの後始末は _run() 内で行う。
+        """
         sa = SpeechAnalyzer()
         sa._running = True
-        sa._recognizer = MagicMock()
-        sa._request = MagicMock()
-        sa._task = MagicMock()
+        old_gen = sa._generation
 
         # ダミースレッドを作成（実際には start していない）
         import threading as _th
@@ -201,13 +205,14 @@ class TestSpeechAnalyzer:
         sa.stop()
 
         assert sa._running is False
-        assert sa._thread is None
+        assert sa._generation == old_gen + 1
+        # 非同期 stop ではスレッドをクリアしない
+        assert sa._thread is not None
 
     @patch("kikitori.apple_speech.AVAudioFormat")
     @patch("kikitori.apple_speech.AVAudioPCMBuffer")
     def test_append_audio_empty_returns_early(self, mock_buffer_cls, mock_format_cls):
         sa = SpeechAnalyzer()
-        sa._request = MagicMock()
         sa.append_audio(np.array([], dtype=np.float32))
         mock_format_cls.assert_not_called()
 
