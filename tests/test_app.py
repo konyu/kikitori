@@ -23,6 +23,9 @@ class FakeListener:
     def __exit__(self, *args):
         pass
 
+    def is_alive(self):
+        return self.started and not self.stopped
+
     def join(self):
         self.joined = True
 

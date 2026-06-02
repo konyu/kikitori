@@ -104,6 +104,28 @@ class App:
         self._corrections.load()
         print(f"[INFO] 校正辞書を読み込みました（{len(self._corrections.get_items())} 件）", flush=True)
 
+    def run_background(self, listener_factory=None):
+        """ホットキーリスナーをバックグラウンドスレッドで開始する。"""
+        if listener_factory is None:
+            listener_factory = lambda on_press, on_release: keyboard.Listener(
+                on_press=on_press, on_release=on_release
+            )
+        self._listener = listener_factory(
+            on_press=self._hotkey.on_press,
+            on_release=self._hotkey.on_release,
+        )
+        self._listener_thread = threading.Thread(
+            target=self._listener.start, daemon=True
+        )
+        self._listener_thread.start()
+
+    def stop_background(self):
+        """バックグラウンドのホットキーリスナーを停止する。"""
+        if self._listener is not None:
+            self._listener.stop()
+            self._listener = None
+        self._listener_thread = None
+
     def run(self, listener_factory=None):
         if listener_factory is None:
             listener_factory = lambda on_press, on_release: keyboard.Listener(
@@ -134,4 +156,5 @@ class App:
                     NSDefaultRunLoopMode,
                     NSDate.dateWithTimeIntervalSinceNow_(0.05),
                 )
+            listener.join()
 

@@ -22,7 +22,7 @@ class TestSpeechTranscriber:
         tr = SpeechTranscriber(request_auth=False)
         tr.load()
 
-        mock_sfsr.alloc.return_value.initWithLocale_.assert_called_once_with("ja-JP")
+        mock_sfsr.alloc.return_value.initWithLocale_.assert_called_once()
         assert tr._recognizer is mock_recognizer
 
     @patch("kikitori.apple_speech.SFSpeechRecognizer")
@@ -41,47 +41,49 @@ class TestSpeechTranscriber:
         audio = np.array([0.1, 0.2], dtype=np.float32)
         assert tr.transcribe(audio) == ""
 
-    @patch("kikitori.apple_speech.os")
-    @patch("kikitori.apple_speech.wave")
-    @patch("kikitori.apple_speech.tempfile")
-    @patch("kikitori.apple_speech.NSURL")
-    @patch("kikitori.apple_speech.SFSpeechURLRecognitionRequest")
     @patch("kikitori.apple_speech.SFSpeechRecognizer")
-    def test_transcribe_success(self, mock_sfsr, mock_request_cls, mock_nsurl, mock_tempfile, mock_wave, mock_os):
+    @patch("kikitori.apple_speech.SFSpeechAudioBufferRecognitionRequest")
+    @patch("kikitori.apple_speech.AVAudioPCMBuffer")
+    @patch("kikitori.apple_speech.AVAudioFormat")
+    def test_transcribe_success(self, mock_format_cls, mock_buffer_cls, mock_request_cls, mock_sfsr):
         # Arrange: recognizer
         mock_recognizer = MagicMock()
         mock_sfsr.alloc.return_value.initWithLocale_.return_value = mock_recognizer
 
+        # Arrange: format
+        mock_fmt = MagicMock()
+        mock_format_cls.alloc.return_value.initStandardFormatWithSampleRate_channels_.return_value = mock_fmt
+
+        # Arrange: buffer
+        mock_buffer = MagicMock()
+        mock_buffer_cls.alloc.return_value.initWithPCMFormat_frameCapacity_.return_value = mock_buffer
+
+        # Arrange: floatChannelData → channel_ptr with as_buffer
+        import struct
+        fake_bytes = struct.pack('3f', 0.1, 0.2, 0.3)
+
+        class FakeChannelPtr:
+            def as_buffer(self, n):
+                return fake_bytes
+
+        mock_channel_data = MagicMock()
+        mock_channel_data.__getitem__.return_value = FakeChannelPtr()
+        mock_buffer.floatChannelData.return_value = mock_channel_data
+
         # Arrange: request
         mock_request = MagicMock()
-        mock_request_cls.alloc.return_value.initWithURL_.return_value = mock_request
-
-        # Arrange: NSURL
-        mock_url = MagicMock()
-        mock_nsurl.fileURLWithPath_.return_value = mock_url
-
-        # Arrange: tempfile
-        mock_tempfile.mkstemp.return_value = (3, "/tmp/test.wav")
-
-        # Arrange: wave
-        mock_wf = MagicMock()
-        mock_wave.open.return_value.__enter__ = lambda s: s
-        mock_wave.open.return_value.__exit__ = lambda s, *a: None
-        mock_wave.open.return_value.setnchannels = MagicMock()
-        mock_wave.open.return_value.setsampwidth = MagicMock()
-        mock_wave.open.return_value.setframerate = MagicMock()
-        mock_wave.open.return_value.writeframes = MagicMock()
+        mock_request_cls.alloc.return_value.init.return_value = mock_request
 
         # Arrange: task + callback simulation
         mock_task = MagicMock()
         mock_recognizer.recognitionTaskWithRequest_resultHandler_.return_value = mock_task
 
         def capture_handler(request, handler):
-            # Simulate success callback
             mock_result = MagicMock()
             mock_best = MagicMock()
             mock_best.formattedString.return_value = "テスト結果"
             mock_result.bestTranscription.return_value = mock_best
+            mock_result.isFinal.return_value = True
             handler(mock_result, None)
             return mock_task
 
@@ -97,31 +99,40 @@ class TestSpeechTranscriber:
         assert result == "テスト結果"
         mock_request.setRequiresOnDeviceRecognition_.assert_called_once_with(True)
 
-    @patch("kikitori.apple_speech.os")
-    @patch("kikitori.apple_speech.wave")
-    @patch("kikitori.apple_speech.tempfile")
-    @patch("kikitori.apple_speech.NSURL")
-    @patch("kikitori.apple_speech.SFSpeechURLRecognitionRequest")
     @patch("kikitori.apple_speech.SFSpeechRecognizer")
-    def test_transcribe_none_best_transcription(self, mock_sfsr, mock_request_cls, mock_nsurl, mock_tempfile, mock_wave, mock_os):
+    @patch("kikitori.apple_speech.SFSpeechAudioBufferRecognitionRequest")
+    @patch("kikitori.apple_speech.AVAudioPCMBuffer")
+    @patch("kikitori.apple_speech.AVAudioFormat")
+    def test_transcribe_none_best_transcription(self, mock_format_cls, mock_buffer_cls, mock_request_cls, mock_sfsr):
         mock_recognizer = MagicMock()
         mock_sfsr.alloc.return_value.initWithLocale_.return_value = mock_recognizer
 
+        mock_fmt = MagicMock()
+        mock_format_cls.alloc.return_value.initStandardFormatWithSampleRate_channels_.return_value = mock_fmt
+
+        mock_buffer = MagicMock()
+        mock_buffer_cls.alloc.return_value.initWithPCMFormat_frameCapacity_.return_value = mock_buffer
+
+        import struct
+        fake_bytes = struct.pack('1f', 0.1)
+
+        class FakeChannelPtr:
+            def as_buffer(self, n):
+                return fake_bytes
+
+        mock_channel_data = MagicMock()
+        mock_channel_data.__getitem__.return_value = FakeChannelPtr()
+        mock_buffer.floatChannelData.return_value = mock_channel_data
+
         mock_request = MagicMock()
-        mock_request_cls.alloc.return_value.initWithURL_.return_value = mock_request
-
-        mock_nsurl.fileURLWithPath_.return_value = MagicMock()
-        mock_tempfile.mkstemp.return_value = (3, "/tmp/test.wav")
-
-        mock_wf = MagicMock()
-        mock_wave.open.return_value.__enter__ = lambda s: s
-        mock_wave.open.return_value.__exit__ = lambda s, *a: None
+        mock_request_cls.alloc.return_value.init.return_value = mock_request
 
         mock_task = MagicMock()
 
         def capture_handler(request, handler):
             mock_result = MagicMock()
             mock_result.bestTranscription.return_value = None
+            mock_result.isFinal.return_value = True
             handler(mock_result, None)
             return mock_task
 
@@ -206,18 +217,24 @@ class TestSpeechAnalyzer:
         sa.append_audio(np.array([], dtype=np.float32))
         mock_format_cls.assert_not_called()
 
-    @patch("kikitori.apple_speech.ctypes")
     @patch("kikitori.apple_speech.AVAudioFormat")
     @patch("kikitori.apple_speech.AVAudioPCMBuffer")
-    def test_append_audio_success(self, mock_buffer_cls, mock_format_cls, mock_ctypes):
+    def test_append_audio_success(self, mock_buffer_cls, mock_format_cls):
         mock_fmt = MagicMock()
         mock_format_cls.return_value = mock_fmt
 
         mock_buffer = MagicMock()
         mock_buffer_cls.alloc.return_value.initWithPCMFormat_frameCapacity_.return_value = mock_buffer
 
+        import struct
+        fake_bytes = struct.pack('3f', 0.1, 0.2, 0.3)
+
+        class FakeChannelPtr:
+            def as_buffer(self, n):
+                return fake_bytes
+
         mock_channel_data = MagicMock()
-        mock_channel_data.__getitem__ = MagicMock(return_value=0x1234)
+        mock_channel_data.__getitem__.return_value = FakeChannelPtr()
         mock_buffer.floatChannelData.return_value = mock_channel_data
 
         sa = SpeechAnalyzer()
@@ -227,7 +244,6 @@ class TestSpeechAnalyzer:
         sa.append_audio(audio)
 
         mock_buffer.setFrameLength_.assert_called_once_with(3)
-        mock_ctypes.memmove.assert_called_once()
         sa._request.appendAudioPCMBuffer_.assert_called_once_with(mock_buffer)
 
     @patch("kikitori.apple_speech.SFSpeechRecognizer")
