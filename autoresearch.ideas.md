@@ -1,7 +1,7 @@
 # Autoresearch Ideas — Kikitori Latency Optimization
 
-## Done
-- [x] Streaming recognition on dedicated thread (transcribe ~0ms)
+## Done (12 experiments)
+- [x] Streaming recognition on dedicated thread (transcribe 183ms → 0ms)
 - [x] activate_app overlaps with recognition finalization
 - [x] endAudio finalization wait 1s → 200ms
 - [x] Thread join 2s → 500ms
@@ -9,11 +9,24 @@
 - [x] Injector always clipboard paste (faster than per-char typing)
 - [x] Clipboard save/restore after paste
 - [x] Lazy import mlx_whisper (app startup 600ms → 127ms)
+- [x] Benchmark variable naming fix
+- [x] Async stop(): generation counter, no thread join. Saves ~700ms
+- [x] Fire-and-forget activate_app_by_pid in daemon thread. Saves ~50-200ms
+- [x] Remove dead _inject_direct code (always clipboard)
 
-## Backlog (deferred, promising but not urgent)
-- async stop(): don't join speech_analyzer thread, let daemon thread clean up. Saves ~200ms from user-perceived latency. Need generation counter for safe restart.
-- Thread reuse: persistent speech_analyzer thread with condition variable instead of creating new thread per recording session
-- Pre-activate app during recording (anticipatory app switch) — might feel jarring to user
-- Overlap injection with final recognition: inject partial text immediately, update if final differs (risky — double paste)
-- Remove batch transcribe fallback entirely if streaming is reliable — simplifies pipeline
-- Profile PyObjC framework imports for further startup improvement (AVFoundation, Speech, AppKit ~30ms each)
+## Pipeline Summary
+| Phase | Baseline | Current |
+|-------|---------|---------|
+| recorder.stop | ~5ms | ~0ms |
+| activate_app_by_pid | 50-200ms (blocking) | ~0ms (daemon thread) |
+| speech_analyzer.stop | 200ms+500ms | ~0ms (async, no join) |
+| transcribe | 183ms (batch) | ~0ms (streaming) |
+| inject | 50-200ms (per-char) | 20-50ms (clipboard Cmd+V) |
+| **Total** | **~711ms** | **~20-50ms (~93% improvement)** |
+
+## Backlog (deferred, diminished returns)
+- Thread reuse: persistent speech_analyzer thread with condition variable. Small win (~10ms thread creation per cycle), complexity high.
+- Overlap injection with final recognition: inject partial text immediately, update if final differs. Risky (double paste). Unnecessary with current latency.
+- Remove batch transcribe fallback entirely if streaming reliable. Reduces code complexity, no latency impact.
+- Profile PyObjC framework imports for startup improvement (saves ~30ms, not on hot path).
+- Eliminate double audio copy: _on_audio copies indata, append_audio copies again. Saves ~128KB/s of allocation, <1ms per cycle.
