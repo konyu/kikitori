@@ -1,0 +1,64 @@
+{
+  "stage": "interview",
+  "title": "Kikitori レイテンシ最適化",
+  "goalSlug": "latency-optimization",
+  "questions": [
+    {
+      "id": "target-latency",
+      "prompt": "目標とするエンドツーエンド遅延（録音終了→ペースト完了）はどれくらい？",
+      "description": "現在の体感値と、どこまで縮めたいかの目安を教えてください。",
+      "answerMode": "single-custom",
+      "recommendedAnswer": "まず計測して現状を把握し、その後に具体的な数値目標を決める。計測インフラを最初に作る。",
+      "recommendedOptionIds": ["measure-first"],
+      "options": [
+        { "id": "measure-first", "label": "まず計測 → 後で目標設定" },
+        { "id": "under-500ms", "label": "500ms 以下" },
+        { "id": "under-200ms", "label": "200ms 以下" },
+        { "id": "under-100ms", "label": "100ms 以下" }
+      ],
+      "required": true
+    },
+    {
+      "id": "transcriber-priority",
+      "prompt": "どちらの音声認識エンジンを優先して最適化する？",
+      "description": "現在のデフォルトは apple_speech。mlx-whisper も併用しているか、一方だけか。",
+      "answerMode": "single-custom",
+      "recommendedAnswer": "apple_speech を優先。mlx-whisper は副次的に扱う。",
+      "recommendedOptionIds": ["apple-speech-primary"],
+      "options": [
+        { "id": "apple-speech-primary", "label": "apple_speech を優先" },
+        { "id": "mlx-primary", "label": "mlx-whisper を優先" },
+        { "id": "both-equal", "label": "両方とも同等に最適化" }
+      ],
+      "required": true
+    },
+    {
+      "id": "pipeline-model",
+      "prompt": "録音と認識のパイプライン化は許容する？",
+      "description": "例: 録音中に先行して認識を開始する、録音終了前にバッファを転送し始める、など。実装複雑度は上がるが大幅な遅延削減になる可能性がある。",
+      "answerMode": "single-custom",
+      "recommendedAnswer": "シンプルな逐次処理を維持しつつ、各段階の無駄を削る。パイプライン化は必要なら後で検討。",
+      "recommendedOptionIds": ["keep-sequential"],
+      "options": [
+        { "id": "keep-sequential", "label": "逐次処理のまま最適化" },
+        { "id": "pipeline-ok", "label": "パイプライン化も検討" }
+      ],
+      "required": true
+    },
+    {
+      "id": "scope",
+      "prompt": "スコープ外にしたい項目はある？",
+      "description": "以下のすべてをスコープ内としています。外したいものがあれば選択を外してください。",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "すべてスコープ内。",
+      "recommendedOptionIds": ["recording-start", "transcription", "paste-processing", "benchmarking"],
+      "options": [
+        { "id": "recording-start", "label": "録音開始の応答速度" },
+        { "id": "transcription", "label": "音声認識エンジンの処理速度" },
+        { "id": "paste-processing", "label": "ペースト処理（クリップボード+Cmd+V）" },
+        { "id": "benchmarking", "label": "計測インフラの整備" }
+      ],
+      "required": true
+    }
+  ]
+}

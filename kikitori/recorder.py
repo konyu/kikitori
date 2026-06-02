@@ -1,17 +1,14 @@
 """録音ストリーム制御"""
-import time
 import sys
 from typing import Callable
 
 import sounddevice as sd
 
 from kikitori.audio_buffer import AudioBuffer
-from kikitori.config import AUDIO_DTYPE, CHANNELS, SAMPLE_RATE
-
+from kikitori.config import AUDIO_DTYPE, BENCHMARK_MODE, CHANNELS, SAMPLE_RATE
 
 class RecordError(Exception):
     """録音開始時のエラー"""
-
 
 class Recorder:
     def __init__(
@@ -41,6 +38,9 @@ class Recorder:
         スリープ復帰後などで PortAudio の内部状態が破損している場合、
         再初期化してリトライする。
         """
+        import time as _time
+        t0 = _time.perf_counter()
+
         self._buffer.start()
         try:
             self._stream = self._stream_factory(callback=self._on_audio)
@@ -53,7 +53,7 @@ class Recorder:
             )
             self._buffer.stop()
             self._reinit_portaudio()
-            # 再初期化後にリトライ
+            
             try:
                 self._buffer.start()
                 self._stream = self._stream_factory(callback=self._on_audio)
@@ -65,21 +65,33 @@ class Recorder:
                     f"PortAudio 再初期化後も録音ストリームを開始できません: {e2}"
                 ) from e2
 
+        if BENCHMARK_MODE:
+            elapsed = (_time.perf_counter() - t0) * 1000
+            print(f"[BENCH] recorder_start: {elapsed:.1f}ms", flush=True)
+
     def _reinit_portaudio(self):
         """PortAudio を再初期化する。スリープ復帰後の破損状態から回復する。"""
         try:
             sd._terminate()
         except Exception:
             pass  # 終了に失敗しても続行
-        time.sleep(0.1)
         sd._initialize()
 
     def stop(self):
+        import time as _time
+        t0 = _time.perf_counter()
+
         if self._stream:
             self._stream.stop()
             self._stream.close()
             self._stream = None
-        return self._buffer.stop()
+        result = self._buffer.stop()
+
+        if BENCHMARK_MODE:
+            elapsed = (_time.perf_counter() - t0) * 1000
+            print(f"[BENCH] recorder_stop: {elapsed:.1f}ms", flush=True)
+
+        return result
 
     def _on_audio(self, indata, frames, time_info, status):
         if status:

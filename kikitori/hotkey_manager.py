@@ -5,6 +5,7 @@ import numpy as np
 from pynput.keyboard import Key, KeyCode
 
 from kikitori.config import (
+    BENCHMARK_MODE,
     DEFAULT_HOTKEY,
     DEFAULT_LANGUAGE,
     MAX_DURATION,
@@ -273,21 +274,36 @@ class HotkeyManager:
 
     def _transcribe_and_inject(self, audio):
         """音声を認識・校正してクリップボード経由でペーストする。"""
+        import time as _time
+        t0 = _time.perf_counter()
+
         if not self._should_transcribe(audio):
             return
+
+        # ターゲットアプリを事前にアクティブ化（transcribe の前に実行し、
+        # 認識待ち時間とアプリ切替をオーバーラップさせる）
+        if self._target_pid is not None:
+            activate_app_by_pid(self._target_pid)
+            # アプリ切替が完了するのを短時間待つ
+            _time.sleep(0.05)
+
+        t1 = _time.perf_counter()
         text = self._transcriber.transcribe(
             audio, prompt=self._get_effective_prompt(), language=self._language
         )
+        t2 = _time.perf_counter()
+
         if self._corrections is not None:
             text = self._corrections.correct(text)
 
-        # ターゲットアプリを再アクティブ化してから注入
-        if self._target_pid:
-            activate_app_by_pid(self._target_pid)
-            import time
-            time.sleep(0.2)  # アプリ切り替えの完了を待機
-
         self._injector.inject(text)
+        t3 = _time.perf_counter()
+
+        if BENCHMARK_MODE:
+            print(f"[BENCH] pipeline: transcribe={(t2-t1)*1000:.1f}ms "
+                  f"activate_app={(t1-t0)*1000:.1f}ms "
+                  f"inject={(t3-t2)*1000:.1f}ms "
+                  f"total={(t3-t0)*1000:.1f}ms", flush=True)
 
     # ── プロンプト生成 ───────────────────────────────────────────────
 

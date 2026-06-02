@@ -114,5 +114,13 @@ class App:
             on_press=self._hotkey.on_press,
             on_release=self._hotkey.on_release,
         ) as listener:
-            listener.join()
+            # listener.join() の代わりにメイン RunLoop を駆動する。
+            # SFSpeechRecognizer のコールバックはメイン RunLoop で処理されるため
+            # ここでポンプしないと認識結果が永遠に返ってこない。
+            from Foundation import NSRunLoop, NSDate, NSDefaultRunLoopMode
+            while listener.is_alive():
+                NSRunLoop.mainRunLoop().runMode_beforeDate_(
+                    NSDefaultRunLoopMode,
+                    NSDate.dateWithTimeIntervalSinceNow_(0.05),
+                )
 

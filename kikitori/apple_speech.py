@@ -87,6 +87,9 @@ class SpeechTranscriber:
         """
         import sys
 
+        from kikitori.config import BENCHMARK_MODE as _BM
+        _t0 = time.perf_counter()
+
         if audio.size == 0:
             print("[DEBUG] transcribe: audio is empty", flush=True)
             return ""
@@ -186,20 +189,24 @@ class SpeechTranscriber:
             return ""
         print(f"[DEBUG] transcribe: task started, waiting...", flush=True)
 
-        # PyObjC のコールバックはメインスレッドの run loop で処理される。
-        # pynput の listener スレッドから呼ばれた場合、run loop が回っていないため
-        # コールバックが来ない。タイムアウトまでポーリングしつつ run loop を回す。
+        # メインスレッドが app.run() で RunLoop をポンプしているため、
+        # SFSpeechRecognizer のコールバックは自然に届く。単純に待つ。
         start_time = time.time()
         while not done_event.is_set():
-            # 残りタイムアウトを計算
-            remaining = 60.0 - (time.time() - start_time)
+            remaining = 10.0 - (time.time() - start_time)
             if remaining <= 0:
                 print(f"[DEBUG] transcribe: timeout after {callback_count[0]} callbacks", flush=True)
                 break
-            done_event.wait(timeout=0.1)
+            done_event.wait(timeout=0.05)
 
         result_text = transcription[0]
         print(f"[DEBUG] transcribe: returning '{result_text}' (callbacks={callback_count[0]})", flush=True)
+
+        if _BM:
+            elapsed = (time.perf_counter() - _t0) * 1000
+            print(f"[BENCH] apple_speech_transcribe: {elapsed:.1f}ms "
+                  f"(audio_len={len(audio)} frames)", flush=True)
+
         return result_text
 
 
