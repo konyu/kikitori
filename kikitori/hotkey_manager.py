@@ -243,9 +243,13 @@ class HotkeyManager:
             self._cancel_auto_stop_timer()
             audio = self._recorder.stop()
 
-            # アプリ切替を認識終了待ちとオーバーラップさせる
-            if self._target_pid is not None:
-                activate_app_by_pid(self._target_pid)
+            # アプリ切替はバックグラウンドスレッドで（blocking AppKit 呼び出しを回避）
+            target_pid = self._target_pid
+            if target_pid is not None:
+                threading.Thread(
+                    target=lambda: activate_app_by_pid(target_pid),
+                    daemon=True
+                ).start()
 
             # ストリーミング認識を停止
             if self._speech_analyzer is not None:
@@ -320,11 +324,15 @@ class HotkeyManager:
         self._cancel_auto_stop_timer()
         audio = self._recorder.stop()
 
-        # アプリ切替を認識終了待ちとオーバーラップさせる
-        if self._target_pid is not None:
-            activate_app_by_pid(self._target_pid)
+        # アプリ切替はバックグラウンドスレッドで
+        target_pid = self._target_pid
+        if target_pid is not None:
+            threading.Thread(
+                target=lambda: activate_app_by_pid(target_pid),
+                daemon=True
+            ).start()
 
-        # ストリーミング認識を停止し、スレッドの終了を待つ
+        # ストリーミング認識を停止
         if self._speech_analyzer is not None:
             self._speech_analyzer.stop()
 
