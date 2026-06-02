@@ -8,8 +8,8 @@ from pynput.keyboard import Key
 from kikitori.injector import Injector
 
 class FakeClipboard:
-    def __init__(self):
-        self.copied = None
+    def __init__(self, initial: str | None = None):
+        self.copied = initial
 
     def copy(self, text):
         self.copied = text
@@ -81,14 +81,20 @@ class TestInjector:
         assert has_cmd_v, "Cmd+V が呼ばれた"
 
     def test_inject_short_text_backs_up_to_clipboard(self):
-        """直接入力後にクリップボードへバックアップコピーされる"""
-        clip = FakeClipboard()
+        """クリップボード経由注入後に元のクリップボードが復元される"""
+        clip = FakeClipboard(initial="original content")
         ctrl = FakeController()
         inj = Injector(controller=ctrl, clipboard=clip)
 
         inj.inject("backup")
 
+        # 注入時にバックアップがセットされる
         assert clip.copied == "backup"
+        # restore スレッドが完了するのを待つ
+        import time
+        time.sleep(0.1)
+        # 復元された
+        assert clip.copied == "original content"
 
     def test_inject_long_text_uses_clipboard_fallback(self):
         """閾値超過のテキストはクリップボード経由 Cmd+V"""

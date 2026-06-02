@@ -1,4 +1,6 @@
 """クリップボード経由テキスト入力"""
+import threading
+
 import pyperclip
 from pynput.keyboard import Controller, Key
 
@@ -20,35 +22,21 @@ class Injector:
         if not text:
             return
 
-        # 常にクリップボード経由で注入（高速）
         self._inject_via_clipboard(text)
 
-    def _inject_direct(self, text: str):
-        """pynput.Controller.type() で直接キー入力する。
-        入力後にクリップボードへバックアップコピーする。"""
-        import time as _time
-        t0 = _time.perf_counter()
-
-        try:
-            self._controller.type(text)
-        except Exception as e:
-            print(f"[WARN] pynput での直接入力に失敗: {e}")
-            # フォールバック: クリップボード経由
-            self._inject_via_clipboard(text)
-            return
-
-        # バックアップとしてクリップボードにコピー
-        self._clipboard.copy(text)
-
-        if BENCHMARK_MODE:
-            elapsed = (_time.perf_counter() - t0) * 1000
-            print(f"[BENCH] inject_direct: {elapsed:.1f}ms ("
-                  f"text_len={len(text)})", flush=True)
-
     def _inject_via_clipboard(self, text: str):
-        """クリップボード経由 Cmd+V でテキストを注入する（sleep なし）。"""
+        """クリップボード経由 Cmd+V でテキストを注入する。
+
+        注入後に元のクリップボードを非同期で復元する。
+        """
         import time as _time
         t0 = _time.perf_counter()
+
+        # 元のクリップボードを保存
+        try:
+            original = self._clipboard.paste()
+        except Exception:
+            original = ""
 
         self._clipboard.copy(text)
 
@@ -59,7 +47,25 @@ class Injector:
         except Exception as e:
             print(f"[WARN] pynput での送信に失敗: {e}")
 
+        # Cmd+V が処理された後で元のクリップボードを復元（非同期）
+        threading.Thread(
+            target=self._restore_clipboard,
+            args=(original, self._clipboard),
+            daemon=True,
+        ).start()
+
         if BENCHMARK_MODE:
             elapsed = (_time.perf_counter() - t0) * 1000
-            print(f"[BENCH] inject_clipboard: {elapsed:.1f}ms ("
-                  f"text_len={len(text)})", flush=True)
+            print(f"[BENCH] inject_clipboard: {elapsed:.1f}ms "
+                  f"(text_len={len(text)})", flush=True)
+
+    @staticmethod
+    def _restore_clipboard(original: str, clipboard=None) -> None:
+        """元のクリップボード内容を復元する（専用スレッドで実行）。"""
+        import time as _time
+        _time.sleep(0.05)  # Cmd+V が処理されるのを待つ
+        try:
+            cb = clipboard if clipboard is not None else pyperclip
+            cb.copy(original)
+        except Exception:
+            pass
