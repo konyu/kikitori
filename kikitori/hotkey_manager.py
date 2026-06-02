@@ -339,7 +339,7 @@ class HotkeyManager:
             return
 
         # activate_app_by_pid は呼び出し元（stop_recording/on_release）で
-        # speech_analyzer.stop() より先に実行済み。ここではベンチマーク開始。
+        # speech_analyzer.stop() より先に実行済み。
 
         # ストリーミング認識の結果を取得
         text = ""
@@ -352,18 +352,18 @@ class HotkeyManager:
                 audio, prompt=self._get_effective_prompt(), language=self._language
             )
 
-        t2 = _time.perf_counter()
-
         if self._corrections is not None:
             text = self._corrections.correct(text)
 
+        t1 = _time.perf_counter()
+
         self._injector.inject(text)
-        t3 = _time.perf_counter()
+        t2 = _time.perf_counter()
 
         if BENCHMARK_MODE:
-            print(f"[BENCH] pipeline: transcribe={(t2-t0)*1000:.1f}ms "
-                  f"inject={(t3-t2)*1000:.1f}ms "
-                  f"total={(t3-t0)*1000:.1f}ms "
+            print(f"[BENCH] pipeline: transcribe={(t1-t0)*1000:.1f}ms "
+                  f"inject={(t2-t1)*1000:.1f}ms "
+                  f"total={(t2-t0)*1000:.1f}ms "
                   f"stream={'yes' if self._speech_analyzer is not None else 'no'}",
                   flush=True)
 
