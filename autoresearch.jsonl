@@ -1,0 +1,1 @@
+{"type":"config","name":"transcribe latency optimization: 1-2s → 50ms","metricName":"transcribe_ms","metricUnit":"ms","bestDirection":"lower"}

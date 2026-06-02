@@ -56,17 +56,27 @@ class App:
         self._corrections = corrections if corrections is not None else Corrections()
 
         self._buffer = AudioBuffer()
-        self._recorder = Recorder(self._buffer, sample_rate, channels)
+
+        # apple_speech 使用時はストリーミング認識用 SpeechAnalyzer を作成
+        self._speech_analyzer = None
         if transcriber is not None:
             self._transcriber = transcriber
         elif transcriber_type == "apple_speech":
-            from kikitori.apple_speech import SpeechTranscriber
+            from kikitori.apple_speech import SpeechTranscriber, SpeechAnalyzer
 
             self._transcriber = SpeechTranscriber(
                 locale=APPLE_SPEECH_LOCALE, on_device=APPLE_SPEECH_ON_DEVICE
             )
+            self._speech_analyzer = SpeechAnalyzer(
+                locale=APPLE_SPEECH_LOCALE, on_device=APPLE_SPEECH_ON_DEVICE
+            )
         else:
             self._transcriber = Transcriber(model_name)
+
+        self._recorder = Recorder(
+            self._buffer, sample_rate, channels,
+            speech_analyzer=self._speech_analyzer,
+        )
         self._injector = Injector()
         self._hotkey = HotkeyManager(
             self._recorder,
@@ -81,6 +91,7 @@ class App:
             glossary=glossary,
             corrections=self._corrections,
             silence_rms_threshold=silence_rms_threshold,
+            speech_analyzer=self._speech_analyzer,
         )
         self._listener = None
         self._listener_thread = None

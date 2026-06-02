@@ -91,65 +91,49 @@ class SpeechTranscriber:
         _t0 = time.perf_counter()
 
         if audio.size == 0:
-            print("[DEBUG] transcribe: audio is empty", flush=True)
             return ""
 
         if self._recognizer is None:
-            print("[DEBUG] transcribe: recognizer is None", flush=True)
             return ""
-
-        print(f"[DEBUG] transcribe: audio={audio.shape}, dtype={audio.dtype}, rms={float(np.sqrt(np.mean(audio * audio))):.6f}", flush=True)
 
         if audio.dtype != np.float32:
             audio = audio.astype(np.float32)
 
         fmt = AVAudioFormat.alloc().initStandardFormatWithSampleRate_channels_(16000.0, 1)
         if fmt is None:
-            print("[DEBUG] transcribe: AVAudioFormat failed", flush=True)
             return ""
-        print(f"[DEBUG] transcribe: AVAudioFormat OK", flush=True)
 
         buffer = AVAudioPCMBuffer.alloc().initWithPCMFormat_frameCapacity_(
             fmt, len(audio)
         )
         if buffer is None:
-            print("[DEBUG] transcribe: AVAudioPCMBuffer alloc failed", flush=True)
             return ""
-        print(f"[DEBUG] transcribe: AVAudioPCMBuffer OK, frames={len(audio)}", flush=True)
 
         buffer.setFrameLength_(len(audio))
 
         float_data = buffer.floatChannelData()
         if float_data is None:
-            print("[DEBUG] transcribe: floatChannelData is None", flush=True)
             return ""
 
         channel_ptr = float_data[0]
         if channel_ptr is None:
-            print("[DEBUG] transcribe: channel_ptr is None", flush=True)
             return ""
 
-        # PyObjC varlist → memoryview → numpy 経由でコピー
-        # ctypes.memmove は objc.varlist を受け付けないため
         try:
             buf = channel_ptr.as_buffer(len(audio))
             np_buf = np.frombuffer(buf, dtype=np.float32)
             np_buf[:] = audio[:len(np_buf)]
-        except Exception as e:
-            print(f"[DEBUG] transcribe: buffer copy failed: {e}", flush=True)
+        except Exception:
             return ""
-        print(f"[DEBUG] transcribe: buffer copy OK", flush=True)
 
         request = SFSpeechAudioBufferRecognitionRequest.alloc().init()
         if request is None:
-            print("[DEBUG] transcribe: request alloc failed", flush=True)
             return ""
 
         request.setRequiresOnDeviceRecognition_(self._on_device)
         request.setAddsPunctuation_(True)
         request.appendAudioPCMBuffer_(buffer)
         request.endAudio()
-        print(f"[DEBUG] transcribe: request created, audio appended, endAudio called", flush=True)
 
         done_event = threading.Event()
         transcription = [""]
@@ -159,9 +143,7 @@ class SpeechTranscriber:
             result: SFSpeechRecognitionResult | None, error: object
         ) -> None:
             callback_count[0] += 1
-            print(f"[DEBUG] transcribe: result_handler called (#{callback_count[0]}), result={result}, error={error}", flush=True)
             if error is not None:
-                print(f"[DEBUG] transcribe: error in result_handler: {error}", flush=True)
                 transcription[0] = ""
                 done_event.set()
                 return
@@ -171,13 +153,10 @@ class SpeechTranscriber:
                 if best is not None:
                     text = best.formattedString()
                     transcription[0] = text if text is not None else ""
-                    print(f"[DEBUG] transcribe: partial text='{transcription[0]}'", flush=True)
 
                 if result.isFinal():
-                    print(f"[DEBUG] transcribe: result is final", flush=True)
                     done_event.set()
             else:
-                print(f"[DEBUG] transcribe: result is None in handler", flush=True)
                 transcription[0] = ""
                 done_event.set()
 
@@ -185,22 +164,16 @@ class SpeechTranscriber:
             request, _result_handler
         )
         if task is None:
-            print("[DEBUG] transcribe: recognitionTaskWithRequest failed", flush=True)
             return ""
-        print(f"[DEBUG] transcribe: task started, waiting...", flush=True)
 
-        # メインスレッドが app.run() で RunLoop をポンプしているため、
-        # SFSpeechRecognizer のコールバックは自然に届く。単純に待つ。
         start_time = time.time()
         while not done_event.is_set():
             remaining = 10.0 - (time.time() - start_time)
             if remaining <= 0:
-                print(f"[DEBUG] transcribe: timeout after {callback_count[0]} callbacks", flush=True)
                 break
             done_event.wait(timeout=0.05)
 
         result_text = transcription[0]
-        print(f"[DEBUG] transcribe: returning '{result_text}' (callbacks={callback_count[0]})", flush=True)
 
         if _BM:
             elapsed = (time.perf_counter() - _t0) * 1000
@@ -223,32 +196,36 @@ class SpeechAnalyzer:
     ):
         self._locale = locale
         self._on_device = on_device
-        self._recognizer = None
         self._request = None
         self._task = None
+
+        # SFSpeechRecognizer はメインスレッドで作成する必要がある。
+        # __init__ は App.__init__ からメインスレッドで呼ばれる。
+        locale_obj = NSLocale.alloc().initWithLocaleIdentifier_(self._locale)
+        self._recognizer = SFSpeechRecognizer.alloc().initWithLocale_(locale_obj)
 
         self.on_partial_result: Callable[[str], None] | None = None
         self.on_final_result: Callable[[str], None] | None = None
         self.on_error: Callable[[str], None] | None = None
 
     def start(self) -> None:
-        """音声認識セッションを開始する。
+        """音声認識セッションを開始する。メインスレッドから呼ぶこと。
 
-        ``SFSpeechAudioBufferRecognitionRequest`` を作成し、認識タスクを開始する。
+        新しい SFSpeechAudioBufferRecognitionRequest を作成し、
+        事前に作成済みの SFSpeechRecognizer で認識タスクを開始する。
         """
+        import sys
+        from Foundation import NSThread
+        if not NSThread.isMainThread():
+            print("[WARN] SpeechAnalyzer.start() is not on main thread", file=sys.stderr)
+
         if self._task is not None:
             self.stop()
 
-        locale = NSLocale.alloc().initWithLocaleIdentifier_(self._locale)
-        recognizer = SFSpeechRecognizer.alloc().initWithLocale_(locale)
-        if recognizer is None:
+        if self._recognizer is None:
             if self.on_error is not None:
-                self.on_error(
-                    f"SFSpeechRecognizer の作成に失敗しました: locale={self._locale}"
-                )
+                self.on_error("SFSpeechRecognizer が初期化されていません")
             return
-
-        self._recognizer = recognizer
 
         request = SFSpeechAudioBufferRecognitionRequest.alloc().init()
         if request is None:
@@ -297,18 +274,28 @@ class SpeechAnalyzer:
                 self.on_error("認識タスクの開始に失敗しました")
 
     def stop(self) -> None:
-        """音声認識セッションを終了する。
+        """音声認識セッションを完全に終了する。
 
-        認識リクエストを終了し、タスクをキャンセルする。
+        end_audio → cancel の順で実行する。
+        """
+        self.end_audio()
+        self.cancel()
+
+    def end_audio(self) -> None:
+        """音声入力の終了を通知する。
+
+        認識タスクはキャンセルせず、最終結果コールバックを待つ。
         """
         if self._request is not None:
             self._request.endAudio()
-            self._request = None
 
+    def cancel(self) -> None:
+        """認識タスクをキャンセルしてリソースを解放する。"""
+        if self._request is not None:
+            self._request = None
         if self._task is not None:
             self._task.cancel()
             self._task = None
-
         self._recognizer = None
 
     def append_audio(self, audio: np.ndarray) -> None:

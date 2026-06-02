@@ -17,12 +17,14 @@ class Recorder:
         sample_rate: int = SAMPLE_RATE,
         channels: int = CHANNELS,
         stream_factory=None,
+        speech_analyzer: object | None = None,
     ):
         self._buffer = audio_buffer
         self._sample_rate = sample_rate
         self._channels = channels
         self._stream = None
         self._stream_factory = stream_factory or self._default_stream_factory
+        self._speech_analyzer = speech_analyzer
 
     def _default_stream_factory(self, *, callback):
         return sd.InputStream(
@@ -101,4 +103,7 @@ class Recorder:
         if indata is not None:
             # Copy the input data so we own the memory — sounddevice may reuse
             # indata after the callback returns.
-            self._buffer.append(indata.copy().reshape(-1))
+            chunk = indata.copy().reshape(-1)
+            self._buffer.append(chunk)
+            if self._speech_analyzer is not None:
+                self._speech_analyzer.append_audio(chunk)

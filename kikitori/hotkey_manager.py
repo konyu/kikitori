@@ -83,6 +83,7 @@ class HotkeyManager:
         glossary: "Glossary | None" = None,
         corrections = None,
         silence_rms_threshold: float = SILENCE_RMS_THRESHOLD,
+        speech_analyzer: object | None = None,
     ):
         self._recorder = recorder
         self._transcriber = transcriber
@@ -100,6 +101,9 @@ class HotkeyManager:
         self._on_state_change = on_state_change
         self._glossary: "Glossary | None" = glossary
         self._corrections = corrections
+        self._speech_analyzer = speech_analyzer
+        self._async_text: str = ""  # ストリーミング認識の最新テキスト
+        self._async_done: threading.Event = threading.Event()
 
         # ホットキー設定
         names = hotkey if hotkey is not None else DEFAULT_HOTKEY
@@ -244,21 +248,40 @@ class HotkeyManager:
             if self._is_recording:
                 return
             self._is_recording = True
-            # 録音開始時のフォーカスアプリを記憶
             self._target_pid = get_frontmost_pid()
             if self._on_state_change:
                 self._on_state_change(True)
+
+        # ストリーミング認識を開始（transcribe を録音と並行実行するため）
+        if self._speech_analyzer is not None:
+            self._async_text = ""
+            self._async_done.clear()
+            self._speech_analyzer.on_partial_result = self._on_partial_speech
+            self._speech_analyzer.on_final_result = self._on_final_speech
+            self._speech_analyzer.start()
+
         try:
             self._recorder.start()
         except RecordError as e:
             import sys
             print(f"[ERROR] 録音開始失敗: {e}", file=sys.stderr)
+            if self._speech_analyzer is not None:
+                self._speech_analyzer.stop()
             with self._lock:
                 self._is_recording = False
                 if self._on_state_change:
                     self._on_state_change(False)
             return
         self._start_auto_stop_timer()
+
+    def _on_partial_speech(self, text: str) -> None:
+        """ストリーミング認識の部分結果を保存。"""
+        self._async_text = text
+
+    def _on_final_speech(self, text: str) -> None:
+        """ストリーミング認識の最終結果を保存して done をセット。"""
+        self._async_text = text
+        self._async_done.set()
 
     def stop_recording(self):
         """メニューなど外部から録音を停止（ホットキー以外の入力手段用）"""
@@ -270,28 +293,35 @@ class HotkeyManager:
                 self._on_state_change(False)
         self._cancel_auto_stop_timer()
         audio = self._recorder.stop()
+
+        # ストリーミング認識に音声終了を通知
+        if self._speech_analyzer is not None:
+            self._speech_analyzer.end_audio()
+
         self._transcribe_and_inject(audio)
 
     def _transcribe_and_inject(self, audio):
-        """音声を認識・校正してクリップボード経由でペーストする。"""
+        """音声を認識・校正してペーストする。"""
         import time as _time
         t0 = _time.perf_counter()
 
         if not self._should_transcribe(audio):
             return
 
-        # ターゲットアプリを事前にアクティブ化（transcribe の前に実行し、
+        # ターゲットアプリをアクティブ化（transcribe の前に実行し、
         # 認識待ち時間とアプリ切替をオーバーラップさせる）
         if self._target_pid is not None:
             activate_app_by_pid(self._target_pid)
-            # アプリ切替が完了するのを短時間待つ
-            _time.sleep(0.05)
 
         t1 = _time.perf_counter()
         text = self._transcriber.transcribe(
             audio, prompt=self._get_effective_prompt(), language=self._language
         )
         t2 = _time.perf_counter()
+
+        # ストリーミング認識の後片付け
+        if self._speech_analyzer is not None:
+            self._speech_analyzer.cancel()
 
         if self._corrections is not None:
             text = self._corrections.correct(text)
