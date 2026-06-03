@@ -38,32 +38,30 @@ class Injector:
         """
         import time as _time
         from pynput.keyboard import Key
-        from kikitori.mac_runloop import macos_thread_runloop
         
         t0 = _time.perf_counter()
 
-        with macos_thread_runloop():
-            # 元のクリップボードを保存（初回注入時のみ）
-            with self._restore_lock:
-                if self._restore_generation == 0:
-                    try:
-                        self._pending_original = self._clipboard.paste()
-                    except Exception:
-                        self._pending_original = ""
-                self._restore_generation += 1
-                gen = self._restore_generation
-                original = self._pending_original
+        # 元のクリップボードを保存（初回注入時のみ）
+        with self._restore_lock:
+            if self._restore_generation == 0:
+                try:
+                    self._pending_original = self._clipboard.paste()
+                except Exception:
+                    self._pending_original = ""
+            self._restore_generation += 1
+            gen = self._restore_generation
+            original = self._pending_original
 
-            if DEBUG: print(f"[DEBUG] _inject_via_clipboard: copying '{text[:50]}{'...' if len(text)>50 else ''}' to clipboard", flush=True)
-            self._clipboard.copy(text)
+        if DEBUG: print(f"[DEBUG] _inject_via_clipboard: copying '{text[:50]}{'...' if len(text)>50 else ''}' to clipboard", flush=True)
+        self._clipboard.copy(text)
 
-            try:
-                with self._controller.pressed(Key.cmd_l):
-                    self._controller.press("v")
-                    self._controller.release("v")
-                if DEBUG: print("[DEBUG] _inject_via_clipboard: Cmd+V sent", flush=True)
-            except Exception as e:
-                print(f"[WARN] pynput injection failed: {e}")
+        try:
+            with self._controller.pressed(Key.cmd_l):
+                self._controller.press("v")
+                self._controller.release("v")
+            if DEBUG: print("[DEBUG] _inject_via_clipboard: Cmd+V sent", flush=True)
+        except Exception as e:
+            print(f"[WARN] pynput injection failed: {e}")
 
         # Cmd+V が処理された後で元のクリップボードを復元（非同期）
         # 元が空の場合は復元しない（画像など非テキストクリップボードを保護）
@@ -86,19 +84,17 @@ class Injector:
         最後の注入だけが復元を実行する。これにより連続注入時のクリップボード破壊を防ぐ。
         """
         import time as _time
-        from kikitori.mac_runloop import macos_thread_runloop
         
-        with macos_thread_runloop():
-            _time.sleep(0.05)  # Cmd+V が処理されるのを待つ
+        _time.sleep(0.05)  # Cmd+V が処理されるのを待つ
 
-            with self._restore_lock:
-                if generation != self._restore_generation:
-                    return  # 新しい注入が既に開始されている
-                # 復元が完了したらリセット
-                self._restore_generation = 0
-                self._pending_original = ""
+        with self._restore_lock:
+            if generation != self._restore_generation:
+                return  # 新しい注入が既に開始されている
+            # 復元が完了したらリセット
+            self._restore_generation = 0
+            self._pending_original = ""
 
-            try:
-                self._clipboard.copy(original)
-            except Exception:
-                pass
+        try:
+            self._clipboard.copy(original)
+        except Exception:
+            pass

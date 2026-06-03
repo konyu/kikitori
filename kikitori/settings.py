@@ -59,17 +59,15 @@ def activate_app_by_pid(pid: int) -> bool:
     macOS 専用。成功したら True、失敗したら False を返す。
     """
     try:
-        from kikitori.mac_runloop import macos_thread_runloop
-        with macos_thread_runloop():
-            from AppKit import NSRunningApplication
-            app = NSRunningApplication.runningApplicationWithProcessIdentifier_(pid)
-            if app is None:
-                return False
-            NSApplicationActivateAllWindows = 1 << 0
-            NSApplicationActivateIgnoringOtherApps = 1 << 1
-            app.activateWithOptions_(
-                NSApplicationActivateAllWindows | NSApplicationActivateIgnoringOtherApps
-            )
-            return True
+        from AppKit import NSRunningApplication
+        app = NSRunningApplication.runningApplicationWithProcessIdentifier_(pid)
+        if app is None:
+            return False
+        NSApplicationActivateAllWindows = 1 << 0
+        NSApplicationActivateIgnoringOtherApps = 1 << 1
+        app.activateWithOptions_(
+            NSApplicationActivateAllWindows | NSApplicationActivateIgnoringOtherApps
+        )
+        return True
     except Exception:
         return False
