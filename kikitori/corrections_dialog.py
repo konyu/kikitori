@@ -7,6 +7,7 @@ from pathlib import Path
 
 from PySide6 import QtCore, QtWidgets
 
+from kikitori.config import DEBUG
 from kikitori.corrections import Corrections
 from kikitori.theme import apply_dialog_theme
 
@@ -243,16 +244,16 @@ class CorrectionsDialog(QtWidgets.QDialog):
     def _save_and_apply(self):
         import sys, traceback
         try:
-            print("[DEBUG] _save_and_apply: calling save_items", flush=True, file=sys.stderr)
+            if DEBUG: print("[DEBUG] _save_and_apply: calling save_items", flush=True, file=sys.stderr)
             self._corrections.save_items(self._items)
-            print("[DEBUG] _save_and_apply: save_items OK", flush=True, file=sys.stderr)
+            if DEBUG: print("[DEBUG] _save_and_apply: save_items OK", flush=True, file=sys.stderr)
             if self._on_reload:
-                print("[DEBUG] _save_and_apply: calling on_reload", flush=True, file=sys.stderr)
+                if DEBUG: print("[DEBUG] _save_and_apply: calling on_reload", flush=True, file=sys.stderr)
                 self._on_reload()
-                print("[DEBUG] _save_and_apply: on_reload OK", flush=True, file=sys.stderr)
-            print("[DEBUG] _save_and_apply: calling accept", flush=True, file=sys.stderr)
+                if DEBUG: print("[DEBUG] _save_and_apply: on_reload OK", flush=True, file=sys.stderr)
+            if DEBUG: print("[DEBUG] _save_and_apply: calling accept", flush=True, file=sys.stderr)
             self.accept()
-            print("[DEBUG] _save_and_apply: accept OK", flush=True, file=sys.stderr)
+            if DEBUG: print("[DEBUG] _save_and_apply: accept OK", flush=True, file=sys.stderr)
         except Exception as e:
             print(f"[ERROR] _save_and_apply failed: {e}", flush=True, file=sys.stderr)
             traceback.print_exc()

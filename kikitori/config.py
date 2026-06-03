@@ -31,5 +31,8 @@ DEFAULT_TRANSCRIBER_TYPE: str = "apple_speech"  # "mlx_whisper" or "apple_speech
 # 計測モード（環境変数 BENCHMARK_MODE=true または True 定数で各段階のレイテンシログを出力）
 BENCHMARK_MODE: bool = os.environ.get("BENCHMARK_MODE", "").lower() in ("true", "1", "yes")
 
+# デバッグログモード（環境変数 DEBUG=true で詳細なデバッグログを出力）
+DEBUG: bool = os.environ.get("DEBUG", "").lower() in ("true", "1", "yes")
+
 # 専門用語集ファイルパス
 GLOSSARY_PATH: Path = Path.home() / ".kikitori_glossary.yaml"

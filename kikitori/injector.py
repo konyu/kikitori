@@ -3,7 +3,7 @@ import threading
 
 import pyperclip
 
-from kikitori.config import BENCHMARK_MODE
+from kikitori.config import BENCHMARK_MODE, DEBUG
 
 class Injector:
     """テキスト注入クラス。
@@ -23,9 +23,9 @@ class Injector:
         self._pending_original = ""
 
     def inject(self, text: str):
-        print(f"[DEBUG] Injector.inject: text='{text}' (len={len(text)})", flush=True)
+        if DEBUG: print(f"[DEBUG] Injector.inject: text='{text}' (len={len(text)})", flush=True)
         if not text:
-            print("[DEBUG] Injector.inject: empty text, skipping", flush=True)
+            if DEBUG: print("[DEBUG] Injector.inject: empty text, skipping", flush=True)
             return
 
         self._inject_via_clipboard(text)
@@ -51,14 +51,14 @@ class Injector:
             gen = self._restore_generation
             original = self._pending_original
 
-        print(f"[DEBUG] _inject_via_clipboard: copying '{text[:50]}{'...' if len(text)>50 else ''}' to clipboard", flush=True)
+        if DEBUG: print(f"[DEBUG] _inject_via_clipboard: copying '{text[:50]}{'...' if len(text)>50 else ''}' to clipboard", flush=True)
         self._clipboard.copy(text)
 
         try:
             with self._controller.pressed(Key.cmd_l):
                 self._controller.press("v")
                 self._controller.release("v")
-            print("[DEBUG] _inject_via_clipboard: Cmd+V sent", flush=True)
+            if DEBUG: print("[DEBUG] _inject_via_clipboard: Cmd+V sent", flush=True)
         except Exception as e:
             print(f"[WARN] pynput での送信に失敗: {e}")
 

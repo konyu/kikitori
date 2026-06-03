@@ -87,14 +87,14 @@ class SpeechTranscriber:
         """
         import sys
 
-        from kikitori.config import BENCHMARK_MODE as _BM
+        from kikitori.config import BENCHMARK_MODE as _BM, DEBUG as _DBG
         _t0 = time.perf_counter()
 
         if audio.size == 0:
             return ""
 
         if self._recognizer is None:
-            print("[DEBUG] transcribe: recognizer is None", flush=True)
+            if _DBG: print("[DEBUG] transcribe: recognizer is None", flush=True)
             return ""
 
         if audio.dtype != np.float32:
@@ -102,27 +102,43 @@ class SpeechTranscriber:
 
         fmt = AVAudioFormat.alloc().initStandardFormatWithSampleRate_channels_(16000.0, 1)
         if fmt is None:
-            print("[DEBUG] transcribe: AVAudioFormat is None", flush=True)
+            if _DBG: print("[DEBUG] transcribe: AVAudioFormat is None", flush=True)
             return ""
 
         buffer = AVAudioPCMBuffer.alloc().initWithPCMFormat_frameCapacity_(
             fmt, len(audio)
         )
         if buffer is None:
-            print("[DEBUG] transcribe: AVAudioPCMBuffer is None", flush=True)
+            if _DBG: print("[DEBUG] transcribe: AVAudioPCMBuffer is None", flush=True)
             return ""
 
         buffer.setFrameLength_(len(audio))
 
         float_data = buffer.floatChannelData()
         if float_data is None:
-            print("[DEBUG] transcribe: floatChannelData() is None", flush=True)
+            if _DBG: print("[DEBUG] transcribe: floatChannelData() is None", flush=True)
             return ""
 
         channel_ptr = float_data[0]
         if channel_ptr is None:
-            print("[DEBUG] transcribe: channel_ptr is None", flush=True)
+            if _DBG: print("[DEBUG] transcribe: channel_ptr is None", flush=True)
             return ""
+
+        # DEBUG: save audio to WAV for inspection
+        if _DBG:
+            try:
+                import wave as _wave
+                _i16 = (audio * 32767).clip(-32768, 32767).astype("int16")
+                _wav_path = "/tmp/kikitori_debug_audio.wav"
+                with _wave.open(_wav_path, "w") as wf:
+                    wf.setnchannels(1)
+                    wf.setsampwidth(2)
+                    wf.setframerate(16000)
+                    wf.writeframes(_i16.tobytes())
+                _rms = float(np.sqrt(np.dot(audio, audio) / len(audio)))
+                print(f"[DEBUG] transcribe: saved audio to {_wav_path} ({len(audio)} frames, RMS={_rms:.6f})", flush=True)
+            except Exception as _e:
+                print(f"[DEBUG] transcribe: failed to save WAV: {_e}", flush=True)
 
         try:
             # np.frombuffer は PCM バッファのメモリを参照するビューを返す。
@@ -132,17 +148,17 @@ class SpeechTranscriber:
             np_buf = np.frombuffer(buf, dtype=np.float32)
             np_buf[:] = audio[:len(np_buf)]
         except Exception as e:
-            print(f"[DEBUG] transcribe: buffer copy FAILED: {type(e).__name__}: {e}", flush=True)
+            if _DBG: print(f"[DEBUG] transcribe: buffer copy FAILED: {type(e).__name__}: {e}", flush=True)
             return ""
 
         request = SFSpeechAudioBufferRecognitionRequest.alloc().init()
         if request is None:
-            print("[DEBUG] transcribe: SFSpeechAudioBufferRecognitionRequest is None", flush=True)
+            if _DBG: print("[DEBUG] transcribe: SFSpeechAudioBufferRecognitionRequest is None", flush=True)
             return ""
 
         request.setRequiresOnDeviceRecognition_(self._on_device)
         request.setAddsPunctuation_(True)
-        print(f"[DEBUG] transcribe: on_device={self._on_device}, locale={self._locale}", flush=True)
+        if _DBG: print(f"[DEBUG] transcribe: on_device={self._on_device}, locale={self._locale}", flush=True)
         request.appendAudioPCMBuffer_(buffer)
         request.endAudio()
 
@@ -157,7 +173,7 @@ class SpeechTranscriber:
             call_n = _handler_calls[0]
 
             if error is not None:
-                print(f"[DEBUG] transcribe handler #{call_n}: ERROR={error}", flush=True)
+                if _DBG: print(f"[DEBUG] transcribe handler #{call_n}: ERROR={error}", flush=True)
                 transcription[0] = ""
                 done_event.set()
                 return
@@ -168,13 +184,13 @@ class SpeechTranscriber:
                 is_final = result.isFinal()
                 if best is not None:
                     text = best.formattedString() or ""
-                print(f"[DEBUG] transcribe handler #{call_n}: text='{text}' isFinal={is_final} result={result}", flush=True)
+                if _DBG: print(f"[DEBUG] transcribe handler #{call_n}: text='{text}' isFinal={is_final} result={result}", flush=True)
                 if text:
                     transcription[0] = text
                 if transcription[0] or is_final:
                     done_event.set()
             else:
-                print(f"[DEBUG] transcribe handler #{call_n}: result=None", flush=True)
+                if _DBG: print(f"[DEBUG] transcribe handler #{call_n}: result=None", flush=True)
                 transcription[0] = ""
                 done_event.set()
 

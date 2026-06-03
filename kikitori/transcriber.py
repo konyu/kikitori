@@ -4,7 +4,7 @@ from typing import Callable
 
 import numpy as np
 
-from kikitori.config import DEFAULT_LANGUAGE
+from kikitori.config import DEBUG, DEFAULT_LANGUAGE
 
 
 def _default_prepare_model(model_name: str) -> str:
@@ -110,7 +110,7 @@ class Transcriber:
             return ""
         self._call_count += 1
         duration = audio.size / 16000
-        print(f"[DEBUG] transcribe呼び出し #{self._call_count} (音声長: {duration:.1f}秒) prompt={prompt!r}", flush=True)
+        if DEBUG: print(f"[DEBUG] transcribe呼び出し #{self._call_count} (音声長: {duration:.1f}秒) prompt={prompt!r}", flush=True)
         result = self._get_transcribe_func()(
             audio,
             path_or_hf_repo=self._model_name,
