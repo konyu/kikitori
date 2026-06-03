@@ -39,6 +39,9 @@ class FakeSpeechAnalyzer:
     def is_final(self) -> bool:
         return True
 
+    def wait_for_final(self, timeout: float | None = None) -> bool:
+        return True
+
     @property
     def started(self) -> bool:
         return self._started

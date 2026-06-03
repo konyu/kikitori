@@ -246,6 +246,7 @@ class SpeechAnalyzer:
         self._latest_text = ""
         self._is_final = False
         self._text_lock = threading.Lock()
+        self._final_event = threading.Event()
 
         self.on_partial_result: Callable[[str], None] | None = None
         self.on_final_result: Callable[[str], None] | None = None
@@ -264,6 +265,7 @@ class SpeechAnalyzer:
         self._running = True
         self._latest_text = ""
         self._is_final = False
+        self._final_event.clear()
         self._audio_queue.clear()
 
         self._thread = threading.Thread(target=self._run, daemon=True)
@@ -314,6 +316,16 @@ class SpeechAnalyzer:
         """最終認識結果が得られたかどうかを返す。"""
         with self._text_lock:
             return self._is_final
+
+    def wait_for_final(self, timeout: float | None = None) -> bool:
+        """最終認識結果が得られるまで待つ。イベント駆動で高速。
+        
+        Args:
+            timeout: 最大待機時間（秒）。None で無期限。
+        Returns:
+            True if final result received, False on timeout.
+        """
+        return self._final_event.wait(timeout=timeout)
 
     # ----------------------------------------------------------------
     # 専用スレッド
@@ -378,6 +390,7 @@ class SpeechAnalyzer:
                 self._is_final = is_final
 
             if is_final:
+                self._final_event.set()
                 if self.on_final_result is not None:
                     self.on_final_result(text)
             else:
