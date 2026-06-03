@@ -4,8 +4,18 @@
 /tmp/kikitori_debug_audio.wav を読み込んで Apple Speech Framework で認識テスト。
 """
 import sys
+import threading
 import wave
 import numpy as np
+
+from Foundation import NSLocale, NSError
+from Speech import (
+    SFSpeechRecognizer,
+    SFSpeechRecognizerAuthorizationStatus,
+    SFSpeechAudioBufferRecognitionRequest,
+    SFSpeechRecognitionResult,
+)
+from AVFAudio import AVAudioFormat, AVAudioPCMBuffer
 
 WAV_PATH = "/tmp/kikitori_debug_audio.wav"
 
@@ -24,34 +34,83 @@ except FileNotFoundError:
     print("先に BENCHMARK_MODE=true python main.py を実行して録音してください。")
     sys.exit(1)
 
-# 2. モノラルに変換（必要なら）
-if nch > 1:
-    audio = audio.reshape(-1, nch).mean(axis=1)
-    print(f"ステレオ→モノラル変換後: {len(audio)} frames")
+# 2. 認可状態チェック
+auth_status = SFSpeechRecognizer.authorizationStatus()
+status_names = {0: "notDetermined", 1: "denied", 2: "restricted", 3: "authorized"}
+print(f"認可状態: {status_names.get(auth_status, auth_status)}")
 
-# 3. 16kHz にリサンプル（必要なら）
-if srate != 16000:
-    from scipy.signal import resample
-    new_len = int(len(audio) * 16000 / srate)
-    audio = resample(audio, new_len).astype(np.float32)
-    print(f"リサンプル {srate}→16000 Hz: {len(audio)} frames")
+if auth_status != 3:  # not authorized
+    print("音声認識が認可されていません。システム設定で許可してください。")
+    # 認可リクエスト
+    auth_event = threading.Event()
+    auth_result = [None]
+    def _handler(s):
+        auth_result[0] = s
+        auth_event.set()
+    SFSpeechRecognizer.requestAuthorization_(_handler)
+    auth_event.wait(timeout=5.0)
+    print(f"認可リクエスト結果: {status_names.get(auth_result[0], auth_result[0])}")
 
-# 4. Apple Speech Framework で認識
-from kikitori.apple_speech import SpeechTranscriber
+# 3. ロケール確認
+for loc_str in ["ja-JP", "en-US", "zh-CN", "ko-KR"]:
+    locale = NSLocale.alloc().initWithLocaleIdentifier_(loc_str)
+    rec = SFSpeechRecognizer.alloc().initWithLocale_(locale)
+    if rec is not None:
+        on_dev = rec.supportsOnDeviceRecognition()
+        avail = rec.isAvailable()
+        print(f"  locale={loc_str}: available={avail}, supportsOnDevice={on_dev}")
+    else:
+        print(f"  locale={loc_str}: recognizer creation FAILED")
 
-print(f"\n--- SpeechTranscriber (on_device=True) ---")
-st1 = SpeechTranscriber(locale="ja-JP", on_device=True, request_auth=True)
-st1.load()
-result1 = st1.transcribe(audio)
-print(f"Result: '{result1}'")
+# 4. 認識テスト
+locale = NSLocale.alloc().initWithLocaleIdentifier_("ja-JP")
+recognizer = SFSpeechRecognizer.alloc().initWithLocale_(locale)
+if recognizer is None:
+    print("ja-JP recognizer 作成失敗")
+    sys.exit(1)
 
-print(f"\n--- SpeechTranscriber (on_device=False) ---")
-st2 = SpeechTranscriber(locale="ja-JP", on_device=False, request_auth=False)
-st2.load()
-result2 = st2.transcribe(audio)
-print(f"Result: '{result2}'")
+print(f"\nrecognizer.isAvailable = {recognizer.isAvailable()}")
+print(f"recognizer.supportsOnDeviceRecognition = {recognizer.supportsOnDeviceRecognition()}")
 
-if result1 or result2:
-    print("\n*** 認識成功！問題は録音→認識パイプラインのどこかにある ***")
-else:
-    print("\n*** 認識失敗。WAVファイルの中身または macOS 音声認識設定を確認 ***")
+# PCMバッファ作成
+fmt = AVAudioFormat.alloc().initStandardFormatWithSampleRate_channels_(16000.0, 1)
+buffer = AVAudioPCMBuffer.alloc().initWithPCMFormat_frameCapacity_(fmt, len(audio))
+buffer.setFrameLength_(len(audio))
+channel_ptr = buffer.floatChannelData()[0]
+
+buf = channel_ptr.as_buffer(len(audio))
+np_buf = np.frombuffer(buf, dtype=np.float32).copy()
+np_buf[:] = audio[:len(np_buf)]
+
+for on_dev in [True, False]:
+    print(f"\n--- on_device = {on_dev} ---")
+    request = SFSpeechAudioBufferRecognitionRequest.alloc().init()
+    request.setRequiresOnDeviceRecognition_(on_dev)
+    request.setAddsPunctuation_(True)
+    request.appendAudioPCMBuffer_(buffer)
+    request.endAudio()
+
+    import time
+    done = threading.Event()
+    texts = [""]
+    errors = []
+
+    def handler(result, error):
+        if error:
+            errors.append(str(error))
+            done.set()
+        elif result:
+            best = result.bestTranscription()
+            if best:
+                texts[0] = best.formattedString() or ""
+            if texts[0] or result.isFinal():
+                done.set()
+
+    task = recognizer.recognitionTaskWithRequest_resultHandler_(request, handler)
+    print(f"  task created: {task is not None}")
+
+    wait_result = done.wait(timeout=2.0)
+    print(f"  done_event: {wait_result}")
+    print(f"  text: '{texts[0]}'")
+    print(f"  errors: {errors}")
+

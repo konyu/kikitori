@@ -156,6 +156,7 @@ class SpeechTranscriber:
 
         request.setRequiresOnDeviceRecognition_(self._on_device)
         request.setAddsPunctuation_(True)
+        print(f"[DEBUG] transcribe: on_device={self._on_device}, locale={self._locale}", flush=True)
         request.appendAudioPCMBuffer_(buffer)
         request.endAudio()
 
