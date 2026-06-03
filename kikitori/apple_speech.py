@@ -305,7 +305,7 @@ class SpeechAnalyzer:
         if audio.dtype != np.float32:
             audio = audio.astype(np.float32)
         with self._audio_lock:
-            self._audio_queue.append(audio.copy())
+            self._audio_queue.append(audio)
 
     def get_latest_text(self) -> str:
         """最新の認識テキストを取得する（スレッドセーフ）。"""
