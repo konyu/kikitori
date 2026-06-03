@@ -121,7 +121,8 @@ class SpeechTranscriber:
 
         try:
             # np.frombuffer は read-only 配列を返すのでコピーが必要
-            buf = channel_ptr.as_buffer(len(audio))
+            # as_buffer はバイト数を取る。float32 = 4 bytes/sample
+            buf = channel_ptr.as_buffer(audio.nbytes)
             np_buf = np.frombuffer(buf, dtype=np.float32).copy()
             np_buf[:] = audio[:len(np_buf)]
         except Exception:
@@ -430,7 +431,8 @@ class SpeechAnalyzer:
             return
 
         try:
-            buf = channel_ptr.as_buffer(len(audio))
+            # as_buffer はバイト数を取る。float32 = 4 bytes/sample
+            buf = channel_ptr.as_buffer(audio.nbytes)
             np_buf = np.frombuffer(buf, dtype=np.float32).copy()
             np_buf[:] = audio[:len(np_buf)]
         except Exception:
