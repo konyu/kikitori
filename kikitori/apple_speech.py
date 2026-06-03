@@ -418,7 +418,7 @@ class SpeechAnalyzer:
                 request.endAudio()
                 audio_ended = True
                 # 最終結果を待つ（短い発話なら 200ms で十分）
-                deadline = time.perf_counter() + 0.2
+                deadline = time.perf_counter() + 0.1
                 while time.perf_counter() < deadline:
                     run_loop.runMode_beforeDate_(
                         NSDefaultRunLoopMode,
