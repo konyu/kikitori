@@ -243,15 +243,15 @@ class HotkeyManager:
                     self._on_state_change(True)
 
                 # ストリーミング認識を開始（録音と並行）
-                # macos_thread_runloop で Mach ポートメッセージをフラッシュ
                 if self._speech_analyzer is not None:
                     self._speech_analyzer.on_partial_result = self._on_partial_speech
                     self._speech_analyzer.on_final_result = self._on_final_speech
-                    with macos_thread_runloop():
-                        self._speech_analyzer.start()
 
                 try:
+                    # macos_thread_runloop で Mach ポートメッセージをフラッシュ
                     with macos_thread_runloop():
+                        if self._speech_analyzer is not None:
+                            self._speech_analyzer.start()
                         self._recorder.start()
                 except RecordError as e:
                     import sys
