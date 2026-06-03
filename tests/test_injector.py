@@ -172,7 +172,7 @@ class TestInjector:
         """閾値にかかわらずクリップボード経由で注入"""
         clip = FakeClipboard()
         ctrl = FakeController()
-        inj = Injector(controller=ctrl, clipboard=clip, type_threshold=5)
+        inj = Injector(controller=ctrl, clipboard=clip)
 
         text = "12345"  # ちょうど5文字
         inj.inject(text)
@@ -185,10 +185,10 @@ class TestInjector:
         assert has_cmd_v
 
     def test_inject_boundary_exceeds(self):
-        """閾値+1でクリップボード方式にフォールバック"""
+        """常にクリップボード方式を使用（type()は呼ばれない）"""
         clip = FakeClipboard()
         ctrl = FakeController()
-        inj = Injector(controller=ctrl, clipboard=clip, type_threshold=5)
+        inj = Injector(controller=ctrl, clipboard=clip)
 
         text = "123456"  # 6文字
         inj.inject(text)
@@ -197,10 +197,10 @@ class TestInjector:
         assert ctrl.typed == []  # type() は呼ばれない
 
     def test_inject_custom_threshold(self):
-        """コンストラクタで閾値を変更可能だが、常にクリップボード経由"""
+        """常にクリップボード経由で注入（閾値パラメータは削除済み）"""
         clip = FakeClipboard()
         ctrl = FakeController()
-        inj = Injector(controller=ctrl, clipboard=clip, type_threshold=10)
+        inj = Injector(controller=ctrl, clipboard=clip)
 
         inj.inject("1234567890")  # ちょうど10文字
         # クリップボード経由で注入される

@@ -11,14 +11,13 @@ class Injector:
     常にクリップボード経由 Cmd+V で注入し、注入後に元のクリップボードを復元する。
     """
 
-    def __init__(self, controller=None, clipboard=None, type_threshold: int = 50):
+    def __init__(self, controller=None, clipboard=None):
         if controller is not None:
             self._controller = controller
         else:
             from pynput.keyboard import Controller
             self._controller = Controller()
         self._clipboard = clipboard or pyperclip
-        self._type_threshold = type_threshold
         self._restore_generation = 0
         self._restore_lock = threading.Lock()
         self._pending_original = ""
