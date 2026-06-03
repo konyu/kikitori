@@ -239,11 +239,12 @@ class HotkeyManager:
     # ── イベントハンドラ ───────────────────────────────────────────────
 
     def on_press(self, key):
-        if not self._is_hotkey_key(key):
+        kid = _key_id(key)
+        if kid not in self._hotkey_set:
             return
 
         with self._lock:
-            self._pressed_keys.add(_key_id(key))
+            self._pressed_keys.add(kid)
             if self._all_hotkey_pressed() and not self._is_recording:
                 self._is_recording = True
                 self._saved_input_source = save_and_switch_to_ascii()  # 日本語→英数
