@@ -46,11 +46,9 @@ def get_frontmost_pid() -> int | None:
     macOS 専用。AppKit が利用できない場合は None を返す。
     """
     try:
-        from kikitori.mac_runloop import macos_thread_runloop
-        with macos_thread_runloop():
-            from AppKit import NSWorkspace
-            app = NSWorkspace.sharedWorkspace().frontmostApplication()
-            return int(app.processIdentifier())
+        from AppKit import NSWorkspace
+        app = NSWorkspace.sharedWorkspace().frontmostApplication()
+        return int(app.processIdentifier())
     except Exception:
         return None
 
