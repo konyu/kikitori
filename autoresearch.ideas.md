@@ -22,6 +22,10 @@
 - [x] Fix clipboard corruption on rapid injections (generation counter for restore)
 - [x] Remove dead type_threshold parameter
 - [x] Additional edge case + reliability tests
+- [x] Fix duplicate Corrections.load() call (was loaded twice: __init__ + App.load())
+- [x] Make App.load() idempotent (_loaded flag, prevents double-load from PySide + run() path)
+- [x] Remove all "Whisper"/"mlx" references from UI strings (settings_dialog.py)
+- [x] Reduce endAudio finalization wait: 200→100ms daemon + 400→200ms hotpath
 
 ## Pipeline Summary
 | Phase | Baseline | Current |
