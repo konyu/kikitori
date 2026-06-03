@@ -105,3 +105,6 @@ def restore_to_kana() -> None:
     _init_cache()
     if _japanese_source is not None:
         TISSelectInputSource(_japanese_source)
+
+
+
