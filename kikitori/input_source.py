@@ -2,18 +2,17 @@
 
 日本語IME → 英数モードの切り替え・復元を行う。
 
-TIS API はメインスレッド専用で pynput のコールバックスレッドから
-安全に呼べないため、CGEventPost によるキーボードイベントシミュレーション
-方式を使用する。英数キー（kVK_JIS_Eisu = 102）のキーコードを
-CGEventPost でシステムに投入する。
-
-この方式は pynput の event tap スレッドから安全に呼べ、クラッシュしない。
+英数/かなキーを osascript (System Events) 経由でシミュレートする。
+osascript は別プロセスなので pynput の event tap に傍受されず、
+確実に IME を切り替えられる。
 """
 
+import subprocess
 from AppKit import NSBundle
 import objc
 
-# ── HIToolbox / CoreGraphics フレームワーク読み込み ─────────────────
+
+# ── Carbon framework（TIS 読み取り専用関数のみ） ──────────────────
 
 _CarbonBundle = NSBundle.bundleWithPath_(
     "/System/Library/Frameworks/Carbon.framework"
@@ -21,112 +20,53 @@ _CarbonBundle = NSBundle.bundleWithPath_(
 if not _CarbonBundle.isLoaded():
     _CarbonBundle.load()
 
-# TIS 関数（読み取り専用のためスレッドセーフ）
 _TIS_READ_FUNCTIONS = [
     ("TISCopyCurrentKeyboardInputSource", b"@"),
     ("TISGetInputSourceProperty", b"@@@"),
-    ("TISCreateInputSourceList", b"@@B"),
 ]
 _TIS_CONSTANTS = [
-    ("kTISPropertyInputSourceType", b"@"),
     ("kTISPropertyInputSourceID", b"@"),
     ("kTISPropertyInputModeID", b"@"),
     ("kTISPropertyBundleID", b"@"),
-    ("kTISTypeKeyboardLayout", b"@"),
-    ("kTISTypeKeyboardInputMode", b"@"),
 ]
 
 objc.loadBundleFunctions(_CarbonBundle, globals(), _TIS_READ_FUNCTIONS)
 objc.loadBundleVariables(_CarbonBundle, globals(), _TIS_CONSTANTS)
 
-# CGEventPost によるキーボードイベント投入（スレッドセーフ）
-try:
-    _QuartzBundle = NSBundle.bundleWithPath_(
-        "/System/Library/Frameworks/Quartz.framework"
-    )
-    if not _QuartzBundle.isLoaded():
-        _QuartzBundle.load()
 
-    _QUARTZ_FUNCTIONS = [
-        ("CGEventCreateKeyboardEvent", b"@@H{Bool=B}"),
-        ("CGEventPost", b"vII"),
-    ]
-    objc.loadBundleFunctions(_QuartzBundle, globals(), _QUARTZ_FUNCTIONS)
-    _HAS_CGEVENT = True
-except Exception:
-    _HAS_CGEVENT = False
-
-# ── キーコード定数 ─────────────────────────────────────────────────
-
-kVK_JIS_Eisu = 102          # 英数キー（スペース左）
-kVK_JIS_Kana = 104          # かなキー（スペース右）
-
-kCGHIDEventTap = 0
-
-
-# ── 英数/かな 切り替え ─────────────────────────────────────────────
-
-def _post_key_event(keycode: int, keydown: bool) -> None:
-    """CGEventPost でキーイベントをシステムに投入する。
-
-    CGEventPost はスレッドセーフ。バックグラウンドスレッドから安全に呼べる。
-    """
-    if not _HAS_CGEVENT:
-        return
-
-    event = CGEventCreateKeyboardEvent(None, keycode, keydown)
-    CGEventPost(kCGHIDEventTap, event)
-
-
-def switch_to_ascii() -> None:
-    """英数キーイベントを投入し、英数モードに切り替える。"""
-    if not _HAS_CGEVENT:
-        return
-    _post_key_event(kVK_JIS_Eisu, True)
-    _post_key_event(kVK_JIS_Eisu, False)
-
-
-def switch_to_kana() -> None:
-    """かなキーイベントを投入し、かなモードに切り替える。"""
-    if not _HAS_CGEVENT:
-        return
-    _post_key_event(kVK_JIS_Kana, True)
-    _post_key_event(kVK_JIS_Kana, False)
-
-
-# ── 日本語入力モード検出（TIS 読み取り専用、スレッドセーフ） ────
+# ── 日本語入力モード検出 ───────────────────────────────────────────
 
 def _is_japanese_input_mode(source) -> bool:
-    """指定された入力ソースが日本語入力モードか判定。"""
     if source is None:
         return False
-
     mode_id = TISGetInputSourceProperty(source, kTISPropertyInputModeID)
     if mode_id and "Japanese" in str(mode_id):
         return True
-
     bundle_id = TISGetInputSourceProperty(source, kTISPropertyBundleID)
     if bundle_id and "Kotoeri" in str(bundle_id):
         return True
-
     return False
+
+
+def _osascript_keycode(keycode: int) -> None:
+    """osascript 経由でキーコードを System Events に送信。
+
+    別プロセスなので pynput event tap に傍受されず、確実に IME 切替される。
+    """
+    try:
+        subprocess.run(
+            ["osascript", "-e",
+             f'tell application "System Events" to key code {keycode}'],
+            capture_output=True, timeout=2,
+        )
+    except Exception:
+        pass
 
 
 # ── 公開 API ───────────────────────────────────────────────────────
 
-def get_current_input_source_id() -> str | None:
-    """現在の入力ソースIDを取得。"""
-    current = TISCopyCurrentKeyboardInputSource()
-    if current is None:
-        return None
-    sid = TISGetInputSourceProperty(current, kTISPropertyInputSourceID)
-    return str(sid) if sid else None
-
 def save_and_switch_to_ascii() -> bool:
-    """日本語IME が有効なら英数キーで英数モードに切り替える。
-
-    読み取り専用の TIS 関数で状態を確認し、切り替えが必要な場合は
-    CGEventPost で英数キーをシミュレートする。スレッドセーフ。
+    """日本語IME が有効なら osascript で英数キーを投入して ASCII に切替。
 
     Returns:
         True なら復元が必要（元が日本語IMEだった）。
@@ -135,13 +75,13 @@ def save_and_switch_to_ascii() -> bool:
     current = TISCopyCurrentKeyboardInputSource()
     if current is None:
         return False
-
     if not _is_japanese_input_mode(current):
         return False
 
-    switch_to_ascii()
+    _osascript_keycode(102)  # kVK_JIS_Eisu
     return True
 
+
 def restore_to_kana() -> None:
-    """かなキーイベントを投入し、かなモードに復元する。"""
-    switch_to_kana()
+    """かなキーを osascript で投入して日本語IME に復元。"""
+    _osascript_keycode(104)  # kVK_JIS_Kana

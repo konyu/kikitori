@@ -26,6 +26,7 @@ from kikitori.config import (
 from kikitori.glossary import Glossary
 from kikitori.injector import Injector
 from kikitori.input_source import save_and_switch_to_ascii, restore_to_kana
+from kikitori.mac_runloop import macos_thread_runloop
 from kikitori.recorder import Recorder, RecordError
 from kikitori.settings import get_frontmost_pid, activate_app_by_pid
 
@@ -242,13 +243,16 @@ class HotkeyManager:
                     self._on_state_change(True)
 
                 # ストリーミング認識を開始（録音と並行）
+                # macos_thread_runloop で Mach ポートメッセージをフラッシュ
                 if self._speech_analyzer is not None:
                     self._speech_analyzer.on_partial_result = self._on_partial_speech
                     self._speech_analyzer.on_final_result = self._on_final_speech
-                    self._speech_analyzer.start()
+                    with macos_thread_runloop():
+                        self._speech_analyzer.start()
 
                 try:
-                    self._recorder.start()
+                    with macos_thread_runloop():
+                        self._recorder.start()
                 except RecordError as e:
                     import sys
                     print(f"[ERROR] Failed to start recording: {e}", file=sys.stderr)
