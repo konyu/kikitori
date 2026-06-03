@@ -96,7 +96,6 @@ class FakeCorrections:
 
 DEFAULT_TEST_HOTKEY = ["ctrl", "alt"]
 TEST_KWARGS = {
-    "prompt": "",
     "language": "ja",
     "min_duration_ms": 0,
     "silence_rms_threshold": 0.0,

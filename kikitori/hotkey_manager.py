@@ -25,6 +25,7 @@ from kikitori.config import (
 )
 from kikitori.glossary import Glossary
 from kikitori.injector import Injector
+from kikitori.input_source import save_and_switch_to_ascii, restore_to_kana
 from kikitori.recorder import Recorder, RecordError
 from kikitori.settings import get_frontmost_pid, activate_app_by_pid
 
@@ -126,6 +127,7 @@ class HotkeyManager:
         self._glossary: "Glossary | None" = glossary
         self._corrections = corrections
         self._speech_analyzer = speech_analyzer
+        self._saved_input_source = False  # 録音前のIMEが日本語だったか
 
         # ホットキー設定
         names = hotkey if hotkey is not None else DEFAULT_HOTKEY
@@ -233,6 +235,7 @@ class HotkeyManager:
             self._pressed_keys.add(_key_id(key))
             if self._all_hotkey_pressed() and not self._is_recording:
                 self._is_recording = True
+                self._saved_input_source = save_and_switch_to_ascii()  # 日本語→英数
                 # 録音開始時のフォーカスアプリを記憶
                 self._target_pid = get_frontmost_pid()
                 if self._on_state_change:
@@ -376,8 +379,14 @@ class HotkeyManager:
         import time as _time
         t0 = _time.perf_counter()
 
+        # 処理完了後に日本語IMEを復元
+        _should_restore = self._saved_input_source
+
         if not self._should_transcribe(audio):
             if DEBUG: print("[DEBUG] _transcribe_and_inject: SKIPPED (_should_transcribe=False)", flush=True)
+            if _should_restore:
+                restore_to_kana()
+                self._saved_input_source = False
             return
 
         # activate_app_by_pid は呼び出し元（stop_recording/on_release）で
@@ -415,6 +424,11 @@ class HotkeyManager:
 
         self._injector.inject(text)
         t2 = _time.perf_counter()
+
+        # ペースト完了後、日本語IMEを復元
+        if self._saved_input_source:
+            restore_to_kana()
+            self._saved_input_source = False
 
         if BENCHMARK_MODE:
             print(f"[BENCH] pipeline: transcribe={(t1-t0)*1000:.1f}ms "
