@@ -26,6 +26,7 @@
 - [x] Make App.load() idempotent (_loaded flag, prevents double-load from PySide + run() path)
 - [x] Remove all "Whisper"/"mlx" references from UI strings (settings_dialog.py)
 - [x] Reduce endAudio finalization wait: 200→100ms daemon + 400→200ms hotpath
+- [x] Replace is_final() polling loop with threading.Event (sub-ms notification vs 10ms poll)
 
 ## Pipeline Summary
 | Phase | Baseline | Current |
@@ -50,7 +51,7 @@
 - Thread reuse: persistent speech_analyzer thread with condition variable. Small win (~10ms thread creation per cycle), complexity high. **Not worth it.**
 - Overlap injection with final recognition: inject partial text immediately, update if final differs. Risky (double paste). **Not worth it.**
 - Remove batch transcribe fallback: code simplification, but useful as user-configurable option. **Keep as fallback.**
-- Eliminate double audio copy: <1ms per cycle. **Not worth complexity.**
+- Eliminate double audio copy: Recorder._on_audio + SpeechAnalyzer.append_audio both copy. ~2μs per chunk, ~1.8ms for 60s recording. **Not worth complexity.**
 - CGEventPost direct (bypass pynput): pynput already uses CGEventPost internally. **No benefit.**
 - AXUIElement text injection: bypasses clipboard. Complex, fragile across apps. **Not worth it.**
 - NSPasteboard direct (bypass pyperclip): pyperclip already thin wrapper. **~1ms savings, not worth dependency change.**
