@@ -68,7 +68,7 @@ def _set_dock_icon():
 
         NSApp().setApplicationIconImage_(result)
     except Exception as e:
-        print(f"[WARN] Dockアイコン設定に失敗: {e}", file=sys.stderr)
+        print(f"[WARN] Failed to set Dock icon: {e}", file=sys.stderr)
 
 
 class _ModelLoader(QtCore.QThread):
@@ -216,14 +216,14 @@ class KikitoriUIApp(QtWidgets.QApplication):
 
     def _on_model_loaded(self):
         """音声認識エンジン準備完了時"""
-        print("[INFO] 音声認識エンジン準備完了", flush=True)
+        print("[INFO] Speech recognition engine ready", flush=True)
         self._status_action.setText("○ 待機中（音声認識準備完了）")
         import threading
         threading.Thread(target=self._app.run, daemon=True).start()
 
     def _on_model_failed(self, message: str):
         """音声認識エンジン初期化失敗時"""
-        print(f"[ERROR] 音声認識の初期化に失敗: {message}", flush=True)
+        print(f"[ERROR] Speech recognition initialization failed: {message}", flush=True)
         self._status_action.setText(f"❌ 音声認識の初期化に失敗")
         import threading
         threading.Thread(target=self._app.run, daemon=True).start()
@@ -341,7 +341,7 @@ class KikitoriUIApp(QtWidgets.QApplication):
         kw_count = len(self._glossary.get_terms())
         # HotkeyManager が次回 _get_effective_prompt() で新しい用語を使う
         # （glossary は参照で共有されているため load() だけで反映される）
-        print(f"[INFO] キーワードを再読み込みしました: {kw_count}件", flush=True)
+        print(f"[INFO] Reloaded glossary: {kw_count} terms", flush=True)
 
     def _open_corrections_dialog(self):
         """校正辞書管理ダイアログを開く。"""
@@ -355,7 +355,7 @@ class KikitoriUIApp(QtWidgets.QApplication):
         """Corrections を再読み込みし、内部状態を更新する。"""
         self._corrections.load()
         corr_count = len(self._corrections.get_items())
-        print(f"[INFO] 校正辞書を再読み込みしました: {corr_count}件", flush=True)
+        print(f"[INFO] Reloaded corrections: {corr_count} entries", flush=True)
 
     def _check_settings_change(self):
         """設定ファイルと用語集ファイルの変更を監視する。"""

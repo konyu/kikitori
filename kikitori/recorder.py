@@ -50,7 +50,7 @@ class Recorder:
                 self._stream.start()
         except sd.PortAudioError as e:
             print(
-                f"[ERROR] 録音ストリーム開始エラー: {e} - PortAudio を再初期化してリトライします",
+                f"[ERROR] Recording stream error: {e} — reinitializing PortAudio and retrying",
                 file=sys.stderr,
             )
             self._buffer.stop()
@@ -64,7 +64,7 @@ class Recorder:
             except sd.PortAudioError as e2:
                 self._buffer.stop()
                 raise RecordError(
-                    f"PortAudio 再初期化後も録音ストリームを開始できません: {e2}"
+                    f"Failed to start recording stream after PortAudio reinitialization: {e2}"
                 ) from e2
 
         if BENCHMARK_MODE:
@@ -100,7 +100,7 @@ class Recorder:
         if status:
             import sys
 
-            print(f"[WARN] オーディオステータス: {status}", file=sys.stderr)
+            print(f"[WARN] Audio status: {status}", file=sys.stderr)
         if indata is not None:
             # Copy the input data so we own the memory — sounddevice may reuse
             # indata after the callback returns.

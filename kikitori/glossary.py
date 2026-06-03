@@ -47,7 +47,7 @@ class Glossary:
             data = yaml.safe_load(self._path.read_text(encoding="utf-8"))
         except Exception as e:
             import sys
-            print(f"[WARN] 用語集ファイルの読み込みに失敗しました: {self._path} — {e}", file=sys.stderr)
+            print(f"[WARN] Failed to load glossary file: {self._path} — {e}", file=sys.stderr)
             self._terms = []
             return
 

@@ -72,7 +72,7 @@ def resolve_hotkey(names: list[str]) -> list[list]:
                 vk = int(name)
                 groups.append([KeyCode.from_vk(vk)])
             except ValueError as exc:
-                raise ValueError(f"未知のホットキー名です: {name}") from exc
+                raise ValueError(f"Unknown hotkey name: {name}") from exc
     return groups
 
 
@@ -192,18 +192,18 @@ class HotkeyManager:
             print(f"[DEBUG] _should_transcribe: audio.size={audio.size} "
                   f"dtype={audio.dtype} ndim={audio.ndim}", flush=True)
         if audio.size == 0:
-            print("[INFO] 録音データが空です")
+            print("[INFO] Recording data is empty")
             if DEBUG: print("[DEBUG] _should_transcribe → False (empty)", flush=True)
             return False
         if audio.size < self._min_duration_samples:
             duration_ms = audio.size / SAMPLE_RATE * 1000
             min_ms = self._min_duration_samples / SAMPLE_RATE * 1000
-            print(f"[INFO] 録音が短すぎます（{duration_ms:.0f}ms < {min_ms:.0f}ms） — 音声認識に渡しません")
+            print(f"[INFO] Recording too short ({duration_ms:.0f}ms < {min_ms:.0f}ms) — skipping transcription")
             return False
         rms = float(np.sqrt(np.dot(audio, audio) / audio.size))
         if DEBUG: print(f"[DEBUG] _should_transcribe: rms={rms:.6f} threshold={self._silence_rms_threshold}", flush=True)
         if rms < self._silence_rms_threshold:
-            print(f"[INFO] 無音と判定されました（RMS={rms:.4f} < {self._silence_rms_threshold}） — 音声認識に渡しません")
+            print(f"[INFO] Silence detected (RMS={rms:.4f} < {self._silence_rms_threshold}) — skipping transcription")
             if DEBUG: print("[DEBUG] _should_transcribe → False (silence)", flush=True)
             return False
         if DEBUG: print("[DEBUG] _should_transcribe → True", flush=True)
@@ -247,7 +247,7 @@ class HotkeyManager:
                     self._recorder.start()
                 except RecordError as e:
                     import sys
-                    print(f"[ERROR] 録音開始失敗: {e}", file=sys.stderr)
+                    print(f"[ERROR] Failed to start recording: {e}", file=sys.stderr)
                     if self._speech_analyzer is not None:
                         self._speech_analyzer.stop()
                     with self._lock:
@@ -326,7 +326,7 @@ class HotkeyManager:
             self._recorder.start()
         except RecordError as e:
             import sys
-            print(f"[ERROR] 録音開始失敗: {e}", file=sys.stderr)
+            print(f"[ERROR] Failed to start recording: {e}", file=sys.stderr)
             if self._speech_analyzer is not None:
                 self._speech_analyzer.stop()
             with self._lock:
@@ -430,6 +430,6 @@ class HotkeyManager:
             terms = self._glossary.get_terms()
             if terms:
                 prompt = self._glossary.build_prompt(self._prompt)
-                if DEBUG: print(f"[DEBUG] プロンプトに専門用語を追記: {terms}", flush=True)
+                if DEBUG: print(f"[DEBUG] Glossary terms appended to prompt: {terms}", flush=True)
                 return prompt
         return self._prompt

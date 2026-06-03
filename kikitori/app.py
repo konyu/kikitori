@@ -94,7 +94,7 @@ class App:
         import sys
         self._transcriber.load()
         self._corrections.load()
-        print(f"[INFO] 校正辞書を読み込みました（{len(self._corrections.get_items())} 件）", flush=True)
+        print(f"[INFO] Loaded {len(self._corrections.get_items())} correction entries", flush=True)
         self._loaded = True
 
     def run_background(self, listener_factory=None):
@@ -130,12 +130,12 @@ class App:
         print("=" * 50)
         print("Kikitori")
         print("=" * 50)
-        print(f"サンプリングレート: {self._sample_rate} Hz")
-        print(f"ホットキー: {' + '.join(self._hotkey_config)} (押下中録音 / 解放で出力)")
+        print(f"Sample rate: {self._sample_rate} Hz")
+        print(f"Hotkey: {' + '.join(self._hotkey_config)} (hold to record / release to transcribe)")
         print("=" * 50)
 
         self.load()
-        print("[INFO] ホットキーリスナーを開始します。Ctrl+C で終了。")
+        print("[INFO] Hotkey listener started. Press Ctrl+C to quit.")
 
         with listener_factory(
             on_press=self._hotkey.on_press,

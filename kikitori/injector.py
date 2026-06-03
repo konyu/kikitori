@@ -60,7 +60,7 @@ class Injector:
                 self._controller.release("v")
             if DEBUG: print("[DEBUG] _inject_via_clipboard: Cmd+V sent", flush=True)
         except Exception as e:
-            print(f"[WARN] pynput での送信に失敗: {e}")
+            print(f"[WARN] pynput injection failed: {e}")
 
         # Cmd+V が処理された後で元のクリップボードを復元（非同期）
         # 元が空の場合は復元しない（画像など非テキストクリップボードを保護）

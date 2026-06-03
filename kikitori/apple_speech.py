@@ -47,7 +47,7 @@ class SpeechTranscriber:
         初回実行時は macOS の音声認識権限ダイアログが表示される可能性がある。
         """
         if SFSpeechRecognizer is None:
-            raise RuntimeError("Apple Speech Framework (PyObjC) が利用できません。")
+            raise RuntimeError("Apple Speech Framework (PyObjC) is not available.")
 
         if self._request_auth:
             auth_event = threading.Event()
