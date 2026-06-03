@@ -1,7 +1,7 @@
 """PySide6 ベースの Kikitori UI（メニューバー + オーバーレイ）"""
 
 import os
-os.environ.setdefault("QT_LOGGING_RULES", "qt.text.font.db.warning=false")
+os.environ.setdefault("QT_LOGGING_RULES", "qt.text.font.db=false")
 
 import signal
 import sys
