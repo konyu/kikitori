@@ -3,6 +3,13 @@ import threading
 
 import numpy as np
 
+# AppKit 初回インポートを前倒し（~46ms → ホットキー初回押下時の遅延を排除）
+try:
+    import AppKit  # noqa: F401
+    from AppKit import NSWorkspace, NSRunningApplication  # noqa: F401
+except ImportError:
+    pass
+
 from kikitori.config import (
     BENCHMARK_MODE,
     DEFAULT_HOTKEY,
