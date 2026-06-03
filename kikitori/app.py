@@ -1,8 +1,6 @@
 """アプリケーション統合エントリポイント"""
 import threading
 
-from pynput import keyboard
-
 from kikitori.audio_buffer import AudioBuffer
 from kikitori.config import (
     APPLE_SPEECH_LOCALE,
@@ -107,6 +105,7 @@ class App:
     def run_background(self, listener_factory=None):
         """ホットキーリスナーをバックグラウンドスレッドで開始する。"""
         if listener_factory is None:
+            from pynput import keyboard
             listener_factory = lambda on_press, on_release: keyboard.Listener(
                 on_press=on_press, on_release=on_release
             )
@@ -128,6 +127,7 @@ class App:
 
     def run(self, listener_factory=None):
         if listener_factory is None:
+            from pynput import keyboard
             listener_factory = lambda on_press, on_release: keyboard.Listener(
                 on_press=on_press, on_release=on_release
             )

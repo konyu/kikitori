@@ -2,7 +2,6 @@
 import threading
 
 import numpy as np
-from pynput.keyboard import Key, KeyCode
 
 from kikitori.config import (
     BENCHMARK_MODE,
@@ -20,25 +19,38 @@ from kikitori.transcriber import Transcriber
 from kikitori.settings import get_frontmost_pid, activate_app_by_pid
 
 
-# キー名 → pynput Key/KeyCode 一覧（左右どちらでも反応）
-_KEY_MAP: dict[str, list] = {
-    "ctrl": [Key.ctrl_l, Key.ctrl_r],
-    "control": [Key.ctrl_l, Key.ctrl_r],
-    "alt": [Key.alt, Key.alt_r],
-    "option": [Key.alt, Key.alt_r],
-    "cmd": [Key.cmd, Key.cmd_r],
-    "command": [Key.cmd, Key.cmd_r],
-    "shift": [Key.shift, Key.shift_r],
-}
+# pynput.keyboard は遅延インポート（import に ~62ms かかるため）
+_KEY_MAP_CACHE: dict[str, list] | None = None
+
+def _build_key_map() -> dict[str, list]:
+    """キー名 → pynput Key 一覧（左右どちらでも反応）。遅延構築。"""
+    from pynput.keyboard import Key
+    return {
+        "ctrl": [Key.ctrl_l, Key.ctrl_r],
+        "control": [Key.ctrl_l, Key.ctrl_r],
+        "alt": [Key.alt, Key.alt_r],
+        "option": [Key.alt, Key.alt_r],
+        "cmd": [Key.cmd, Key.cmd_r],
+        "command": [Key.cmd, Key.cmd_r],
+        "shift": [Key.shift, Key.shift_r],
+    }
+
+def _get_key_map() -> dict[str, list]:
+    global _KEY_MAP_CACHE
+    if _KEY_MAP_CACHE is None:
+        _KEY_MAP_CACHE = _build_key_map()
+    return _KEY_MAP_CACHE
 
 
 def resolve_hotkey(names: list[str]) -> list[list]:
     """キー名のリストを、各名前に対応する Key オブジェクトのグループに変換する。"""
+    from pynput.keyboard import Key, KeyCode
+    key_map = _get_key_map()
     groups = []
     for name in names:
         name = name.lower().strip()
-        if name in _KEY_MAP:
-            groups.append(_KEY_MAP[name])
+        if name in key_map:
+            groups.append(key_map[name])
         elif hasattr(Key, name):
             groups.append([getattr(Key, name)])
         elif len(name) == 1 and name.isalpha():
@@ -58,8 +70,12 @@ def resolve_hotkey(names: list[str]) -> list[list]:
 
 
 def _key_id(key):
-    """キーをハッシュ可能な ID に変換（KeyCode の比較を安定化）。"""
-    if isinstance(key, KeyCode):
+    """キーをハッシュ可能な ID に変換（KeyCode の比較を安定化）。
+
+    pynput の KeyCode は __eq__ が実装されていないため、vk/char で正規化する。
+    """
+    # hasattr で KeyCode を判定（遅延インポートのため isinstance を避ける）
+    if hasattr(key, 'vk') and hasattr(key, 'char'):
         if key.vk is not None:
             return ("vk", key.vk)
         if key.char is not None:

@@ -2,7 +2,6 @@
 import threading
 
 import pyperclip
-from pynput.keyboard import Controller, Key
 
 from kikitori.config import BENCHMARK_MODE
 
@@ -14,7 +13,11 @@ class Injector:
     """
 
     def __init__(self, controller=None, clipboard=None, type_threshold: int = 50):
-        self._controller = controller or Controller()
+        if controller is not None:
+            self._controller = controller
+        else:
+            from pynput.keyboard import Controller
+            self._controller = Controller()
         self._clipboard = clipboard or pyperclip
         self._type_threshold = type_threshold
 
@@ -32,6 +35,7 @@ class Injector:
         復元をスキップして内容を保護する。
         """
         import time as _time
+        from pynput.keyboard import Key
         t0 = _time.perf_counter()
 
         # 元のクリップボードを保存
