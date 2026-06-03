@@ -384,6 +384,12 @@ class HotkeyManager:
         # ストリーミング認識の結果を取得
         text = ""
         if self._speech_analyzer is not None:
+            # 最終認識結果が得られるまで待つ（speech_analyzer.stop() 後、
+            # バックグラウンドの daemon スレッドが endAudio → 最終結果受信までに
+            # 最大 ~200ms かかるため）
+            deadline = _time.perf_counter() + 0.4
+            while _time.perf_counter() < deadline and not self._speech_analyzer.is_final():
+                _time.sleep(0.01)
             text = self._speech_analyzer.get_latest_text()
             print(f"[DEBUG] _transcribe_and_inject: streaming_text='{text}' (len={len(text)})", flush=True)
 
