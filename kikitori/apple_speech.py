@@ -94,6 +94,7 @@ class SpeechTranscriber:
             return ""
 
         if self._recognizer is None:
+            print("[DEBUG] transcribe: recognizer is None", flush=True)
             return ""
 
         if audio.dtype != np.float32:
@@ -101,22 +102,26 @@ class SpeechTranscriber:
 
         fmt = AVAudioFormat.alloc().initStandardFormatWithSampleRate_channels_(16000.0, 1)
         if fmt is None:
+            print("[DEBUG] transcribe: AVAudioFormat is None", flush=True)
             return ""
 
         buffer = AVAudioPCMBuffer.alloc().initWithPCMFormat_frameCapacity_(
             fmt, len(audio)
         )
         if buffer is None:
+            print("[DEBUG] transcribe: AVAudioPCMBuffer is None", flush=True)
             return ""
 
         buffer.setFrameLength_(len(audio))
 
         float_data = buffer.floatChannelData()
         if float_data is None:
+            print("[DEBUG] transcribe: floatChannelData() is None", flush=True)
             return ""
 
         channel_ptr = float_data[0]
         if channel_ptr is None:
+            print("[DEBUG] transcribe: channel_ptr is None", flush=True)
             return ""
 
         try:
@@ -125,11 +130,13 @@ class SpeechTranscriber:
             buf = channel_ptr.as_buffer(audio.nbytes)
             np_buf = np.frombuffer(buf, dtype=np.float32).copy()
             np_buf[:] = audio[:len(np_buf)]
-        except Exception:
+        except Exception as e:
+            print(f"[DEBUG] transcribe: buffer copy FAILED: {type(e).__name__}: {e}", flush=True)
             return ""
 
         request = SFSpeechAudioBufferRecognitionRequest.alloc().init()
         if request is None:
+            print("[DEBUG] transcribe: SFSpeechAudioBufferRecognitionRequest is None", flush=True)
             return ""
 
         request.setRequiresOnDeviceRecognition_(self._on_device)
@@ -173,6 +180,7 @@ class SpeechTranscriber:
             request, _result_handler
         )
         if task is None:
+            print("[DEBUG] transcribe: recognitionTaskWithRequest is None", flush=True)
             return ""
 
         # 部分結果を任意のスレッドから待つ。done_event は最初のテキスト到着でセット。
