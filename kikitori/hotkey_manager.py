@@ -188,7 +188,7 @@ class HotkeyManager:
             min_ms = self._min_duration_samples / SAMPLE_RATE * 1000
             print(f"[INFO] 録音が短すぎます（{duration_ms:.0f}ms < {min_ms:.0f}ms） — Whisperに渡しません")
             return False
-        rms = float(np.sqrt(np.mean(audio * audio)))
+        rms = float(np.sqrt(np.dot(audio, audio) / audio.size))
         if rms < self._silence_rms_threshold:
             print(f"[INFO] 無音と判定されました（RMS={rms:.4f} < {self._silence_rms_threshold}） — Whisperに渡しません")
             return False
