@@ -22,4 +22,4 @@ def macos_thread_runloop():
         yield
         # 処理完了後、現在のスレッドの RunLoop をごくわずかな時間(0.001秒)だけ回し、
         # 溜まっている Mach メッセージをディスパッチさせる
-        NSRunLoop.currentRunLoop().runUntilDate_(NSDate.dateWithTimeIntervalSinceNow_(0.001))
+        NSRunLoop.currentRunLoop().runUntilDate_(NSDate.dateWithTimeIntervalSinceNow_(0.0001))
