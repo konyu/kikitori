@@ -183,18 +183,17 @@ class TestHotkeyManager:
         assert len(inj.injected) == 10
         assert all(t == "stress" for t in inj.injected)
 
-    def test_prompt_and_language_passed_to_transcriber(self):
+    def test_language_passed_to_transcriber(self):
         rec = FakeRecorder()
         trans = FakeTranscriber()
         inj = FakeInjector()
-        mgr = HotkeyManager(rec, trans, inj, hotkey=DEFAULT_TEST_HOTKEY, **TEST_KWARGS, prompt="テストプロンプト", language="en")
+        mgr = HotkeyManager(rec, trans, inj, hotkey=DEFAULT_TEST_HOTKEY, **TEST_KWARGS, language="en")
 
         mgr.on_press(Key.ctrl_l)
         mgr.on_press(Key.alt)
         mgr.on_release(Key.alt)
 
         assert len(trans.calls) == 1
-        assert trans.calls[0][1] == "テストプロンプト"
         assert trans.calls[0][2] == "en"
 
     def test_auto_stop_timer_starts_on_recording(self):
@@ -580,7 +579,6 @@ class TestHotkeyManager:
         inj = FakeInjector()
         mgr = HotkeyManager(
             rec, trans, inj,
-            prompt="ベースプロンプト",
             hotkey=DEFAULT_TEST_HOTKEY, **TEST_KWARGS,
             glossary=glossary,
         )
@@ -591,16 +589,15 @@ class TestHotkeyManager:
 
         assert len(trans.calls) == 1
         _, prompt_used, _ = trans.calls[0]
-        assert prompt_used == "ベースプロンプト。専門用語: MLX, Transformer"
+        assert prompt_used == "専門用語: MLX, Transformer"
 
     def test_no_glossary_uses_base_prompt(self):
-        """glossary を渡さない場合、base_prompt がそのまま使われる。"""
+        """glossary を渡さない場合、空のプロンプトが使われる。"""
         rec = FakeRecorder()
         trans = FakeTranscriber("結果")
         inj = FakeInjector()
         mgr = HotkeyManager(
             rec, trans, inj,
-            prompt="ベースプロンプト",
             hotkey=DEFAULT_TEST_HOTKEY, **TEST_KWARGS,
             glossary=None,
         )
@@ -611,10 +608,10 @@ class TestHotkeyManager:
 
         assert len(trans.calls) == 1
         _, prompt_used, _ = trans.calls[0]
-        assert prompt_used == "ベースプロンプト"
+        assert prompt_used == ""
 
     def test_get_effective_prompt_empty_terms(self):
-        """glossary があるが用語が空の場合、base_prompt がそのまま使われる。"""
+        """glossary があるが用語が空の場合、空のプロンプトが使われる。"""
         from kikitori.glossary import Glossary
 
         glossary = Glossary()
@@ -625,7 +622,6 @@ class TestHotkeyManager:
         inj = FakeInjector()
         mgr = HotkeyManager(
             rec, trans, inj,
-            prompt="ベースプロンプト",
             hotkey=DEFAULT_TEST_HOTKEY, **TEST_KWARGS,
             glossary=glossary,
         )
@@ -636,7 +632,7 @@ class TestHotkeyManager:
 
         assert len(trans.calls) == 1
         _, prompt_used, _ = trans.calls[0]
-        assert prompt_used == "ベースプロンプト"
+        assert prompt_used == ""
 
     def test_glossary_affects_auto_stop_too(self):
         """auto_stop 時も glossary でプロンプトが追記される。"""
@@ -650,7 +646,6 @@ class TestHotkeyManager:
         inj = FakeInjector()
         mgr = HotkeyManager(
             rec, trans, inj,
-            prompt="ベース",
             hotkey=DEFAULT_TEST_HOTKEY, **TEST_KWARGS,
             max_duration=60.0,
             timer_factory=lambda interval, func: FakeTimer(interval, func),
@@ -664,7 +659,7 @@ class TestHotkeyManager:
 
         assert len(trans.calls) == 1
         _, prompt_used, _ = trans.calls[0]
-        assert prompt_used == "ベース。専門用語: 専門"
+        assert prompt_used == "専門用語: 専門"
 
     def test_glossary_affects_stop_recording_api(self):
         """stop_recording() も glossary でプロンプトが追記される。"""
@@ -678,10 +673,13 @@ class TestHotkeyManager:
         inj = FakeInjector()
         mgr = HotkeyManager(
             rec, trans, inj,
-            prompt="ベース",
             hotkey=DEFAULT_TEST_HOTKEY, **TEST_KWARGS,
             glossary=glossary,
         )
 
         mgr.start_recording()
         mgr.stop_recording()
+
+        assert len(trans.calls) == 1
+        _, prompt_used, _ = trans.calls[0]
+        assert prompt_used == "専門用語: API"

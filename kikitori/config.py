@@ -10,7 +10,6 @@ CHANNELS: int = 1
 AUDIO_DTYPE = np.float32
 
 DEFAULT_LANGUAGE: str = "ja"
-DEFAULT_PROMPT: str = "以下は日本語の音声認識結果です。"
 
 # 録音設定
 MAX_DURATION: float = 60.0  # 秒

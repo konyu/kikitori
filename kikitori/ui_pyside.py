@@ -395,31 +395,25 @@ class KikitoriUIApp(QtWidgets.QApplication):
             from kikitori.config import (
                 DEFAULT_HOTKEY,
                 DEFAULT_LANGUAGE,
-                DEFAULT_PROMPT,
                 MIN_DURATION_MS,
                 SILENCE_RMS_THRESHOLD,
             )
             new_lang = DEFAULT_LANGUAGE
-            new_prompt = DEFAULT_PROMPT
             new_hotkey = list(DEFAULT_HOTKEY)
             new_min_dur = MIN_DURATION_MS
             new_silence = SILENCE_RMS_THRESHOLD
         else:
             new_lang = settings.get("language", self._language)
-            new_prompt = settings.get("prompt", self._prompt)
             new_hotkey = settings.get("hotkey", self._hotkey)
             new_min_dur = settings.get("min_duration_ms", self._min_duration_ms)
             new_silence = settings.get("silence_rms_threshold", self._silence_rms_threshold)
 
         self._language = new_lang
-        self._prompt = new_prompt
         self._hotkey = new_hotkey
         self._min_duration_ms = new_min_dur
         self._silence_rms_threshold = new_silence
 
         self._app._language = new_lang
-        self._app._prompt = new_prompt
-        self._app._hotkey._prompt = new_prompt
         self._app._hotkey._language = new_lang
         self._app._hotkey.update_hotkey(new_hotkey)
         self._app._hotkey._min_duration_samples = int(new_min_dur / 1000 * 16000)

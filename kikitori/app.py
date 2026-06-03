@@ -8,7 +8,6 @@ from kikitori.config import (
     CHANNELS,
     DEFAULT_HOTKEY,
     DEFAULT_LANGUAGE,
-    DEFAULT_PROMPT,
     MAX_DURATION,
     MIN_DURATION_MS,
     SAMPLE_RATE,
@@ -26,7 +25,6 @@ class App:
         self,
         sample_rate: int = SAMPLE_RATE,
         channels: int = CHANNELS,
-        prompt: str = DEFAULT_PROMPT,
         language: str = DEFAULT_LANGUAGE,
         max_duration: float = MAX_DURATION,
         min_duration_ms: float = MIN_DURATION_MS,
@@ -39,7 +37,6 @@ class App:
     ):
         self._sample_rate = sample_rate
         self._channels = channels
-        self._prompt = prompt
         self._language = language
         self._max_duration = max_duration
         self._min_duration_ms = min_duration_ms
@@ -72,7 +69,6 @@ class App:
             self._recorder,
             self._transcriber,
             self._injector,
-            prompt=prompt,
             language=language,
             max_duration=max_duration,
             min_duration_ms=min_duration_ms,

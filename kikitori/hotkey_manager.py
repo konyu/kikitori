@@ -96,7 +96,6 @@ class HotkeyManager:
         recorder: Recorder,
         transcriber: object,
         injector: Injector,
-        prompt: str = "",
         language: str = DEFAULT_LANGUAGE,
         max_duration: float = MAX_DURATION,
         min_duration_ms: float = MIN_DURATION_MS,
@@ -111,7 +110,6 @@ class HotkeyManager:
         self._recorder = recorder
         self._transcriber = transcriber
         self._injector = injector
-        self._prompt = prompt
         self._language = language
         self._max_duration = max_duration
         self._min_duration_samples = int(min_duration_ms / 1000 * SAMPLE_RATE)
@@ -425,11 +423,13 @@ class HotkeyManager:
     # ── プロンプト生成 ───────────────────────────────────────────────
 
     def _get_effective_prompt(self) -> str:
-        """glossary があれば用語追記したプロンプト、なければベースプロンプトを返す。"""
+        """glossary があれば用語追記したプロンプトを返す。
+        Apple Speech では無視されるが互換性のため残す。
+        """
         if self._glossary is not None:
             terms = self._glossary.get_terms()
             if terms:
-                prompt = self._glossary.build_prompt(self._prompt)
+                prompt = self._glossary.build_prompt("")
                 if DEBUG: print(f"[DEBUG] Glossary terms appended to prompt: {terms}", flush=True)
                 return prompt
-        return self._prompt
+        return ""

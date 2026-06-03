@@ -9,7 +9,6 @@ from PySide6 import QtCore, QtWidgets
 from kikitori.config import (
     DEFAULT_HOTKEY,
     DEFAULT_LANGUAGE,
-    DEFAULT_PROMPT,
     MIN_DURATION_MS,
     SILENCE_RMS_THRESHOLD,
 )
@@ -181,15 +180,6 @@ class SettingsDialog(QtWidgets.QDialog):
             self._lang_combo.addItem(f"{display} ({code})", code)
         form_layout.addRow("言語:", self._lang_combo)
 
-        # ── プロンプト ──
-        self._prompt_edit = QtWidgets.QTextEdit()
-        self._prompt_edit.setPlaceholderText(
-            "音声認識に渡す初期プロンプト（認識精度向上用）"
-        )
-        self._prompt_edit.setMaximumHeight(100)
-        self._prompt_edit.setAcceptRichText(False)
-        form_layout.addRow("プロンプト:", self._prompt_edit)
-
         # ── ホットキー ──
         self._hotkey_editor = HotkeyEditor()
         form_layout.addRow("ホットキー:", self._hotkey_editor)
@@ -264,9 +254,6 @@ class SettingsDialog(QtWidgets.QDialog):
         else:
             self._lang_combo.setEditText(lang_code)
 
-        prompt = self._current.get("prompt", DEFAULT_PROMPT)
-        self._prompt_edit.setPlainText(prompt)
-
         hotkey = self._current.get("hotkey", DEFAULT_HOTKEY)
         self._hotkey_editor.set_hotkey(hotkey)
 
@@ -284,7 +271,6 @@ class SettingsDialog(QtWidgets.QDialog):
 
         return {
             "language": lang_code,
-            "prompt": self._prompt_edit.toPlainText(),
             "hotkey": self._hotkey_editor.get_hotkey(),
             "min_duration_ms": self._min_dur_spin.value(),
             "silence_rms_threshold": self._silence_spin.value() / 10000,
