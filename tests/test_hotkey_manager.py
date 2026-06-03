@@ -343,7 +343,7 @@ class TestHotkeyManager:
 
     def test_invalid_hotkey_name_raises(self):
         """未知のキー名は ValueError を送出"""
-        with pytest.raises(ValueError, match="未知のホットキー名"):
+        with pytest.raises(ValueError, match="Unknown hotkey name"):
             HotkeyManager(FakeRecorder(), FakeTranscriber(), FakeInjector(), hotkey=["unknown_key_xyz"], **TEST_KWARGS)
 
     # ── 公開 API: start_recording / stop_recording ──────────────────
