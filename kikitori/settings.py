@@ -5,13 +5,12 @@ macOS 固有のユーティリティを提供する。
 """
 from pathlib import Path
 
-import yaml
-
 SETTINGS_PATH = Path.home() / ".kikitori_settings.yaml"
 
 
 def load_settings() -> dict:
     """設定ファイルを読み込んで辞書で返す。存在しない場合は空辞書。"""
+    import yaml
     if SETTINGS_PATH.exists():
         try:
             return yaml.safe_load(SETTINGS_PATH.read_text(encoding="utf-8")) or {}
@@ -22,6 +21,7 @@ def load_settings() -> dict:
 
 def save_settings(settings: dict) -> None:
     """設定辞書を YAML ファイルに保存する。"""
+    import yaml
     try:
         SETTINGS_PATH.write_text(
             yaml.dump(settings, allow_unicode=True, default_flow_style=False, sort_keys=False),

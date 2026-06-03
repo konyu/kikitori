@@ -2,8 +2,6 @@
 import sys
 from typing import Callable
 
-import sounddevice as sd
-
 from kikitori.audio_buffer import AudioBuffer
 from kikitori.config import AUDIO_DTYPE, BENCHMARK_MODE, CHANNELS, SAMPLE_RATE
 
@@ -27,6 +25,7 @@ class Recorder:
         self._speech_analyzer = speech_analyzer
 
     def _default_stream_factory(self, *, callback):
+        import sounddevice as sd
         return sd.InputStream(
             samplerate=self._sample_rate,
             channels=self._channels,
@@ -41,6 +40,7 @@ class Recorder:
         再初期化してリトライする。
         """
         import time as _time
+        import sounddevice as sd
         t0 = _time.perf_counter()
 
         self._buffer.start()
@@ -73,6 +73,7 @@ class Recorder:
 
     def _reinit_portaudio(self):
         """PortAudio を再初期化する。スリープ復帰後の破損状態から回復する。"""
+        import sounddevice as sd
         try:
             sd._terminate()
         except Exception:
