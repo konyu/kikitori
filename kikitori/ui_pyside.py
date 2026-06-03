@@ -15,7 +15,6 @@ from kikitori.app import App
 from kikitori.config import (
     DEFAULT_HOTKEY,
     DEFAULT_LANGUAGE,
-    DEFAULT_PROMPT,
     MIN_DURATION_MS,
     SILENCE_RMS_THRESHOLD,
 )
@@ -105,7 +104,6 @@ class KikitoriUIApp(QtWidgets.QApplication):
 
         self._settings = load_settings()
         self._language = self._settings.get("language", DEFAULT_LANGUAGE)
-        self._prompt = self._settings.get("prompt", DEFAULT_PROMPT)
         self._hotkey = self._settings.get("hotkey", DEFAULT_HOTKEY)
         self._min_duration_ms = self._settings.get("min_duration_ms", MIN_DURATION_MS)
         self._silence_rms_threshold = self._settings.get("silence_rms_threshold", SILENCE_RMS_THRESHOLD)
@@ -117,7 +115,6 @@ class KikitoriUIApp(QtWidgets.QApplication):
         # Core app
         self._app = App(
             language=self._language,
-            prompt=self._prompt,
             hotkey=self._hotkey,
             min_duration_ms=self._min_duration_ms,
             silence_rms_threshold=self._silence_rms_threshold,
@@ -281,7 +278,6 @@ class KikitoriUIApp(QtWidgets.QApplication):
         fresh = load_settings()
         current = {
             "language": self._language,
-            "prompt": self._prompt,
             "hotkey": list(self._hotkey),
             "min_duration_ms": self._min_duration_ms,
             "silence_rms_threshold": self._silence_rms_threshold,
@@ -299,13 +295,10 @@ class KikitoriUIApp(QtWidgets.QApplication):
     def _on_settings_changed(self, settings: dict):
         """SettingsDialog からの変更通知を受け取り、即時反映する。"""
         self._language = settings.get("language", self._language)
-        self._prompt = settings.get("prompt", self._prompt)
         self._hotkey = settings.get("hotkey", self._hotkey)
         self._min_duration_ms = settings.get("min_duration_ms", self._min_duration_ms)
         self._silence_rms_threshold = settings.get("silence_rms_threshold", self._silence_rms_threshold)
         # 内部状態に即時反映
-        self._app._prompt = self._prompt
-        self._app._hotkey._prompt = self._prompt
         self._app._language = self._language
         self._app._hotkey._language = self._language
         self._app._hotkey.update_hotkey(self._hotkey)
@@ -317,7 +310,6 @@ class KikitoriUIApp(QtWidgets.QApplication):
         # 設定ファイルに保存（内部キャッシュも更新）
         self._settings = {
             "language": self._language,
-            "prompt": self._prompt,
             "hotkey": self._hotkey,
             "min_duration_ms": self._min_duration_ms,
             "silence_rms_threshold": self._silence_rms_threshold,
