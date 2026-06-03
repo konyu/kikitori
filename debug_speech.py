@@ -76,7 +76,23 @@ print(f"recognizer.supportsOnDeviceRecognition = {recognizer.supportsOnDeviceRec
 fmt = AVAudioFormat.alloc().initStandardFormatWithSampleRate_channels_(16000.0, 1)
 buffer = AVAudioPCMBuffer.alloc().initWithPCMFormat_frameCapacity_(fmt, len(audio))
 buffer.setFrameLength_(len(audio))
-channel_ptr = buffer.floatChannelData()[0]
+
+float_data = buffer.floatChannelData()
+print(f"  floatChannelData type: {type(float_data)}")
+print(f"  floatChannelData: {float_data}")
+
+if float_data is None:
+    print("floatChannelData() returned None")
+    sys.exit(1)
+
+# floatChannelData が PyObjCPointer の場合、as_buffer() を直接使う
+try:
+    channel_ptr = float_data[0]
+except (TypeError, IndexError):
+    # PyObjCPointer はインデックス不可の可能性がある
+    # その場合は float_data 自体が最初のチャンネルポインタ
+    print("  float_data[0] failed, trying direct as_buffer")
+    channel_ptr = float_data
 
 buf = channel_ptr.as_buffer(len(audio))
 np_buf = np.frombuffer(buf, dtype=np.float32).copy()
