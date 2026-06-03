@@ -433,6 +433,6 @@ class HotkeyManager:
             terms = self._glossary.get_terms()
             if terms:
                 prompt = self._glossary.build_prompt(self._prompt)
-                print(f"[DEBUG] プロンプトに専門用語を追記: {terms}", flush=True)
+                if DEBUG: print(f"[DEBUG] プロンプトに専門用語を追記: {terms}", flush=True)
                 return prompt
         return self._prompt

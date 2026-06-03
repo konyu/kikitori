@@ -198,7 +198,7 @@ class SpeechTranscriber:
             request, _result_handler
         )
         if task is None:
-            print("[DEBUG] transcribe: recognitionTaskWithRequest is None", flush=True)
+            if _DBG: print("[DEBUG] transcribe: recognitionTaskWithRequest is None", flush=True)
             return ""
 
         # 部分結果を任意のスレッドから待つ。done_event は最初のテキスト到着でセット。
@@ -207,7 +207,7 @@ class SpeechTranscriber:
 
         result_text = transcription[0]
 
-        print(f"[DEBUG] transcribe returning: text='{result_text}' handler_calls={_handler_calls[0]}", flush=True)
+        if _DBG: print(f"[DEBUG] transcribe returning: text='{result_text}' handler_calls={_handler_calls[0]}", flush=True)
 
         if _BM:
             elapsed = (time.perf_counter() - _t0) * 1000
