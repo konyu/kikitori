@@ -140,10 +140,11 @@ class SpeechTranscriber:
             return ""
 
         try:
-            # np.frombuffer は read-only 配列を返すのでコピーが必要
+            # np.frombuffer は PCM バッファのメモリを参照するビューを返す。
+            # .copy() すると切断された独立配列になるので注意。
             # as_buffer は要素数（float数）を取る
             buf = channel_ptr.as_buffer(len(audio))
-            np_buf = np.frombuffer(buf, dtype=np.float32).copy()
+            np_buf = np.frombuffer(buf, dtype=np.float32)
             np_buf[:] = audio[:len(np_buf)]
         except Exception as e:
             print(f"[DEBUG] transcribe: buffer copy FAILED: {type(e).__name__}: {e}", flush=True)
@@ -457,7 +458,7 @@ class SpeechAnalyzer:
         try:
             # as_buffer は要素数（float数）を取る
             buf = channel_ptr.as_buffer(len(audio))
-            np_buf = np.frombuffer(buf, dtype=np.float32).copy()
+            np_buf = np.frombuffer(buf, dtype=np.float32)
             np_buf[:] = audio[:len(np_buf)]
         except Exception:
             return

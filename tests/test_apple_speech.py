@@ -60,7 +60,7 @@ class TestSpeechTranscriber:
 
         # Arrange: floatChannelData → channel_ptr with as_buffer
         import struct
-        fake_bytes = struct.pack('3f', 0.1, 0.2, 0.3)
+        fake_bytes = bytearray(struct.pack('3f', 0.1, 0.2, 0.3))
 
         class FakeChannelPtr:
             def as_buffer(self, n):
@@ -114,7 +114,7 @@ class TestSpeechTranscriber:
         mock_buffer_cls.alloc.return_value.initWithPCMFormat_frameCapacity_.return_value = mock_buffer
 
         import struct
-        fake_bytes = struct.pack('1f', 0.1)
+        fake_bytes = bytearray(struct.pack('1f', 0.1))
 
         class FakeChannelPtr:
             def as_buffer(self, n):
