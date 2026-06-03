@@ -88,6 +88,8 @@ def save_and_switch_to_ascii() -> bool:
         True なら復元が必要（元が日本語IMEだった）。
         False なら既に英数モード（復元不要）。
     """
+    # TISCopyCurrentKeyboardInputSource が TSM Mach port エラーを
+    # 出し得るが、結果は正しく返る。エラーは無視して続行。
     current = TISCopyCurrentKeyboardInputSource()
     if current is None:
         return False

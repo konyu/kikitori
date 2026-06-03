@@ -7,8 +7,6 @@ from kikitori.config import AUDIO_DTYPE, MAX_DURATION, SAMPLE_RATE
 
 
 class AudioBuffer:
-    __slots__ = ("_recording", "_pos", "_buf", "_lock")
-
     # Pre-allocate enough for max recording duration to avoid repeated allocations
     _MAX_SAMPLES = int(MAX_DURATION * SAMPLE_RATE)
 

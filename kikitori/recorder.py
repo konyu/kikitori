@@ -9,11 +9,6 @@ class RecordError(Exception):
     """録音開始時のエラー"""
 
 class Recorder:
-    __slots__ = (
-        "_buffer", "_sample_rate", "_channels",
-        "_stream", "_stream_factory", "_speech_analyzer",
-    )
-
     def __init__(
         self,
         audio_buffer: AudioBuffer,
