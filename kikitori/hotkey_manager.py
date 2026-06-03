@@ -95,6 +95,17 @@ def _key_id(key):
 
 
 class HotkeyManager:
+    __slots__ = (
+        "_recorder", "_transcriber", "_injector",
+        "_language", "_max_duration", "_min_duration_samples",
+        "_silence_rms_threshold", "_timer_factory", "_timer",
+        "_is_recording", "_target_pid", "_lock",
+        "_on_state_change", "_glossary", "_corrections",
+        "_speech_analyzer", "_saved_input_source",
+        "_hotkey_groups", "_hotkey_set", "_hotkey_group_sets",
+        "_pressed_keys",
+    )
+
     def __init__(
         self,
         recorder: Recorder,
