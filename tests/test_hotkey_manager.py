@@ -166,6 +166,23 @@ class TestHotkeyManager:
         assert len(inj.injected) == 2
         assert all(t == "A" for t in inj.injected)
 
+    def test_rapid_cycles_no_thread_leak(self):
+        """10回の高速録音サイクルで残留スレッドが発生しないか確認"""
+        rec = FakeRecorder()
+        trans = FakeTranscriber("stress")
+        inj = FakeInjector()
+        mgr = HotkeyManager(rec, trans, inj, hotkey=DEFAULT_TEST_HOTKEY, **TEST_KWARGS)
+
+        for i in range(10):
+            rec.stopped = False
+            mgr.on_press(Key.ctrl_l)
+            mgr.on_press(Key.alt)
+            mgr.on_release(Key.ctrl_l)
+            # サイクル間の遅延なし（高速連打シミュレーション）
+
+        assert len(inj.injected) == 10
+        assert all(t == "stress" for t in inj.injected)
+
     def test_prompt_and_language_passed_to_transcriber(self):
         rec = FakeRecorder()
         trans = FakeTranscriber()
