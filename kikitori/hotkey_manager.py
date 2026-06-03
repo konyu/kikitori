@@ -187,8 +187,12 @@ class HotkeyManager:
 
     def _should_transcribe(self, audio) -> bool:
         """録音が最低長を満たし、無音でなければTrue。短すぎるか無音の場合はFalseを返しログ出力。"""
+        import sys
+        print(f"[DEBUG] _should_transcribe: audio.size={audio.size} "
+              f"dtype={audio.dtype} ndim={audio.ndim}", flush=True)
         if audio.size == 0:
             print("[INFO] 録音データが空です")
+            print("[DEBUG] _should_transcribe → False (empty)", flush=True)
             return False
         if audio.size < self._min_duration_samples:
             duration_ms = audio.size / SAMPLE_RATE * 1000
@@ -196,9 +200,12 @@ class HotkeyManager:
             print(f"[INFO] 録音が短すぎます（{duration_ms:.0f}ms < {min_ms:.0f}ms） — Whisperに渡しません")
             return False
         rms = float(np.sqrt(np.dot(audio, audio) / audio.size))
+        print(f"[DEBUG] _should_transcribe: rms={rms:.6f} threshold={self._silence_rms_threshold}", flush=True)
         if rms < self._silence_rms_threshold:
             print(f"[INFO] 無音と判定されました（RMS={rms:.4f} < {self._silence_rms_threshold}） — Whisperに渡しません")
+            print("[DEBUG] _should_transcribe → False (silence)", flush=True)
             return False
+        print("[DEBUG] _should_transcribe → True", flush=True)
         return True
 
     # ── キー判定 ────────────────────────────────────────────────────────
@@ -346,6 +353,7 @@ class HotkeyManager:
                 self._on_state_change(False)
         self._cancel_auto_stop_timer()
         audio = self._recorder.stop()
+        print(f"[DEBUG] stop_recording: audio.size={audio.size} shape={audio.shape}", flush=True)
 
         # アプリ切替はバックグラウンドスレッドで
         target_pid = self._target_pid
@@ -367,6 +375,7 @@ class HotkeyManager:
         t0 = _time.perf_counter()
 
         if not self._should_transcribe(audio):
+            print("[DEBUG] _transcribe_and_inject: SKIPPED (_should_transcribe=False)", flush=True)
             return
 
         # activate_app_by_pid は呼び出し元（stop_recording/on_release）で
@@ -376,17 +385,26 @@ class HotkeyManager:
         text = ""
         if self._speech_analyzer is not None:
             text = self._speech_analyzer.get_latest_text()
+            print(f"[DEBUG] _transcribe_and_inject: streaming_text='{text}' (len={len(text)})", flush=True)
 
         # ストリーミング結果がなければバッチ認識にフォールバック
         if not text:
             text = self._transcriber.transcribe(
                 audio, prompt=self._get_effective_prompt(), language=self._language
             )
+            print(f"[DEBUG] _transcribe_and_inject: batch_text='{text}' (len={len(text)})", flush=True)
 
         if self._corrections is not None:
             text = self._corrections.correct(text)
 
+        print(f"[DEBUG] _transcribe_and_inject: final_text='{text}' (len={len(text)})", flush=True)
+
         t1 = _time.perf_counter()
+
+        if text:
+            print(f"[DEBUG] _transcribe_and_inject: calling inject('{text}')", flush=True)
+        else:
+            print("[DEBUG] _transcribe_and_inject: text empty, inject will skip", flush=True)
 
         self._injector.inject(text)
         t2 = _time.perf_counter()
