@@ -138,24 +138,33 @@ class SpeechTranscriber:
 
         done_event = threading.Event()
         transcription = [""]
+        _handler_calls = [0]  # mutable counter for nested function
 
         def _result_handler(
             result: SFSpeechRecognitionResult | None, error: object
         ) -> None:
+            _handler_calls[0] += 1
+            call_n = _handler_calls[0]
+
             if error is not None:
+                print(f"[DEBUG] transcribe handler #{call_n}: ERROR={error}", flush=True)
                 transcription[0] = ""
                 done_event.set()
                 return
 
             if result is not None:
                 best = result.bestTranscription()
+                text = ""
+                is_final = result.isFinal()
                 if best is not None:
-                    text = best.formattedString()
-                    transcription[0] = text if text is not None else ""
-
-                if transcription[0] or result.isFinal():
+                    text = best.formattedString() or ""
+                print(f"[DEBUG] transcribe handler #{call_n}: text='{text}' isFinal={is_final} result={result}", flush=True)
+                if text:
+                    transcription[0] = text
+                if transcription[0] or is_final:
                     done_event.set()
             else:
+                print(f"[DEBUG] transcribe handler #{call_n}: result=None", flush=True)
                 transcription[0] = ""
                 done_event.set()
 
@@ -170,6 +179,8 @@ class SpeechTranscriber:
         done_event.wait(timeout=0.10)
 
         result_text = transcription[0]
+
+        print(f"[DEBUG] transcribe returning: text='{result_text}' handler_calls={_handler_calls[0]}", flush=True)
 
         if _BM:
             elapsed = (time.perf_counter() - _t0) * 1000
