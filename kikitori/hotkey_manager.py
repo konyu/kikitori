@@ -225,10 +225,6 @@ class HotkeyManager:
 
     # ── キー判定 ────────────────────────────────────────────────────────
 
-    def _is_hotkey_key(self, key) -> bool:
-        """与えられたキーがホットキー設定に含まれるか。"""
-        return _key_id(key) in self._hotkey_set
-
     def _all_hotkey_pressed(self) -> bool:
         """すべてのホットキーが押下されているか。"""
         for group_set in self._hotkey_group_sets:
