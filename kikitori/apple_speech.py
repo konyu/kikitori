@@ -120,21 +120,6 @@ class SpeechTranscriber:
             return ""
 
         channel_ptr = float_data[0]
-
-        # DEBUG: save audio to file for inspection
-        try:
-            import wave
-            audio_int16 = (audio * 32767).clip(-32768, 32767).astype("int16")
-            wav_path = "/tmp/kikitori_debug_audio.wav"
-            with wave.open(wav_path, "w") as wf:
-                wf.setnchannels(1)
-                wf.setsampwidth(2)
-                wf.setframerate(16000)
-                wf.writeframes(audio_int16.tobytes())
-            rms = float(np.sqrt(np.dot(audio, audio) / len(audio)))
-            print(f"[DEBUG] transcribe: saved audio to {wav_path} ({len(audio)} frames, RMS={rms:.6f})", flush=True)
-        except Exception as e:
-            print(f"[DEBUG] transcribe: failed to save WAV: {e}", flush=True)
         if channel_ptr is None:
             print("[DEBUG] transcribe: channel_ptr is None", flush=True)
             return ""
