@@ -273,12 +273,13 @@ class HotkeyManager:
                 self._start_auto_stop_timer()
 
     def on_release(self, key):
-        if not self._is_hotkey_key(key):
+        kid = _key_id(key)
+        if kid not in self._hotkey_set:
             return
 
         with self._lock:
             was_recording = self._is_recording
-            self._pressed_keys.discard(_key_id(key))
+            self._pressed_keys.discard(kid)
             should_stop = was_recording and not self._all_hotkey_pressed()
             if should_stop:
                 self._is_recording = False
