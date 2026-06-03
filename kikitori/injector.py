@@ -6,6 +6,8 @@ import pyperclip
 from kikitori.config import BENCHMARK_MODE, DEBUG
 
 class Injector:
+    __slots__ = ("_controller", "_clipboard", "_restore_generation", "_restore_lock", "_pending_original")
+
     """テキスト注入クラス。
 
     常にクリップボード経由 Cmd+V で注入し、注入後に元のクリップボードを復元する。
