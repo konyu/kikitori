@@ -109,6 +109,34 @@ class TestInjector:
         time.sleep(0.1)  # 十分待っても変わらない
         assert clip.copied == "hello", "空クリップボードは復元されない（非テキスト保護）"
 
+    def test_rapid_inject_no_clipboard_corruption(self):
+        """高速連続注入でクリップボードが破壊されない。世代管理で復元を適切にスキップする。"""
+        clip = FakeClipboard(initial="original")
+        ctrl = FakeController()
+        inj = Injector(controller=ctrl, clipboard=clip)
+        import time
+
+        # 1回目の注入
+        inj.inject("first")
+        assert clip.copied == "first"
+        gen_after_first = inj._restore_generation
+
+        # 即座に2回目の注入（1回目の復元スレッドが待機中）
+        inj.inject("second")
+        assert clip.copied == "second"
+        gen_after_second = inj._restore_generation
+        assert gen_after_second > gen_after_first
+
+        # 両方の復元スレッドが完了するのを待つ
+        time.sleep(0.1)
+
+        # 2回目の復元のみ有効 → "original" に戻る（1回目の復元はスキップされる）
+        # 1回目の復元は世代不一致でスキップされるため
+        assert clip.copied == "original", (
+            f"Expected 'original' but got '{clip.copied}'. "
+            f"1st gen={gen_after_first}, 2nd gen={gen_after_second}"
+        )
+
     def test_inject_long_text_uses_clipboard_fallback(self):
         """閾値超過のテキストはクリップボード経由 Cmd+V"""
         clip = FakeClipboard()

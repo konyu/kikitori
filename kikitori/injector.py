@@ -5,7 +5,6 @@ import pyperclip
 
 from kikitori.config import BENCHMARK_MODE
 
-
 class Injector:
     """テキスト注入クラス。
 
@@ -20,6 +19,9 @@ class Injector:
             self._controller = Controller()
         self._clipboard = clipboard or pyperclip
         self._type_threshold = type_threshold
+        self._restore_generation = 0
+        self._restore_lock = threading.Lock()
+        self._pending_original = ""
 
     def inject(self, text: str):
         if not text:
@@ -31,18 +33,22 @@ class Injector:
         """クリップボード経由 Cmd+V でテキストを注入する。
 
         注入後に元のクリップボードを非同期で復元する。
-        元のクリップボードが空だった場合（画像・ファイル等の非テキスト）、
-        復元をスキップして内容を保護する。
+        連続注入時は復元を統合し、ユーザー本来のクリップボード内容を保護する。
         """
         import time as _time
         from pynput.keyboard import Key
         t0 = _time.perf_counter()
 
-        # 元のクリップボードを保存
-        try:
-            original = self._clipboard.paste()
-        except Exception:
-            original = ""
+        # 元のクリップボードを保存（初回注入時のみ）
+        with self._restore_lock:
+            if self._restore_generation == 0:
+                try:
+                    self._pending_original = self._clipboard.paste()
+                except Exception:
+                    self._pending_original = ""
+            self._restore_generation += 1
+            gen = self._restore_generation
+            original = self._pending_original
 
         self._clipboard.copy(text)
 
@@ -58,7 +64,7 @@ class Injector:
         if original:
             threading.Thread(
                 target=self._restore_clipboard,
-                args=(original, self._clipboard),
+                args=(original, gen),
                 daemon=True,
             ).start()
 
@@ -67,13 +73,23 @@ class Injector:
             print(f"[BENCH] inject_clipboard: {elapsed:.1f}ms "
                   f"(text_len={len(text)})", flush=True)
 
-    @staticmethod
-    def _restore_clipboard(original: str, clipboard=None) -> None:
-        """元のクリップボード内容を復元する（専用スレッドで実行）。"""
+    def _restore_clipboard(self, original: str, generation: int) -> None:
+        """元のクリップボード内容を復元する（専用スレッドで実行）。
+
+        次回の注入が開始されていた場合（世代が進んでいる場合）は復元をスキップし、
+        最後の注入だけが復元を実行する。これにより連続注入時のクリップボード破壊を防ぐ。
+        """
         import time as _time
         _time.sleep(0.05)  # Cmd+V が処理されるのを待つ
+
+        with self._restore_lock:
+            if generation != self._restore_generation:
+                return  # 新しい注入が既に開始されている
+            # 復元が完了したらリセット
+            self._restore_generation = 0
+            self._pending_original = ""
+
         try:
-            cb = clipboard if clipboard is not None else pyperclip
-            cb.copy(original)
+            self._clipboard.copy(original)
         except Exception:
             pass
