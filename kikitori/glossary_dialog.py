@@ -1,7 +1,7 @@
 """キーワード（専門用語）管理ダイアログ（PySide6）
 
 ~/.kikitori_glossary.yaml の用語リストを GUI 上で編集・保存し、
-即座に Whisper 認識プロンプトに反映する。
+即座に認識プロンプトに反映する。
 """
 
 from pathlib import Path

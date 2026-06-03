@@ -1,6 +1,6 @@
 """校正辞書管理（~/.kikitori_corrections.yaml）
 
-Whisper 音声認識結果に対し、ユーザー定義の「間違い→訂正」ペアを
+音声認識結果に対し、ユーザー定義の「間違い→訂正」ペアを
 ケースインセンシティブかつ長いキー優先で適用する。
 """
 import re
@@ -11,7 +11,7 @@ import yaml
 CORRECTIONS_PATH: Path = Path.home() / ".kikitori_corrections.yaml"
 
 TEMPLATE = """# Kikitori 校正辞書
-# Whisper の音声認識結果に対し、以下の「間違い: 訂正」ペアを自動適用します。
+# 音声認識結果に対し、以下の「間違い: 訂正」ペアを自動適用します。
 # 大文字小文字は無視して置換されます（例: "Use Effect" も "useEffect" に変換）。
 # 長いフレーズが短い単語より優先して置換されます。
 

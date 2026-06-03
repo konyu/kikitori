@@ -49,8 +49,7 @@ class FakeTranscriberForApp:
 
 class TestApp:
     def test_app_initializes_components(self):
-        app = App(model_name="test-model")
-        assert app._model_name == "test-model"
+        app = App()
         assert app._sample_rate == 16000
         assert app._buffer is not None
         assert app._recorder is not None
@@ -100,7 +99,6 @@ class TestApp:
     def test_app_accepts_config_params(self):
         """すべての設定パラメータが App に受け入れられる"""
         app = App(
-            model_name="custom-model",
             sample_rate=44100,
             channels=2,
             prompt="カスタムプロンプト",
@@ -109,7 +107,6 @@ class TestApp:
             min_duration_ms=1000.0,
             hotkey=["shift"],
         )
-        assert app._model_name == "custom-model"
         assert app._sample_rate == 44100
         assert app._channels == 2
         assert app._prompt == "カスタムプロンプト"

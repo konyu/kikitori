@@ -9,10 +9,8 @@ from kikitori.config import (
     DEFAULT_HOTKEY,
     DEFAULT_LANGUAGE,
     DEFAULT_PROMPT,
-    DEFAULT_TRANSCRIBER_TYPE,
     MAX_DURATION,
     MIN_DURATION_MS,
-    MODEL_NAME,
     SAMPLE_RATE,
     SILENCE_RMS_THRESHOLD,
 )
@@ -21,13 +19,11 @@ from kikitori.glossary import Glossary
 from kikitori.hotkey_manager import HotkeyManager
 from kikitori.injector import Injector
 from kikitori.recorder import Recorder
-from kikitori.transcriber import Transcriber
 
 
 class App:
     def __init__(
         self,
-        model_name: str = MODEL_NAME,
         sample_rate: int = SAMPLE_RATE,
         channels: int = CHANNELS,
         prompt: str = DEFAULT_PROMPT,
@@ -39,10 +35,8 @@ class App:
         glossary: "Glossary | None" = None,
         corrections: "Corrections | None" = None,
         silence_rms_threshold: float = SILENCE_RMS_THRESHOLD,
-        transcriber_type: str = DEFAULT_TRANSCRIBER_TYPE,
         transcriber: object | None = None,
     ):
-        self._model_name = model_name
         self._sample_rate = sample_rate
         self._channels = channels
         self._prompt = prompt
@@ -55,11 +49,11 @@ class App:
 
         self._buffer = AudioBuffer()
 
-        # apple_speech 使用時はストリーミング認識用 SpeechAnalyzer を作成
-        self._speech_analyzer = None
+        # ストリーミング認識用 SpeechAnalyzer とバッチ認識用 SpeechTranscriber を作成
         if transcriber is not None:
             self._transcriber = transcriber
-        elif transcriber_type == "apple_speech":
+            self._speech_analyzer = None
+        else:
             from kikitori.apple_speech import SpeechTranscriber, SpeechAnalyzer
 
             self._transcriber = SpeechTranscriber(
@@ -68,8 +62,6 @@ class App:
             self._speech_analyzer = SpeechAnalyzer(
                 locale=APPLE_SPEECH_LOCALE, on_device=APPLE_SPEECH_ON_DEVICE
             )
-        else:
-            self._transcriber = Transcriber(model_name)
 
         self._recorder = Recorder(
             self._buffer, sample_rate, channels,
@@ -93,14 +85,17 @@ class App:
         )
         self._listener = None
         self._listener_thread = None
+        self._loaded = False
 
     def load(self):
+        """音声認識エンジンと校正辞書を初期化する。複数回呼び出しは無視。"""
+        if self._loaded:
+            return
         import sys
-        print(f"[INFO] モデルを読み込み中: {self._model_name}", flush=True)
         self._transcriber.load()
-        print("[INFO] モデル読み込み完了", flush=True)
         self._corrections.load()
         print(f"[INFO] 校正辞書を読み込みました（{len(self._corrections.get_items())} 件）", flush=True)
+        self._loaded = True
 
     def run_background(self, listener_factory=None):
         """ホットキーリスナーをバックグラウンドスレッドで開始する。"""
@@ -135,7 +130,6 @@ class App:
         print("=" * 50)
         print("Kikitori")
         print("=" * 50)
-        print(f"モデル: {self._model_name}")
         print(f"サンプリングレート: {self._sample_rate} Hz")
         print(f"ホットキー: {' + '.join(self._hotkey_config)} (押下中録音 / 解放で出力)")
         print("=" * 50)

@@ -9,8 +9,6 @@ SAMPLE_RATE: int = 16000
 CHANNELS: int = 1
 AUDIO_DTYPE = np.float32
 
-# Whisperモデル設定
-MODEL_NAME: str = "mlx-community/whisper-large-v3-turbo"
 DEFAULT_LANGUAGE: str = "ja"
 DEFAULT_PROMPT: str = "以下は日本語の音声認識結果です。"
 
@@ -26,7 +24,6 @@ DEFAULT_HOTKEY: list[str] = ["option"]
 # Apple Speech Framework 設定
 APPLE_SPEECH_LOCALE: str = "ja-JP"
 APPLE_SPEECH_ON_DEVICE: bool = False  # オンデバイス日本語モデル未インストールの場合サーバー認識にフォールバック
-DEFAULT_TRANSCRIBER_TYPE: str = "apple_speech"  # "mlx_whisper" or "apple_speech"
 
 # 計測モード（環境変数 BENCHMARK_MODE=true または True 定数で各段階のレイテンシログを出力）
 BENCHMARK_MODE: bool = os.environ.get("BENCHMARK_MODE", "").lower() in ("true", "1", "yes")

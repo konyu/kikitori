@@ -17,7 +17,7 @@ DATA_FILES = [
 # py2app オプション
 OPTIONS = {
     "argv_emulation": False,
-    "packages": ["kikitori", "mlx_whisper", "sounddevice", "numpy", "pynput", "pyperclip", "yaml"],
+    "packages": ["kikitori", "sounddevice", "numpy", "pynput", "pyperclip", "yaml"],
     "includes": ["AppKit", "Foundation", "objc"],
     "excludes": ["PyInstaller", "pytest", "tkinter", "matplotlib", "PIL", "django", "scipy"],
     "plist": {

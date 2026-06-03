@@ -1,6 +1,6 @@
 """設定編集ダイアログ（PySide6）
 
-言語、プロンプト、ホットキー、最低録音時間、モデル名を
+言語、プロンプト、ホットキー、最低録音時間を
 GUI 上で編集・保存し、即時反映する。
 """
 
@@ -11,12 +11,11 @@ from kikitori.config import (
     DEFAULT_LANGUAGE,
     DEFAULT_PROMPT,
     MIN_DURATION_MS,
-    MODEL_NAME,
     SILENCE_RMS_THRESHOLD,
 )
 from kikitori.theme import apply_dialog_theme
 
-# Whisper がサポートする主要言語コード（表示名 → コード）
+# サポートする主要言語コード（表示名 → コード）
 _LANGUAGES: dict[str, str] = {
     "日本語": "ja",
     "English": "en",
@@ -39,15 +38,6 @@ _LANGUAGES: dict[str, str] = {
 }
 
 # プリセットモデル一覧
-_MODEL_PRESETS: list[str] = [
-    "mlx-community/whisper-large-v3-turbo",
-    "mlx-community/whisper-large-v3",
-    "mlx-community/whisper-medium",
-    "mlx-community/whisper-small",
-    "mlx-community/whisper-tiny",
-    "mlx-community/whisper-base",
-]
-
 
 class HotkeyEditor(QtWidgets.QWidget):
     """ホットキー設定用の複合ウィジェット。
@@ -194,7 +184,7 @@ class SettingsDialog(QtWidgets.QDialog):
         # ── プロンプト ──
         self._prompt_edit = QtWidgets.QTextEdit()
         self._prompt_edit.setPlaceholderText(
-            "Whisper に渡す初期プロンプト（認識精度向上用）"
+            "音声認識に渡す初期プロンプト（認識精度向上用）"
         )
         self._prompt_edit.setMaximumHeight(100)
         self._prompt_edit.setAcceptRichText(False)
@@ -237,25 +227,6 @@ class SettingsDialog(QtWidgets.QDialog):
         form_layout.addRow("無音判定閾値:", silence_layout)
 
         # ── モデル名 ──
-        model_layout = QtWidgets.QVBoxLayout()
-        model_layout.setSpacing(6)
-
-        self._model_combo = QtWidgets.QComboBox()
-        self._model_combo.setEditable(True)
-        self._model_combo.setInsertPolicy(
-            QtWidgets.QComboBox.InsertPolicy.NoInsert
-        )
-        self._model_combo.addItems(_MODEL_PRESETS)
-        model_layout.addWidget(self._model_combo)
-
-        model_warn = QtWidgets.QLabel(
-            "⚠ モデル名の変更は次回起動時に反映されます。"
-        )
-        model_warn.setProperty("secondary", "true")
-        model_layout.addWidget(model_warn)
-
-        form_layout.addRow("モデル名:", model_layout)
-
         main_layout.addWidget(form)
 
         # ── ボタン ──
@@ -305,13 +276,6 @@ class SettingsDialog(QtWidgets.QDialog):
         silence = self._current.get("silence_rms_threshold", SILENCE_RMS_THRESHOLD)
         self._silence_spin.setValue(int(float(silence) * 10000))
 
-        model = self._current.get("model_name", MODEL_NAME)
-        idx_model = self._model_combo.findText(model)
-        if idx_model >= 0:
-            self._model_combo.setCurrentIndex(idx_model)
-        else:
-            self._model_combo.setEditText(model)
-
     def _collect_values(self) -> dict:
         """ウィジェットから設定辞書を生成する。"""
         lang_code = self._lang_combo.currentData()
@@ -324,7 +288,6 @@ class SettingsDialog(QtWidgets.QDialog):
             "hotkey": self._hotkey_editor.get_hotkey(),
             "min_duration_ms": self._min_dur_spin.value(),
             "silence_rms_threshold": self._silence_spin.value() / 10000,
-            "model_name": self._model_combo.currentText().strip(),
         }
 
     @property

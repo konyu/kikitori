@@ -462,7 +462,7 @@ class TestHotkeyManager:
     # ── 最低録音長フィルタ ─────────────────────────────────────────
 
     def test_should_transcribe_below_min_duration(self):
-        """最低録音長未満の音声は Whisper に渡されない"""
+        """最低録音長未満の音声は認識に渡されない"""
         rec = FakeRecorder()
         # 500ms = 8000 samples
         rec._audio = np.zeros(4000, dtype=np.float32)  # 250ms
@@ -482,7 +482,7 @@ class TestHotkeyManager:
         assert inj.injected == []
 
     def test_should_transcribe_at_min_duration(self):
-        """最低録音長ちょうどの音声は Whisper に渡される"""
+        """最低録音長ちょうどの音声は認識に渡される"""
         rec = FakeRecorder()
         # 500ms = 8000 samples — 無音ではなく小さな正弦波で RMS を閾値以上に保つ
         t = np.linspace(0, 0.5, 8000, dtype=np.float32)
@@ -502,7 +502,7 @@ class TestHotkeyManager:
         assert inj.injected == ["ちょうど"]
 
     def test_should_transcribe_silence_is_rejected(self):
-        """最低録音長を満たしても無音なら Whisper に渡されない"""
+        """最低録音長を満たしても無音なら認識に渡されない"""
         rec = FakeRecorder()
         # 500ms = 8000 samples、完全無音
         rec._audio = np.zeros(8000, dtype=np.float32)

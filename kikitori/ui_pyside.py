@@ -15,7 +15,6 @@ from kikitori.config import (
     DEFAULT_LANGUAGE,
     DEFAULT_PROMPT,
     MIN_DURATION_MS,
-    MODEL_NAME,
     SILENCE_RMS_THRESHOLD,
 )
 from kikitori.corrections import CORRECTIONS_PATH, Corrections
@@ -73,7 +72,7 @@ def _set_dock_icon():
 
 
 class _ModelLoader(QtCore.QThread):
-    """モデル読み込みをバックグラウンドで実行し、完了をシグナルで通知"""
+    """音声認識エンジンの初期化をバックグラウンドで実行し、完了をシグナルで通知"""
 
     loaded = QtCore.Signal()
     failed = QtCore.Signal(str)
@@ -111,9 +110,7 @@ class KikitoriUIApp(QtWidgets.QApplication):
 
         # Glossary（専門用語）
         self._glossary = Glossary()
-        self._glossary.load()
         self._corrections = Corrections()
-        self._corrections.load()
 
         # Core app
         self._app = App(
@@ -218,16 +215,16 @@ class KikitoriUIApp(QtWidgets.QApplication):
             self._tray.setIcon(icon)
 
     def _on_model_loaded(self):
-        """モデル読み込み完了時"""
-        print("[INFO] モデル読み込み完了", flush=True)
-        self._status_action.setText("○ 待機中（モデル読み込み完了）")
+        """音声認識エンジン準備完了時"""
+        print("[INFO] 音声認識エンジン準備完了", flush=True)
+        self._status_action.setText("○ 待機中（音声認識準備完了）")
         import threading
         threading.Thread(target=self._app.run, daemon=True).start()
 
     def _on_model_failed(self, message: str):
-        """モデル読み込み失敗時"""
-        print(f"[ERROR] モデル読み込み失敗: {message}", flush=True)
-        self._status_action.setText(f"❌ モデル読み込み失敗")
+        """音声認識エンジン初期化失敗時"""
+        print(f"[ERROR] 音声認識の初期化に失敗: {message}", flush=True)
+        self._status_action.setText(f"❌ 音声認識の初期化に失敗")
         import threading
         threading.Thread(target=self._app.run, daemon=True).start()
 
@@ -286,7 +283,6 @@ class KikitoriUIApp(QtWidgets.QApplication):
             "hotkey": list(self._hotkey),
             "min_duration_ms": self._min_duration_ms,
             "silence_rms_threshold": self._silence_rms_threshold,
-            "model_name": fresh.get("model_name", MODEL_NAME),
         }
         self._dialog = SettingsDialog(current, parent=None)
         result = self._dialog.exec()
@@ -305,8 +301,6 @@ class KikitoriUIApp(QtWidgets.QApplication):
         self._hotkey = settings.get("hotkey", self._hotkey)
         self._min_duration_ms = settings.get("min_duration_ms", self._min_duration_ms)
         self._silence_rms_threshold = settings.get("silence_rms_threshold", self._silence_rms_threshold)
-        model_name = settings.get("model_name", MODEL_NAME)
-
         # 内部状態に即時反映
         self._app._prompt = self._prompt
         self._app._hotkey._prompt = self._prompt
@@ -325,7 +319,6 @@ class KikitoriUIApp(QtWidgets.QApplication):
             "hotkey": self._hotkey,
             "min_duration_ms": self._min_duration_ms,
             "silence_rms_threshold": self._silence_rms_threshold,
-            "model_name": model_name,
         }
         save_settings(self._settings)
 

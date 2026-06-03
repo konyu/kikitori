@@ -23,7 +23,6 @@ from kikitori.config import (
 from kikitori.glossary import Glossary
 from kikitori.injector import Injector
 from kikitori.recorder import Recorder, RecordError
-from kikitori.transcriber import Transcriber
 from kikitori.settings import get_frontmost_pid, activate_app_by_pid
 
 
@@ -95,7 +94,7 @@ class HotkeyManager:
     def __init__(
         self,
         recorder: Recorder,
-        transcriber: Transcriber,
+        transcriber: object,
         injector: Injector,
         prompt: str = "",
         language: str = DEFAULT_LANGUAGE,
@@ -199,12 +198,12 @@ class HotkeyManager:
         if audio.size < self._min_duration_samples:
             duration_ms = audio.size / SAMPLE_RATE * 1000
             min_ms = self._min_duration_samples / SAMPLE_RATE * 1000
-            print(f"[INFO] 録音が短すぎます（{duration_ms:.0f}ms < {min_ms:.0f}ms） — Whisperに渡しません")
+            print(f"[INFO] 録音が短すぎます（{duration_ms:.0f}ms < {min_ms:.0f}ms） — 音声認識に渡しません")
             return False
         rms = float(np.sqrt(np.dot(audio, audio) / audio.size))
         if DEBUG: print(f"[DEBUG] _should_transcribe: rms={rms:.6f} threshold={self._silence_rms_threshold}", flush=True)
         if rms < self._silence_rms_threshold:
-            print(f"[INFO] 無音と判定されました（RMS={rms:.4f} < {self._silence_rms_threshold}） — Whisperに渡しません")
+            print(f"[INFO] 無音と判定されました（RMS={rms:.4f} < {self._silence_rms_threshold}） — 音声認識に渡しません")
             if DEBUG: print("[DEBUG] _should_transcribe → False (silence)", flush=True)
             return False
         if DEBUG: print("[DEBUG] _should_transcribe → True", flush=True)

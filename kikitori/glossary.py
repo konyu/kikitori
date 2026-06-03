@@ -1,6 +1,6 @@
 """専門用語リスト管理（~/.kikitori_glossary.yaml）
 
-Whisper 音声認識の initial_prompt に専門用語を追記し、
+音声認識の initial_prompt に専門用語を追記し、
 認識精度を向上させるための用語集を管理する。
 """
 from pathlib import Path
@@ -10,7 +10,7 @@ import yaml
 GLOSSARY_PATH: Path = Path.home() / ".kikitori_glossary.yaml"
 
 TEMPLATE = """# Kikitori 用語集
-# Whisper 音声認識の補助として initial_prompt に自動追記されます。
+# 音声認識の補助として initial_prompt に自動追記されます。
 # 行頭に "- " を付けて1行1用語で記述してください。
 #
 # 例:
@@ -24,7 +24,7 @@ terms: []
 
 
 class Glossary:
-    """専門用語リストを読み込み、Whisper の initial_prompt に追記する。
+    """専門用語リストを読み込み、initial_prompt に追記する。
 
     path 引数でファイルパスを指定可能（デフォルト: ~/.kikitori_glossary.yaml）。
     依存注入によるテストが容易な設計。
