@@ -4,9 +4,12 @@ import threading
 import numpy as np
 
 # AppKit 初回インポートを前倒し（~46ms → ホットキー初回押下時の遅延を排除）
+# インポート直後に RunLoop を軽く回して、IMKCFRunLoopWakeUpReliable エラーを防ぐ
 try:
     import AppKit  # noqa: F401
     from AppKit import NSWorkspace, NSRunningApplication  # noqa: F401
+    from Foundation import NSRunLoop, NSDate
+    NSRunLoop.currentRunLoop().runUntilDate_(NSDate.dateWithTimeIntervalSinceNow_(0.001))
 except ImportError:
     pass
 
