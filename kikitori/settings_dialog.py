@@ -232,10 +232,6 @@ class SettingsDialog(QtWidgets.QDialog):
         btn_layout = QtWidgets.QHBoxLayout()
         btn_layout.setSpacing(8)
 
-        reload_btn = QtWidgets.QPushButton("設定を再読み込み")
-        reload_btn.clicked.connect(self._reload_settings)
-        btn_layout.addWidget(reload_btn)
-
         reset_btn = QtWidgets.QPushButton("デフォルトに戻す")
         reset_btn.clicked.connect(self._reset_to_defaults)
         btn_layout.addWidget(reset_btn)
@@ -300,9 +296,3 @@ class SettingsDialog(QtWidgets.QDialog):
         reset_settings()
         self._reset_requested = True
         self.accept()
-
-    def _reload_settings(self):
-        """設定ファイルを再読み込みしてウィジェットに反映する。"""
-        from kikitori.settings import load_settings
-        self._current = load_settings()
-        self._load_values()
