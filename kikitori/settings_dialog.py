@@ -10,7 +10,6 @@ from kikitori.config import (
     DEFAULT_HOTKEY,
     DEFAULT_LANGUAGE,
     MIN_DURATION_MS,
-    SILENCE_RMS_THRESHOLD,
 )
 from kikitori.i18n import t, get_language_labels, get_ui_language_labels
 from kikitori.settings import detect_os_language
@@ -193,20 +192,6 @@ class SettingsDialog(QtWidgets.QDialog):
         dur_layout.addStretch()
         form_layout.addRow(self._tr("settings.min_dur_label"), dur_layout)
 
-        # ── 無音判定閾値 ──
-        silence_layout = QtWidgets.QHBoxLayout()
-        self._silence_spin = QtWidgets.QSpinBox()
-        self._silence_spin.setRange(1, 50000)
-        self._silence_spin.setSingleStep(100)
-        self._silence_spin.setSuffix(" /10000")
-        silence_layout.addWidget(self._silence_spin)
-
-        silence_hint = QtWidgets.QLabel(self._tr("settings.silence_hint"))
-        silence_hint.setProperty("secondary", "true")
-        silence_layout.addWidget(silence_hint)
-        silence_layout.addStretch()
-        form_layout.addRow(self._tr("settings.silence_label"), silence_layout)
-
         main_layout.addWidget(form)
 
         # ── ボタン ──
@@ -251,9 +236,6 @@ class SettingsDialog(QtWidgets.QDialog):
         min_dur = self._current.get("min_duration_ms", MIN_DURATION_MS)
         self._min_dur_spin.setValue(int(min_dur))
 
-        silence = self._current.get("silence_rms_threshold", SILENCE_RMS_THRESHOLD)
-        self._silence_spin.setValue(int(float(silence) * 10000))
-
     def _collect_values(self) -> dict:
         """ウィジェットから設定辞書を生成する。"""
         lang_code = self._lang_combo.currentData()
@@ -265,7 +247,6 @@ class SettingsDialog(QtWidgets.QDialog):
             "ui_language": self._ui_lang_combo.currentData() or "en",
             "hotkey": self._hotkey_editor.get_hotkey(),
             "min_duration_ms": self._min_dur_spin.value(),
-            "silence_rms_threshold": self._silence_spin.value() / 10000,
         }
 
     @property
