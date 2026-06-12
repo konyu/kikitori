@@ -36,16 +36,6 @@ _LANGUAGES: dict[str, str] = {
     "Tiếng Việt": "vi",
 }
 
-# プリセットモデル一覧
-_MODEL_PRESETS: list[str] = [
-    "mlx-community/whisper-large-v3-turbo",
-    "mlx-community/whisper-large-v3",
-    "mlx-community/whisper-medium",
-    "mlx-community/whisper-small",
-    "mlx-community/whisper-tiny",
-    "mlx-community/whisper-base",
-]
-
 
 class HotkeyEditor(QtWidgets.QWidget):
     """ホットキー設定用の複合ウィジェット。

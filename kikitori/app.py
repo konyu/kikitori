@@ -47,6 +47,7 @@ class App:
 
         # Apple Speech 使用時はストリーミング認識用 SpeechAnalyzer を load() で作成
         self._speech_analyzer = None
+        self._loaded = False
         self._glossary_ref = glossary
 
         self._recorder = Recorder(
@@ -71,6 +72,10 @@ class App:
         self._listener_thread = None
 
     def load(self):
+        if self._loaded:
+            return
+        self._loaded = True
+
         from kikitori.apple_speech import SpeechAnalyzer
         terms = self._glossary_ref.get_terms() if self._glossary_ref else []
         self._speech_analyzer = SpeechAnalyzer(
