@@ -57,7 +57,8 @@ class HotkeyEditor(QtWidgets.QWidget):
         row2 = QtWidgets.QHBoxLayout()
         row2.setSpacing(8)
 
-        row2.addWidget(QtWidgets.QLabel("+ キー:"))
+        self._extra_key_label = QtWidgets.QLabel(t("settings.hotkey_extra_key", language))
+        row2.addWidget(self._extra_key_label)
 
         self._extra_key = QtWidgets.QLineEdit()
         self._extra_key.setPlaceholderText("F13, a, 1...")
