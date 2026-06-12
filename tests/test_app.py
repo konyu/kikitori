@@ -54,7 +54,6 @@ class TestApp:
         assert app._sample_rate == 16000
         assert app._buffer is not None
         assert app._recorder is not None
-        assert app._transcriber is not None
         assert app._injector is not None
         assert app._hotkey is not None
 
@@ -132,6 +131,7 @@ class TestApp:
     def test_app_components_are_wired_together(self):
         """各コンポーネントが正しく相互接続されている"""
         app = App()
+        app.load()
 
         # HotkeyManager が正しい依存を受け取っている
         assert app._hotkey._recorder is app._recorder

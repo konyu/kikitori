@@ -22,7 +22,13 @@ from kikitori.config import (
 )
 from kikitori.glossary import Glossary
 from kikitori.injector import Injector
-from kikitori.input_source import save_and_switch_to_ascii, restore_to_kana
+def _save_and_switch_to_ascii():
+    from kikitori.input_source import save_and_switch_to_ascii as _fn
+    return _fn()
+
+def _restore_to_kana():
+    from kikitori.input_source import restore_to_kana as _fn
+    return _fn()
 from kikitori.recorder import Recorder, RecordError
 from kikitori.transcriber import Transcriber
 from kikitori.settings import get_frontmost_pid, activate_app_by_pid
@@ -141,6 +147,14 @@ class HotkeyManager:
             self._hotkey_group_sets.append(key_ids)
         self._pressed_keys: set = set()
 
+    def set_speech_analyzer(self, speech_analyzer: object | None) -> None:
+        """ストリーミング認識用のSpeechAnalyzerを後から設定する。"""
+        self._speech_analyzer = speech_analyzer
+
+    def set_transcriber(self, transcriber: object) -> None:
+        """バッチ認識用のTranscriberを後から設定する。"""
+        self._transcriber = transcriber
+
     # ── タイマー ────────────────────────────────────────────────────────
 
     def _start_auto_stop_timer(self):
@@ -235,7 +249,7 @@ class HotkeyManager:
             self._pressed_keys.add(_key_id(key))
             if self._all_hotkey_pressed() and not self._is_recording:
                 self._is_recording = True
-                self._saved_input_source = save_and_switch_to_ascii()
+                self._saved_input_source = _save_and_switch_to_ascii()
                 # 録音開始時のフォーカスアプリを記憶
                 self._target_pid = get_frontmost_pid()
                 if self._on_state_change:
@@ -383,7 +397,7 @@ class HotkeyManager:
             if DEBUG: print("[DEBUG] _transcribe_and_inject: SKIPPED (_should_transcribe=False)", flush=True)
             if self._saved_input_source:
                 import threading
-                threading.Thread(target=restore_to_kana, daemon=True).start()
+                threading.Thread(target=_restore_to_kana, daemon=True).start()
                 self._saved_input_source = False
             return
 
@@ -428,7 +442,7 @@ class HotkeyManager:
         # ペースト完了後、日本語IMEを復元（非同期：注入完了後にIME復元を待つ必要なし）
         if self._saved_input_source:
             import threading
-            threading.Thread(target=restore_to_kana, daemon=True).start()
+            threading.Thread(target=_restore_to_kana, daemon=True).start()
             self._saved_input_source = False
 
         if BENCHMARK_MODE:

@@ -24,6 +24,10 @@ class Recorder:
         self._stream_factory = stream_factory or self._default_stream_factory
         self._speech_analyzer = speech_analyzer
 
+    def set_speech_analyzer(self, speech_analyzer: object | None) -> None:
+        """ストリーミング認識用のSpeechAnalyzerを後から設定する。"""
+        self._speech_analyzer = speech_analyzer
+
     def _default_stream_factory(self, *, callback):
         import sounddevice as sd
         return sd.InputStream(

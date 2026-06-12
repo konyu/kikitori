@@ -57,19 +57,13 @@ class App:
 
         # apple_speech 使用時はストリーミング認識用 SpeechAnalyzer を作成
         self._speech_analyzer = None
+        self._transcriber_type = transcriber_type
+        self._glossary_ref = glossary
         if transcriber is not None:
             self._transcriber = transcriber
         elif transcriber_type == "apple_speech":
-            from kikitori.apple_speech import SpeechTranscriber, SpeechAnalyzer
-
-            terms = glossary.get_terms() if glossary else []
-
-            self._transcriber = SpeechTranscriber(
-                locale=APPLE_SPEECH_LOCALE, on_device=APPLE_SPEECH_ON_DEVICE, contextual_strings=terms
-            )
-            self._speech_analyzer = SpeechAnalyzer(
-                locale=APPLE_SPEECH_LOCALE, on_device=APPLE_SPEECH_ON_DEVICE, contextual_strings=terms
-            )
+            # apple_speech インポートは load() まで遅延（~108ms 節約）
+            self._transcriber = None
         else:
             self._transcriber = Transcriber(model_name)
 
@@ -98,6 +92,20 @@ class App:
 
     def load(self):
         import sys
+        if self._transcriber_type == "apple_speech" and self._transcriber is None:
+            from kikitori.apple_speech import SpeechTranscriber, SpeechAnalyzer
+            terms = self._glossary_ref.get_terms() if self._glossary_ref else []
+            self._transcriber = SpeechTranscriber(
+                locale=APPLE_SPEECH_LOCALE, on_device=APPLE_SPEECH_ON_DEVICE,
+                contextual_strings=terms,
+            )
+            self._speech_analyzer = SpeechAnalyzer(
+                locale=APPLE_SPEECH_LOCALE, on_device=APPLE_SPEECH_ON_DEVICE,
+                contextual_strings=terms,
+            )
+            self._recorder.set_speech_analyzer(self._speech_analyzer)
+            self._hotkey.set_speech_analyzer(self._speech_analyzer)
+            self._hotkey.set_transcriber(self._transcriber)
         print(f"[INFO] モデルを読み込み中: {self._model_name}", flush=True)
         self._transcriber.load()
         print("[INFO] モデル読み込み完了", flush=True)
