@@ -106,11 +106,11 @@ class KikitoriUIApp(QtWidgets.QApplication):
         self._min_duration_ms = self._settings.get("min_duration_ms", MIN_DURATION_MS)
         self._silence_rms_threshold = self._settings.get("silence_rms_threshold", SILENCE_RMS_THRESHOLD)
 
-        # Glossary（専門用語）
+        # Glossary（load() は先に必要 — get_terms() が App.load() で使われる）
         self._glossary = Glossary()
         self._glossary.load()
+        # Corrections（load() は App.load() 内で実行）
         self._corrections = Corrections()
-        self._corrections.load()
 
         # Core app
         self._app = App(
