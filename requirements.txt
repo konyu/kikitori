@@ -9,4 +9,5 @@ rumps
 pyyaml
 PySide6
 pyobjc-framework-Cocoa
+pyobjc-framework-AVFoundation
 pyobjc-framework-Speech

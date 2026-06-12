@@ -8,16 +8,22 @@ import numpy as np
 # PyObjC は実行環境でのみ利用可能
 try:
     from AVFoundation import AVAudioFormat, AVAudioPCMBuffer
+except ImportError:
+    AVAudioFormat = None  # type: ignore[misc,assignment]
+    AVAudioPCMBuffer = None  # type: ignore[misc,assignment]
+
+try:
     from Foundation import NSLocale
+except ImportError:
+    NSLocale = None  # type: ignore[misc,assignment]
+
+try:
     from Speech import (
         SFSpeechAudioBufferRecognitionRequest,
         SFSpeechRecognizer,
         SFSpeechRecognitionResult,
     )
 except ImportError:
-    AVAudioFormat = None  # type: ignore[misc,assignment]
-    AVAudioPCMBuffer = None  # type: ignore[misc,assignment]
-    NSLocale = None  # type: ignore[misc,assignment]
     SFSpeechAudioBufferRecognitionRequest = None  # type: ignore[misc,assignment]
     SFSpeechRecognizer = None  # type: ignore[misc,assignment]
     SFSpeechRecognitionResult = None  # type: ignore[misc,assignment]
