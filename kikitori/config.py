@@ -12,7 +12,6 @@ AUDIO_DTYPE = np.float32
 # Whisperモデル設定
 MODEL_NAME: str = "mlx-community/whisper-large-v3-turbo"
 DEFAULT_LANGUAGE: str = "ja"
-DEFAULT_PROMPT: str = "以下は日本語の音声認識結果です。"
 
 # 録音設定
 MAX_DURATION: float = 60.0  # 秒

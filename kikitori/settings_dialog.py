@@ -9,7 +9,6 @@ from PySide6 import QtCore, QtWidgets
 from kikitori.config import (
     DEFAULT_HOTKEY,
     DEFAULT_LANGUAGE,
-    DEFAULT_PROMPT,
     MIN_DURATION_MS,
     MODEL_NAME,
     SILENCE_RMS_THRESHOLD,
@@ -191,15 +190,6 @@ class SettingsDialog(QtWidgets.QDialog):
             self._lang_combo.addItem(f"{display} ({code})", code)
         form_layout.addRow("言語:", self._lang_combo)
 
-        # ── プロンプト ──
-        self._prompt_edit = QtWidgets.QTextEdit()
-        self._prompt_edit.setPlaceholderText(
-            "Whisper に渡す初期プロンプト（認識精度向上用）"
-        )
-        self._prompt_edit.setMaximumHeight(100)
-        self._prompt_edit.setAcceptRichText(False)
-        form_layout.addRow("プロンプト:", self._prompt_edit)
-
         # ── ホットキー ──
         self._hotkey_editor = HotkeyEditor()
         form_layout.addRow("ホットキー:", self._hotkey_editor)
@@ -236,35 +226,15 @@ class SettingsDialog(QtWidgets.QDialog):
         silence_layout.addStretch()
         form_layout.addRow("無音判定閾値:", silence_layout)
 
-        # ── モデル名 ──
-        model_layout = QtWidgets.QVBoxLayout()
-        model_layout.setSpacing(6)
-
-        self._model_combo = QtWidgets.QComboBox()
-        self._model_combo.setEditable(True)
-        self._model_combo.setInsertPolicy(
-            QtWidgets.QComboBox.InsertPolicy.NoInsert
-        )
-        self._model_combo.addItems(_MODEL_PRESETS)
-        model_layout.addWidget(self._model_combo)
-
-        model_warn = QtWidgets.QLabel(
-            "⚠ モデル名の変更は次回起動時に反映されます。"
-        )
-        model_warn.setProperty("secondary", "true")
-        model_layout.addWidget(model_warn)
-
-        form_layout.addRow("モデル名:", model_layout)
-
         main_layout.addWidget(form)
 
         # ── ボタン ──
         btn_layout = QtWidgets.QHBoxLayout()
         btn_layout.setSpacing(8)
 
-        open_file_btn = QtWidgets.QPushButton("設定ファイルを開く")
-        open_file_btn.clicked.connect(self._open_settings_file)
-        btn_layout.addWidget(open_file_btn)
+        reload_btn = QtWidgets.QPushButton("設定を再読み込み")
+        reload_btn.clicked.connect(self._reload_settings)
+        btn_layout.addWidget(reload_btn)
 
         reset_btn = QtWidgets.QPushButton("デフォルトに戻す")
         reset_btn.clicked.connect(self._reset_to_defaults)
@@ -293,9 +263,6 @@ class SettingsDialog(QtWidgets.QDialog):
         else:
             self._lang_combo.setEditText(lang_code)
 
-        prompt = self._current.get("prompt", DEFAULT_PROMPT)
-        self._prompt_edit.setPlainText(prompt)
-
         hotkey = self._current.get("hotkey", DEFAULT_HOTKEY)
         self._hotkey_editor.set_hotkey(hotkey)
 
@@ -305,13 +272,6 @@ class SettingsDialog(QtWidgets.QDialog):
         silence = self._current.get("silence_rms_threshold", SILENCE_RMS_THRESHOLD)
         self._silence_spin.setValue(int(float(silence) * 10000))
 
-        model = self._current.get("model_name", MODEL_NAME)
-        idx_model = self._model_combo.findText(model)
-        if idx_model >= 0:
-            self._model_combo.setCurrentIndex(idx_model)
-        else:
-            self._model_combo.setEditText(model)
-
     def _collect_values(self) -> dict:
         """ウィジェットから設定辞書を生成する。"""
         lang_code = self._lang_combo.currentData()
@@ -320,11 +280,9 @@ class SettingsDialog(QtWidgets.QDialog):
 
         return {
             "language": lang_code,
-            "prompt": self._prompt_edit.toPlainText(),
             "hotkey": self._hotkey_editor.get_hotkey(),
             "min_duration_ms": self._min_dur_spin.value(),
             "silence_rms_threshold": self._silence_spin.value() / 10000,
-            "model_name": self._model_combo.currentText().strip(),
         }
 
     @property
@@ -343,27 +301,8 @@ class SettingsDialog(QtWidgets.QDialog):
         self._reset_requested = True
         self.accept()
 
-    def _open_settings_file(self):
-        """設定ファイルをOS標準エディタで開く。"""
-        import subprocess
-
-        from kikitori.settings import SETTINGS_PATH
-
-        if not SETTINGS_PATH.exists():
-            # 現在の内容でファイルを作成
-            try:
-                import yaml
-                settings = self._collect_values()
-                SETTINGS_PATH.write_text(
-                    yaml.dump(
-                        settings,
-                        allow_unicode=True,
-                        default_flow_style=False,
-                        sort_keys=False,
-                    ),
-                    encoding="utf-8",
-                )
-            except Exception:
-                pass
-
-        subprocess.call(["open", str(SETTINGS_PATH)])
+    def _reload_settings(self):
+        """設定ファイルを再読み込みしてウィジェットに反映する。"""
+        from kikitori.settings import load_settings
+        self._current = load_settings()
+        self._load_values()

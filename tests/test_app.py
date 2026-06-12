@@ -102,7 +102,6 @@ class TestApp:
             model_name="custom-model",
             sample_rate=44100,
             channels=2,
-            prompt="カスタムプロンプト",
             language="en",
             max_duration=30.0,
             min_duration_ms=1000.0,
@@ -111,7 +110,6 @@ class TestApp:
         assert app._model_name == "custom-model"
         assert app._sample_rate == 44100
         assert app._channels == 2
-        assert app._prompt == "カスタムプロンプト"
         assert app._language == "en"
         assert app._max_duration == 30.0
         assert app._min_duration_ms == 1000.0

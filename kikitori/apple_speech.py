@@ -73,14 +73,12 @@ class SpeechTranscriber:
     def transcribe(
         self,
         audio: np.ndarray,
-        prompt: str = "",
         language: str = "ja",
     ) -> str:
         """音声データを一括認識してテキストを返す。
 
         Args:
             audio: 16000Hz、モノラル、float32 の numpy 配列。
-            prompt: Apple Speech では無視される（ダックタイピング互換用）。
             language: Apple Speech では無視される（ダックタイピング互換用）。
                       実際に使用されるロケールは ``__init__`` で指定した値。
 

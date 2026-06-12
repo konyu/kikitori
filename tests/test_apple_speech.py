@@ -93,7 +93,7 @@ class TestSpeechTranscriber:
         tr = SpeechTranscriber(request_auth=False)
         tr.load()
         audio = np.array([0.1, 0.2, 0.3], dtype=np.float32)
-        result = tr.transcribe(audio, prompt="p", language="ja")
+        result = tr.transcribe(audio, language="ja")
 
         # Assert
         assert result == "テスト結果"

@@ -5,8 +5,8 @@ import pytest
 from kikitori.transcriber import Transcriber
 
 
-def fake_transcribe(audio, *, path_or_hf_repo, initial_prompt, language, verbose):
-    return {"text": f"prompt={initial_prompt} lang={language} len={len(audio)}"}
+def fake_transcribe(audio, *, path_or_hf_repo, language, verbose):
+    return {"text": f"lang={language} len={len(audio)}"}
 
 
 def fake_load_model(name):
@@ -38,8 +38,8 @@ class TestTranscriber:
         )
         tr.load()
         audio = np.array([0.1, 0.2, 0.3], dtype=np.float32)
-        text = tr.transcribe(audio, prompt="テスト", language="en")
-        assert text == "prompt=テスト lang=en len=3"
+        text = tr.transcribe(audio, language="en")
+        assert text == "lang=en len=3"
 
     def test_transcribe_strips_whitespace(self):
         def stub(audio, **kwargs):
@@ -52,10 +52,9 @@ class TestTranscriber:
     def test_transcribe_uses_defaults(self):
         calls = []
 
-        def stub(audio, *, path_or_hf_repo, initial_prompt, language, verbose):
+        def stub(audio, *, path_or_hf_repo, language, verbose):
             calls.append({
                 "path": path_or_hf_repo,
-                "prompt": initial_prompt,
                 "language": language,
             })
             return {"text": "ok"}

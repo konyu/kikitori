@@ -103,18 +103,16 @@ class Transcriber:
     def transcribe(
         self,
         audio: np.ndarray,
-        prompt: str = "",
         language: str = DEFAULT_LANGUAGE,
     ) -> str:
         if audio.size == 0:
             return ""
         self._call_count += 1
         duration = audio.size / 16000
-        if DEBUG: print(f"[DEBUG] transcribe呼び出し #{self._call_count} (音声長: {duration:.1f}秒) prompt={prompt!r}", flush=True)
+        if DEBUG: print(f"[DEBUG] transcribe呼び出し #{self._call_count} (音声長: {duration:.1f}秒)", flush=True)
         result = self._get_transcribe_func()(
             audio,
             path_or_hf_repo=self._model_name,
-            initial_prompt=prompt,
             language=language,
             verbose=None,
         )
