@@ -382,7 +382,8 @@ class HotkeyManager:
         if not self._should_transcribe(audio):
             if DEBUG: print("[DEBUG] _transcribe_and_inject: SKIPPED (_should_transcribe=False)", flush=True)
             if self._saved_input_source:
-                restore_to_kana()
+                import threading
+                threading.Thread(target=restore_to_kana, daemon=True).start()
                 self._saved_input_source = False
             return
 
@@ -424,9 +425,10 @@ class HotkeyManager:
         self._injector.inject(text)
         t2 = _time.perf_counter()
 
-        # ペースト完了後、日本語IMEを復元
+        # ペースト完了後、日本語IMEを復元（非同期：注入完了後にIME復元を待つ必要なし）
         if self._saved_input_source:
-            restore_to_kana()
+            import threading
+            threading.Thread(target=restore_to_kana, daemon=True).start()
             self._saved_input_source = False
 
         if BENCHMARK_MODE:
