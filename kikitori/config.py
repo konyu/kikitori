@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 
 # バージョン
-VERSION: str = "0.4.3"
+VERSION: str = "0.5.0"
 
 # 音声設定
 SAMPLE_RATE: int = 16000
