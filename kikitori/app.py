@@ -16,6 +16,7 @@ from kikitori.config import (
 from kikitori.corrections import Corrections
 from kikitori.glossary import Glossary
 from kikitori.hotkey_manager import HotkeyManager
+from kikitori.i18n import t
 from kikitori.injector import Injector
 from kikitori.recorder import Recorder
 
@@ -33,10 +34,12 @@ class App:
         glossary: "Glossary | None" = None,
         corrections: "Corrections | None" = None,
         silence_rms_threshold: float = SILENCE_RMS_THRESHOLD,
+        ui_language: str = "ja",
     ):
         self._sample_rate = sample_rate
         self._channels = channels
         self._language = language
+        self._ui_language = ui_language
         self._max_duration = max_duration
         self._min_duration_ms = min_duration_ms
         self._silence_rms_threshold = silence_rms_threshold
@@ -67,6 +70,7 @@ class App:
             corrections=self._corrections,
             silence_rms_threshold=silence_rms_threshold,
             speech_analyzer=self._speech_analyzer,
+            ui_language=ui_language,
         )
         self._listener = None
         self._listener_thread = None
@@ -86,7 +90,10 @@ class App:
         self._hotkey.set_speech_analyzer(self._speech_analyzer)
         self._speech_analyzer.load()
         self._corrections.load()
-        print(f"[INFO] 校正辞書を読み込みました（{len(self._corrections.get_items())} 件）", flush=True)
+        print(
+            f"[INFO] {t('app.log.corrections_loaded', self._ui_language).format(count=len(self._corrections.get_items()))}",
+            flush=True,
+        )
 
     def run_background(self, listener_factory=None):
         """ホットキーリスナーをバックグラウンドスレッドで開始する。"""
@@ -118,16 +125,18 @@ class App:
                 on_press=on_press, on_release=on_release
             )
 
+        ui = self._ui_language
         print("=" * 50)
-        print("Kikitori")
+        print(t("app.banner.title", ui))
         print("=" * 50)
-        print(f"音声認識: Apple Speech")
-        print(f"サンプリングレート: {self._sample_rate} Hz")
-        print(f"ホットキー: {' + '.join(self._hotkey_config)} (押下中録音 / 解放で出力)")
+        print(t("app.banner.engine", ui))
+        print(t("app.banner.sample_rate", ui).format(rate=self._sample_rate))
+        hotkey_str = ' + '.join(self._hotkey_config)
+        print(t("app.banner.hotkey", ui).format(hotkey=hotkey_str))
         print("=" * 50)
 
         self.load()
-        print("[INFO] ホットキーリスナーを開始します。Ctrl+C で終了。")
+        print(f"[INFO] {t('app.log.listener_start', ui)}")
 
         with listener_factory(
             on_press=self._hotkey.on_press,

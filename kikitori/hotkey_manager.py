@@ -12,6 +12,7 @@ from kikitori.config import (
     SILENCE_RMS_THRESHOLD,
 )
 from kikitori.glossary import Glossary
+from kikitori.i18n import t
 from kikitori.injector import Injector
 def _save_and_switch_to_ascii():
     from kikitori.input_source import save_and_switch_to_ascii as _fn
@@ -99,10 +100,12 @@ class HotkeyManager:
         corrections = None,
         silence_rms_threshold: float = SILENCE_RMS_THRESHOLD,
         speech_analyzer: object | None = None,
+        ui_language: str = "ja",
     ):
         self._recorder = recorder
         self._injector = injector
         self._language = language
+        self._ui_language = ui_language
         self._max_duration = max_duration
         self._min_duration_samples = int(min_duration_ms / 1000 * SAMPLE_RATE)
         self._silence_rms_threshold = silence_rms_threshold
@@ -186,13 +189,13 @@ class HotkeyManager:
             print(f"[DEBUG] _should_transcribe: audio.size={audio.size} "
                   f"dtype={audio.dtype} ndim={audio.ndim}", flush=True)
         if audio.size == 0:
-            print("[INFO] 録音データが空です")
+            print(f"[INFO] {t('app.log.empty_audio', self._ui_language)}")
             if DEBUG: print("[DEBUG] _should_transcribe → False (empty)", flush=True)
             return False
         if audio.size < self._min_duration_samples:
             duration_ms = audio.size / SAMPLE_RATE * 1000
             min_ms = self._min_duration_samples / SAMPLE_RATE * 1000
-            print(f"[INFO] 録音が短すぎます（{duration_ms:.0f}ms < {min_ms:.0f}ms） — 認識しません")
+            print(f"[INFO] {t('app.log.too_short', self._ui_language).format(duration_ms=duration_ms, min_ms=min_ms)}")
             return False
         # silence_rms_threshold <= 0 の場合は無音チェックを無効化（ユーザー設定）
         if self._silence_rms_threshold > 0:
@@ -200,7 +203,7 @@ class HotkeyManager:
             rms = float(np.sqrt(np.dot(audio, audio) / audio.size))
             if DEBUG: print(f"[DEBUG] _should_transcribe: rms={rms:.6f} threshold={self._silence_rms_threshold}", flush=True)
             if rms < self._silence_rms_threshold:
-                print(f"[INFO] 無音と判定されました（RMS={rms:.4f} < {self._silence_rms_threshold}） — 認識しません")
+                print(f"[INFO] {t('app.log.silence', self._ui_language).format(rms=rms, threshold=self._silence_rms_threshold)}")
                 if DEBUG: print("[DEBUG] _should_transcribe → False (silence)", flush=True)
                 return False
         if DEBUG: print("[DEBUG] _should_transcribe → True", flush=True)
@@ -245,7 +248,7 @@ class HotkeyManager:
                     self._recorder.start()
                 except RecordError as e:
                     import sys
-                    print(f"[ERROR] 録音開始失敗: {e}", file=sys.stderr)
+                    print(f"[ERROR] {t('app.log.record_failed', self._ui_language).format(error=e)}", file=sys.stderr)
                     if self._speech_analyzer is not None:
                         self._speech_analyzer.stop()
                     with self._lock:

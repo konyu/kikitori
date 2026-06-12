@@ -9,6 +9,7 @@ from pathlib import Path
 from PySide6 import QtCore, QtWidgets
 
 from kikitori.glossary import Glossary
+from kikitori.i18n import t
 from kikitori.theme import apply_dialog_theme
 
 
@@ -18,30 +19,30 @@ class GlossaryDialog(QtWidgets.QDialog):
     用語の一覧表示・追加・編集・削除に加え、
     ファイルを外部エディタで開く / 再読み込み が可能。
     保存時に YAML 書き込み → Glossary 再読み込み → 即時反映。
-
-    シグナルを使わず、exec() の戻り値で親に通知する。
-    （PySide6 + macOS で QDialog のシグナル接続破棄時にクラッシュする問題を回避）
     """
 
     # シグナルを使わない（exec() の戻り値 + on_reload コールバックで判断）
 
-    def __init__(self, glossary: Glossary, on_reload=None, parent=None):
+    def __init__(self, glossary: Glossary, language: str = "ja", on_reload=None, parent=None):
         super().__init__(parent)
+        self._lang = language
 
         self._glossary = glossary
-        self._terms: list[str] = list(glossary.get_terms())  # 編集中のコピー
+        self._terms: list[str] = list(glossary.get_terms())
         self._edited = False
         self._on_reload = on_reload
 
-        self.setWindowTitle("キーワード設定")
+        self.setWindowTitle(self._tr("glossary.title"))
         self.setMinimumWidth(460)
         self.setMinimumHeight(360)
-        # macOS で setWindowFlags 後の destroy でクラッシュする場合があるため
-        # WindowContextHelpButtonHint のみ除外する設定は行わない
 
         apply_dialog_theme(self)
         self._build_ui()
         self._populate_list()
+
+    def _tr(self, key: str) -> str:
+        """現在の UI 言語で翻訳文字列を取得する。"""
+        return t(key, self._lang)
 
     def _build_ui(self):
         main_layout = QtWidgets.QVBoxLayout(self)
@@ -52,7 +53,9 @@ class GlossaryDialog(QtWidgets.QDialog):
         file_row = QtWidgets.QHBoxLayout()
         file_row.setSpacing(8)
 
-        path_label = QtWidgets.QLabel(f"ファイル: {self._glossary.path}")
+        path_label = QtWidgets.QLabel(
+            f"{self._tr('glossary.file_label')} {self._glossary.path}"
+        )
         path_label.setProperty("secondary", "true")
         path_label.setTextInteractionFlags(
             QtCore.Qt.TextInteractionFlag.TextSelectableByMouse
@@ -60,11 +63,11 @@ class GlossaryDialog(QtWidgets.QDialog):
         file_row.addWidget(path_label)
         file_row.addStretch()
 
-        open_btn = QtWidgets.QPushButton("ファイルを開く")
+        open_btn = QtWidgets.QPushButton(self._tr("glossary.open_file_btn"))
         open_btn.clicked.connect(self._open_file)
         file_row.addWidget(open_btn)
 
-        reload_btn = QtWidgets.QPushButton("再読み込み")
+        reload_btn = QtWidgets.QPushButton(self._tr("glossary.reload_btn"))
         reload_btn.clicked.connect(self._reload_from_file)
         file_row.addWidget(reload_btn)
 
@@ -86,16 +89,16 @@ class GlossaryDialog(QtWidgets.QDialog):
         btn_col = QtWidgets.QVBoxLayout()
         btn_col.setSpacing(6)
 
-        self._add_btn = QtWidgets.QPushButton("＋ 追加")
+        self._add_btn = QtWidgets.QPushButton(self._tr("glossary.add_btn"))
         self._add_btn.clicked.connect(self._add_term)
         btn_col.addWidget(self._add_btn)
 
-        self._edit_btn = QtWidgets.QPushButton("✎ 編集")
+        self._edit_btn = QtWidgets.QPushButton(self._tr("glossary.edit_btn"))
         self._edit_btn.setEnabled(False)
         self._edit_btn.clicked.connect(self._edit_term)
         btn_col.addWidget(self._edit_btn)
 
-        self._delete_btn = QtWidgets.QPushButton("🗑 削除")
+        self._delete_btn = QtWidgets.QPushButton(self._tr("glossary.delete_btn"))
         self._delete_btn.setEnabled(False)
         self._delete_btn.clicked.connect(self._delete_term)
         btn_col.addWidget(self._delete_btn)
@@ -115,11 +118,11 @@ class GlossaryDialog(QtWidgets.QDialog):
         btn_layout.setSpacing(8)
         btn_layout.addStretch()
 
-        cancel_btn = QtWidgets.QPushButton("キャンセル")
+        cancel_btn = QtWidgets.QPushButton(self._tr("glossary.cancel_btn"))
         cancel_btn.clicked.connect(self.reject)
         btn_layout.addWidget(cancel_btn)
 
-        self._save_btn = QtWidgets.QPushButton("保存して適用")
+        self._save_btn = QtWidgets.QPushButton(self._tr("glossary.save_btn"))
         self._save_btn.setProperty("primary", "true")
         self._save_btn.setDefault(True)
         self._save_btn.clicked.connect(self._save_and_apply)
@@ -144,7 +147,9 @@ class GlossaryDialog(QtWidgets.QDialog):
 
     def _add_term(self):
         text, ok = QtWidgets.QInputDialog.getText(
-            self, "用語の追加", "追加する用語を入力してください:"
+            self,
+            self._tr("glossary.add_title"),
+            self._tr("glossary.add_prompt"),
         )
         if ok and text.strip():
             term = text.strip()
@@ -164,7 +169,10 @@ class GlossaryDialog(QtWidgets.QDialog):
         old_text = current_item.text()
 
         text, ok = QtWidgets.QInputDialog.getText(
-            self, "用語の編集", "用語を編集してください:", text=old_text
+            self,
+            self._tr("glossary.edit_title"),
+            self._tr("glossary.edit_prompt"),
+            text=old_text,
         )
         if ok and text.strip():
             new_text = text.strip()
@@ -182,8 +190,8 @@ class GlossaryDialog(QtWidgets.QDialog):
         term = self._terms[current_row]
         confirm = QtWidgets.QMessageBox.question(
             self,
-            "削除の確認",
-            f"用語「{term}」を削除しますか？",
+            self._tr("glossary.delete_confirm_title"),
+            self._tr("glossary.delete_confirm_msg").format(term=term),
             QtWidgets.QMessageBox.StandardButton.Yes
             | QtWidgets.QMessageBox.StandardButton.No,
             QtWidgets.QMessageBox.StandardButton.No,
@@ -197,7 +205,9 @@ class GlossaryDialog(QtWidgets.QDialog):
         self._update_count()
 
     def _update_count(self):
-        self._count_label.setText(f"登録件数: {len(self._terms)} 件")
+        self._count_label.setText(
+            self._tr("glossary.count_label").format(count=len(self._terms))
+        )
         self._save_btn.setEnabled(self._edited)
 
     # ── ファイル操作 ──────────────────────────────────────────────────
@@ -217,8 +227,8 @@ class GlossaryDialog(QtWidgets.QDialog):
         if self._edited:
             confirm = QtWidgets.QMessageBox.question(
                 self,
-                "再読み込みの確認",
-                "現在の編集中の内容が失われます。\nファイルから再読み込みしますか？",
+                self._tr("glossary.reload_confirm_title"),
+                self._tr("glossary.reload_confirm_msg"),
                 QtWidgets.QMessageBox.StandardButton.Yes
                 | QtWidgets.QMessageBox.StandardButton.No,
                 QtWidgets.QMessageBox.StandardButton.No,
@@ -232,7 +242,6 @@ class GlossaryDialog(QtWidgets.QDialog):
         self._populate_list()
         self._update_count()
 
-        # 再読み込みが完了したので親に通知（シグナルではなくコールバック）
         if self._on_reload is not None:
             self._on_reload()
 
@@ -255,19 +264,18 @@ class GlossaryDialog(QtWidgets.QDialog):
             )
         except Exception as e:
             QtWidgets.QMessageBox.warning(
-                self, "保存エラー", f"ファイルの保存に失敗しました:\n{e}"
+                self,
+                self._tr("glossary.save_error_title"),
+                self._tr("glossary.save_error_msg").format(error=e),
             )
             raise
 
     def _save_and_apply(self):
-        """用語リストを保存し、ダイアログを Accepted で閉じる。
-
-        即時反映は親側で exec() の戻り値を確認して行う。
-        """
+        """用語リストを保存し、ダイアログを Accepted で閉じる。"""
         try:
             self._save_terms_to_file(self._glossary.path)
         except Exception:
-            return  # エラーは _save_terms_to_file 内で表示済み
+            return
 
         self._edited = False
         self._save_btn.setEnabled(False)

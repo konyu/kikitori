@@ -16,13 +16,13 @@ from kikitori.config import (
     MIN_DURATION_MS,
     SILENCE_RMS_THRESHOLD,
 )
-from kikitori.corrections import CORRECTIONS_PATH, Corrections
+from kikitori.corrections import Corrections
 from kikitori.corrections_dialog import CorrectionsDialog
-from kikitori.glossary import GLOSSARY_PATH, Glossary
+from kikitori.glossary import Glossary
 from kikitori.glossary_dialog import GlossaryDialog
+from kikitori.i18n import t
 from kikitori.overlay import VoiceOverlay
 from kikitori.settings import (
-    SETTINGS_PATH,
     activate_app_by_pid,
     get_frontmost_pid,
     get_ui_language,
@@ -123,6 +123,7 @@ class KikitoriUIApp(QtWidgets.QApplication):
             on_state_change=self._on_core_state_change,
             glossary=self._glossary,
             corrections=self._corrections,
+            ui_language=self._ui_language,
         )
 
         # Overlay
@@ -130,34 +131,34 @@ class KikitoriUIApp(QtWidgets.QApplication):
 
         # System tray
         self._tray = QtWidgets.QSystemTrayIcon(self)
-        self._tray.setToolTip("Kikitori")
+        self._tray.setToolTip(self._tr("app.tooltip"))
         self._set_tray_icon_idle()
 
         # Menu
         self._menu = QtWidgets.QMenu()
 
-        self._status_action = self._menu.addAction("○ 待機中")
+        self._status_action = self._menu.addAction(self._tr("app.status.idle"))
         self._status_action.setEnabled(False)
 
         self._menu.addSeparator()
 
-        self._record_action = self._menu.addAction("🔴 録音開始")
+        self._record_action = self._menu.addAction(self._tr("app.menu.record_start"))
         self._record_action.triggered.connect(self._toggle_recording)
 
         self._menu.addSeparator()
 
-        self._settings_action = self._menu.addAction("⚙️ 設定")
+        self._settings_action = self._menu.addAction(self._tr("app.menu.settings"))
         self._settings_action.triggered.connect(self._open_settings_dialog)
 
-        self._glossary_action = self._menu.addAction("📚 用語集")
+        self._glossary_action = self._menu.addAction(self._tr("app.menu.glossary"))
         self._glossary_action.triggered.connect(self._open_glossary_dialog)
 
-        self._corrections_action = self._menu.addAction("📝 校正辞書")
+        self._corrections_action = self._menu.addAction(self._tr("app.menu.corrections"))
         self._corrections_action.triggered.connect(self._open_corrections_dialog)
 
         self._menu.addSeparator()
 
-        self._quit_action = self._menu.addAction("終了")
+        self._quit_action = self._menu.addAction(self._tr("app.menu.quit"))
         self._quit_action.triggered.connect(self._quit_app)
 
         self._tray.setContextMenu(self._menu)
@@ -177,6 +178,20 @@ class KikitoriUIApp(QtWidgets.QApplication):
 
         # Connect signal to slot for thread-safe UI updates
         self._recording_state_changed.connect(self._update_recording_state)
+
+    def _tr(self, key: str) -> str:
+        """現在の UI 言語で翻訳文字列を取得する。"""
+        return t(key, self._ui_language)
+
+    def _refresh_ui_texts(self):
+        """UI 表示言語切替時に全メニュー・ステータス文字列を更新する。"""
+        self._tray.setToolTip(self._tr("app.tooltip"))
+        self._status_action.setText(self._tr("app.status.idle"))
+        self._record_action.setText(self._tr("app.menu.record_start"))
+        self._settings_action.setText(self._tr("app.menu.settings"))
+        self._glossary_action.setText(self._tr("app.menu.glossary"))
+        self._corrections_action.setText(self._tr("app.menu.corrections"))
+        self._quit_action.setText(self._tr("app.menu.quit"))
 
     def _hide_from_dock(self):
         """Dockに表示されないようにする（macOS専用）"""
@@ -210,15 +225,15 @@ class KikitoriUIApp(QtWidgets.QApplication):
 
     def _on_model_loaded(self):
         """音声認識の準備完了時"""
-        print("[INFO] 音声認識の準備完了", flush=True)
-        self._status_action.setText("○ 待機中")
+        print(f"[INFO] {self._tr('app.log.model_ready')}", flush=True)
+        self._status_action.setText(self._tr("app.status.idle"))
         import threading
         threading.Thread(target=self._app.run, daemon=True).start()
 
     def _on_model_failed(self, message: str):
         """音声認識の初期化失敗時"""
-        print(f"[ERROR] 音声認識の初期化に失敗しました: {message}", flush=True)
-        self._status_action.setText("❌ 音声認識の初期化失敗")
+        print(f"[ERROR] {self._tr('app.log.model_failed')}: {message}", flush=True)
+        self._status_action.setText(self._tr("app.status.error"))
         import threading
         threading.Thread(target=self._app.run, daemon=True).start()
 
@@ -231,8 +246,8 @@ class KikitoriUIApp(QtWidgets.QApplication):
         self._recording = is_recording
         if is_recording:
             # 録音開始
-            self._record_action.setText("⏹ 録音停止")
-            self._status_action.setText("🔴 録音中...")
+            self._record_action.setText(self._tr("app.menu.record_stop"))
+            self._status_action.setText(self._tr("app.status.recording"))
             self._overlay.show_overlay()
             self._waveform_timer.start(50)
 
@@ -241,8 +256,8 @@ class KikitoriUIApp(QtWidgets.QApplication):
         else:
             # 停止時
             self._set_tray_icon_idle()
-            self._record_action.setText("🔴 録音開始")
-            self._status_action.setText("○ 待機中")
+            self._record_action.setText(self._tr("app.menu.record_start"))
+            self._status_action.setText(self._tr("app.status.idle"))
             self._overlay.hide_overlay()
             self._waveform_timer.stop()
 
@@ -268,16 +283,14 @@ class KikitoriUIApp(QtWidgets.QApplication):
 
     def _open_settings_dialog(self):
         """設定ダイアログを開く"""
-        from kikitori.settings import load_settings
-
-        fresh = load_settings()
         current = {
             "language": self._language,
+            "ui_language": self._ui_language,
             "hotkey": list(self._hotkey),
             "min_duration_ms": self._min_duration_ms,
             "silence_rms_threshold": self._silence_rms_threshold,
         }
-        self._dialog = SettingsDialog(current, parent=None)
+        self._dialog = SettingsDialog(current, language=self._ui_language, parent=None)
         result = self._dialog.exec()
         if result == QtWidgets.QDialog.DialogCode.Accepted:
             if self._dialog.reset_requested:
@@ -289,6 +302,7 @@ class KikitoriUIApp(QtWidgets.QApplication):
 
     def _on_settings_changed(self, settings: dict):
         """SettingsDialog からの変更通知を受け取り、即時反映する。"""
+        old_ui_lang = self._ui_language
         self._language = settings.get("language", self._language)
         self._hotkey = settings.get("hotkey", self._hotkey)
         self._min_duration_ms = settings.get("min_duration_ms", self._min_duration_ms)
@@ -297,7 +311,9 @@ class KikitoriUIApp(QtWidgets.QApplication):
 
         # 内部状態に即時反映
         self._app._language = self._language
+        self._app._ui_language = self._ui_language
         self._app._hotkey._language = self._language
+        self._app._hotkey._ui_language = self._ui_language
         self._app._hotkey.update_hotkey(self._hotkey)
         self._app._hotkey._min_duration_samples = int(
             self._min_duration_ms / 1000 * 16000
@@ -314,14 +330,19 @@ class KikitoriUIApp(QtWidgets.QApplication):
         }
         save_settings(self._settings)
 
+        # UI 言語が変わったらメニュー文字列を更新
+        if self._ui_language != old_ui_lang:
+            self._refresh_ui_texts()
+
         print(
-            f"[INFO] 設定を更新しました: language={self._language}, hotkey={' + '.join(self._hotkey)}, min_duration_ms={self._min_duration_ms}",
+            f"[INFO] {self._tr('app.log.settings_updated')}: language={self._language}, "
+            f"hotkey={' + '.join(self._hotkey)}, min_duration_ms={self._min_duration_ms}",
             flush=True,
         )
 
     def _open_glossary_dialog(self):
         """キーワード管理ダイアログを開く。"""
-        self._dialog = GlossaryDialog(self._glossary)
+        self._dialog = GlossaryDialog(self._glossary, language=self._ui_language)
         result = self._dialog.exec()
         if result == QtWidgets.QDialog.DialogCode.Accepted:
             self._reload_glossary()
@@ -332,11 +353,11 @@ class KikitoriUIApp(QtWidgets.QApplication):
         self._glossary.load()
         kw_count = len(self._glossary.get_terms())
         # glossary は参照で共有されているため load() だけで即時反映される
-        print(f"[INFO] キーワードを再読み込みしました: {kw_count}件", flush=True)
+        print(f"[INFO] {self._tr('app.log.glossary_reloaded')}: {kw_count}件", flush=True)
 
     def _open_corrections_dialog(self):
         """校正辞書管理ダイアログを開く。"""
-        self._dialog = CorrectionsDialog(self._corrections)
+        self._dialog = CorrectionsDialog(self._corrections, language=self._ui_language)
         result = self._dialog.exec()
         if result == QtWidgets.QDialog.DialogCode.Accepted:
             self._reload_corrections()
@@ -346,7 +367,7 @@ class KikitoriUIApp(QtWidgets.QApplication):
         """Corrections を再読み込みし、内部状態を更新する。"""
         self._corrections.load()
         corr_count = len(self._corrections.get_items())
-        print(f"[INFO] 校正辞書を再読み込みしました: {corr_count}件", flush=True)
+        print(f"[INFO] {self._tr('app.log.corrections_reloaded')}: {corr_count}件", flush=True)
 
     def _reload_settings(self):
         try:
@@ -380,13 +401,18 @@ class KikitoriUIApp(QtWidgets.QApplication):
         self._ui_language = new_ui_lang
 
         self._app._language = new_lang
+        self._app._ui_language = new_ui_lang
         self._app._hotkey._language = new_lang
+        self._app._hotkey._ui_language = new_ui_lang
         self._app._hotkey.update_hotkey(new_hotkey)
         self._app._hotkey._min_duration_samples = int(new_min_dur / 1000 * 16000)
         self._app._hotkey._silence_rms_threshold = new_silence
 
+        self._refresh_ui_texts()
+
         print(
-            f"[INFO] 設定ファイル変更を反映しました: language={self._language}, hotkey={' + '.join(self._hotkey)}",
+            f"[INFO] {self._tr('app.log.settings_file_changed')}: "
+            f"language={self._language}, hotkey={' + '.join(self._hotkey)}",
             flush=True,
         )
 

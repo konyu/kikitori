@@ -9,15 +9,19 @@ from PySide6 import QtCore, QtWidgets
 
 from kikitori.config import DEBUG
 from kikitori.corrections import Corrections
+from kikitori.i18n import t
 from kikitori.theme import apply_dialog_theme
 
 
 class _EditPairDialog(QtWidgets.QDialog):
     """単一ペアの追加・編集ダイアログ。"""
 
-    def __init__(self, wrong: str = "", right: str = "", parent=None):
+    def __init__(self, language: str = "ja", wrong: str = "", right: str = "", parent=None):
         super().__init__(parent)
-        self.setWindowTitle("校正ペアを編集" if wrong else "校正ペアを追加")
+        self._lang = language
+
+        title_key = "corrections.edit_pair.title_edit" if wrong else "corrections.edit_pair.title_add"
+        self.setWindowTitle(self._tr(title_key))
         self.setMinimumWidth(360)
         apply_dialog_theme(self)
 
@@ -26,24 +30,41 @@ class _EditPairDialog(QtWidgets.QDialog):
         layout.setSpacing(12)
 
         self._wrong_input = QtWidgets.QLineEdit(wrong)
-        self._wrong_input.setPlaceholderText("例: use effect")
-        layout.addRow("間違い:", self._wrong_input)
+        self._wrong_input.setPlaceholderText(
+            self._tr("corrections.edit_pair.wrong_placeholder")
+        )
+        layout.addRow(self._tr("corrections.edit_pair.wrong_label"), self._wrong_input)
 
         self._right_input = QtWidgets.QLineEdit(right)
-        self._right_input.setPlaceholderText("例: useEffect")
-        layout.addRow("訂正:", self._right_input)
+        self._right_input.setPlaceholderText(
+            self._tr("corrections.edit_pair.right_placeholder")
+        )
+        layout.addRow(self._tr("corrections.edit_pair.right_label"), self._right_input)
 
         btn_box = QtWidgets.QDialogButtonBox()
-        save_btn = btn_box.addButton("保存", QtWidgets.QDialogButtonBox.ButtonRole.AcceptRole)
-        cancel_btn = btn_box.addButton("キャンセル", QtWidgets.QDialogButtonBox.ButtonRole.RejectRole)
+        save_btn = btn_box.addButton(
+            self._tr("corrections.edit_pair.save_btn"),
+            QtWidgets.QDialogButtonBox.ButtonRole.AcceptRole,
+        )
+        cancel_btn = btn_box.addButton(
+            self._tr("corrections.edit_pair.cancel_btn"),
+            QtWidgets.QDialogButtonBox.ButtonRole.RejectRole,
+        )
         save_btn.clicked.connect(self._on_accept)
         cancel_btn.clicked.connect(self.reject)
         layout.addRow(btn_box)
 
+    def _tr(self, key: str) -> str:
+        return t(key, self._lang)
+
     def _on_accept(self):
         wrong = self._wrong_input.text().strip()
         if not wrong:
-            QtWidgets.QMessageBox.warning(self, "入力エラー", "間違いの文字列を入力してください。")
+            QtWidgets.QMessageBox.warning(
+                self,
+                self._tr("corrections.edit_pair.error_title"),
+                self._tr("corrections.edit_pair.error_msg"),
+            )
             return
         self.accept()
 
@@ -59,20 +80,24 @@ class CorrectionsDialog(QtWidgets.QDialog):
     保存時に YAML 書き込み → Corrections 再読み込み → 即時反映。
     """
 
-    def __init__(self, corrections: Corrections, parent=None):
+    def __init__(self, corrections: Corrections, language: str = "ja", parent=None):
         super().__init__(parent)
+        self._lang = language
 
         self._corrections = corrections
         self._items: dict[str, str] = dict(corrections.get_items())
         self._edited = False
 
-        self.setWindowTitle("校正辞書設定")
+        self.setWindowTitle(self._tr("corrections.title"))
         self.setMinimumWidth(520)
         self.setMinimumHeight(400)
 
         apply_dialog_theme(self)
         self._build_ui()
         self._populate_table()
+
+    def _tr(self, key: str) -> str:
+        return t(key, self._lang)
 
     def _build_ui(self):
         main_layout = QtWidgets.QVBoxLayout(self)
@@ -83,7 +108,9 @@ class CorrectionsDialog(QtWidgets.QDialog):
         file_row = QtWidgets.QHBoxLayout()
         file_row.setSpacing(8)
 
-        path_label = QtWidgets.QLabel(f"ファイル: {self._corrections.path}")
+        path_label = QtWidgets.QLabel(
+            f"{self._tr('corrections.file_label')} {self._corrections.path}"
+        )
         path_label.setProperty("secondary", "true")
         path_label.setTextInteractionFlags(
             QtCore.Qt.TextInteractionFlag.TextSelectableByMouse
@@ -91,11 +118,11 @@ class CorrectionsDialog(QtWidgets.QDialog):
         file_row.addWidget(path_label)
         file_row.addStretch()
 
-        open_btn = QtWidgets.QPushButton("ファイルを開く")
+        open_btn = QtWidgets.QPushButton(self._tr("corrections.open_file_btn"))
         open_btn.clicked.connect(self._open_file)
         file_row.addWidget(open_btn)
 
-        reload_btn = QtWidgets.QPushButton("再読み込み")
+        reload_btn = QtWidgets.QPushButton(self._tr("corrections.reload_btn"))
         reload_btn.clicked.connect(self._reload_from_file)
         file_row.addWidget(reload_btn)
 
@@ -104,7 +131,10 @@ class CorrectionsDialog(QtWidgets.QDialog):
         # テーブル
         self._table = QtWidgets.QTableWidget()
         self._table.setColumnCount(2)
-        self._table.setHorizontalHeaderLabels(["間違い", "訂正"])
+        self._table.setHorizontalHeaderLabels([
+            self._tr("corrections.table.wrong_header"),
+            self._tr("corrections.table.right_header"),
+        ])
         self._table.horizontalHeader().setStretchLastSection(True)
         self._table.horizontalHeader().setSectionResizeMode(
             0, QtWidgets.QHeaderView.ResizeMode.Stretch
@@ -125,16 +155,16 @@ class CorrectionsDialog(QtWidgets.QDialog):
         btn_row.setSpacing(8)
         btn_row.addStretch()
 
-        self._add_btn = QtWidgets.QPushButton("＋ 追加")
+        self._add_btn = QtWidgets.QPushButton(self._tr("corrections.add_btn"))
         self._add_btn.clicked.connect(self._add_pair)
         btn_row.addWidget(self._add_btn)
 
-        self._edit_btn = QtWidgets.QPushButton("✎ 編集")
+        self._edit_btn = QtWidgets.QPushButton(self._tr("corrections.edit_btn"))
         self._edit_btn.setEnabled(False)
         self._edit_btn.clicked.connect(self._edit_pair)
         btn_row.addWidget(self._edit_btn)
 
-        self._delete_btn = QtWidgets.QPushButton("🗑 削除")
+        self._delete_btn = QtWidgets.QPushButton(self._tr("corrections.delete_btn"))
         self._delete_btn.setEnabled(False)
         self._delete_btn.clicked.connect(self._delete_pair)
         btn_row.addWidget(self._delete_btn)
@@ -142,14 +172,22 @@ class CorrectionsDialog(QtWidgets.QDialog):
         main_layout.addLayout(btn_row)
 
         # カウントラベル
-        self._count_label = QtWidgets.QLabel("登録数: 0")
+        self._count_label = QtWidgets.QLabel(
+            self._tr("corrections.count_label").format(count=0)
+        )
         self._count_label.setProperty("secondary", "true")
         main_layout.addWidget(self._count_label)
 
         # ダイアログボタン
         dialog_btns = QtWidgets.QDialogButtonBox()
-        save_btn = dialog_btns.addButton("保存して適用", QtWidgets.QDialogButtonBox.ButtonRole.AcceptRole)
-        cancel_btn = dialog_btns.addButton("キャンセル", QtWidgets.QDialogButtonBox.ButtonRole.RejectRole)
+        save_btn = dialog_btns.addButton(
+            self._tr("corrections.save_btn"),
+            QtWidgets.QDialogButtonBox.ButtonRole.AcceptRole,
+        )
+        cancel_btn = dialog_btns.addButton(
+            self._tr("corrections.cancel_btn"),
+            QtWidgets.QDialogButtonBox.ButtonRole.RejectRole,
+        )
         save_btn.clicked.connect(self._save_and_apply)
         cancel_btn.clicked.connect(self.reject)
         main_layout.addWidget(dialog_btns)
@@ -173,14 +211,14 @@ class CorrectionsDialog(QtWidgets.QDialog):
         self._delete_btn.setEnabled(has_selection)
 
     def _add_pair(self):
-        dlg = _EditPairDialog(parent=self)
+        dlg = _EditPairDialog(language=self._lang, parent=self)
         if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:
             wrong, right = dlg.get_pair()
             if wrong in self._items:
                 ret = QtWidgets.QMessageBox.question(
                     self,
-                    "上書き確認",
-                    f'"{wrong}" は既に登録されています。上書きしますか？',
+                    self._tr("corrections.overwrite_confirm_title"),
+                    self._tr("corrections.overwrite_confirm_msg").format(wrong=wrong),
                 )
                 if ret != QtWidgets.QMessageBox.StandardButton.Yes:
                     return
@@ -195,7 +233,7 @@ class CorrectionsDialog(QtWidgets.QDialog):
         old_wrong = self._table.item(row, 0).text()
         old_right = self._table.item(row, 1).text()
 
-        dlg = _EditPairDialog(old_wrong, old_right, parent=self)
+        dlg = _EditPairDialog(language=self._lang, wrong=old_wrong, right=old_right, parent=self)
         if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:
             wrong, right = dlg.get_pair()
             if wrong != old_wrong:
@@ -211,8 +249,8 @@ class CorrectionsDialog(QtWidgets.QDialog):
         wrong = self._table.item(row, 0).text()
         ret = QtWidgets.QMessageBox.question(
             self,
-            "削除確認",
-            f'"{wrong}" を削除しますか？',
+            self._tr("corrections.delete_confirm_title"),
+            self._tr("corrections.delete_confirm_msg").format(wrong=wrong),
         )
         if ret == QtWidgets.QMessageBox.StandardButton.Yes:
             del self._items[wrong]
@@ -220,7 +258,9 @@ class CorrectionsDialog(QtWidgets.QDialog):
             self._populate_table()
 
     def _update_count(self):
-        self._count_label.setText(f"登録数: {len(self._items)}")
+        self._count_label.setText(
+            self._tr("corrections.count_label").format(count=len(self._items))
+        )
 
     def _open_file(self):
         path = self._corrections.path
@@ -228,7 +268,11 @@ class CorrectionsDialog(QtWidgets.QDialog):
             try:
                 path.write_text(Corrections.generate_template(), encoding="utf-8")
             except Exception as e:
-                QtWidgets.QMessageBox.critical(self, "エラー", f"ファイルの作成に失敗しました:\n{e}")
+                QtWidgets.QMessageBox.critical(
+                    self,
+                    self._tr("corrections.error_title"),
+                    self._tr("corrections.file_create_error").format(error=e),
+                )
                 return
         import subprocess
         subprocess.run(["open", "-t", str(path)])
@@ -243,15 +287,21 @@ class CorrectionsDialog(QtWidgets.QDialog):
     def _save_and_apply(self):
         import sys, traceback
         try:
-            if DEBUG: print("[DEBUG] _save_and_apply: calling save_items", flush=True, file=sys.stderr)
+            if DEBUG:
+                print("[DEBUG] _save_and_apply: calling save_items", flush=True, file=sys.stderr)
             self._corrections.save_items(self._items)
-            if DEBUG: print("[DEBUG] _save_and_apply: save_items OK", flush=True, file=sys.stderr)
-            if DEBUG: print("[DEBUG] _save_and_apply: calling accept", flush=True, file=sys.stderr)
+            if DEBUG:
+                print("[DEBUG] _save_and_apply: save_items OK", flush=True, file=sys.stderr)
+            if DEBUG:
+                print("[DEBUG] _save_and_apply: calling accept", flush=True, file=sys.stderr)
             self.accept()
-            if DEBUG: print("[DEBUG] _save_and_apply: accept OK", flush=True, file=sys.stderr)
+            if DEBUG:
+                print("[DEBUG] _save_and_apply: accept OK", flush=True, file=sys.stderr)
         except Exception as e:
             print(f"[ERROR] _save_and_apply failed: {e}", flush=True, file=sys.stderr)
             traceback.print_exc()
             QtWidgets.QMessageBox.critical(
-                self, "エラー", "保存に失敗しました:\n" + str(e)
+                self,
+                self._tr("corrections.error_title"),
+                self._tr("corrections.save_error").format(error=e),
             )

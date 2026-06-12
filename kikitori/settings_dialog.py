@@ -12,36 +12,10 @@ from kikitori.config import (
     MIN_DURATION_MS,
     SILENCE_RMS_THRESHOLD,
 )
+from kikitori.i18n import t, get_language_labels, get_ui_language_labels
 from kikitori.settings import detect_os_language
 from kikitori.theme import apply_dialog_theme
 
-# 音声認識用の言語コード（表示名 → コード）
-_LANGUAGES: dict[str, str] = {
-    "日本語": "ja",
-    "English": "en",
-    "中文（简体）": "zh",
-    "中文（繁體）": "zh",
-    "한국어": "ko",
-    "Français": "fr",
-    "Deutsch": "de",
-    "Italiano": "it",
-    "Español": "es",
-    "Português": "pt",
-    "Русский": "ru",
-    "Nederlands": "nl",
-    "Polski": "pl",
-    "Türkçe": "tr",
-    "Arabic": "ar",
-    "Hindi": "hi",
-    "Thai": "th",
-    "Tiếng Việt": "vi",
-}
-
-# UI 表示言語（表示名 → コード）
-_UI_LANGUAGES: dict[str, str] = {
-    "日本語": "ja",
-    "English": "en",
-}
 
 class HotkeyEditor(QtWidgets.QWidget):
     """ホットキー設定用の複合ウィジェット。
@@ -53,14 +27,15 @@ class HotkeyEditor(QtWidgets.QWidget):
     hotkey_changed = QtCore.Signal()
 
     MODIFIER_MAP: dict[str, str] = {
-        "cmd": "Cmd (⌘)",
-        "option": "Option (⌥)",
-        "ctrl": "Ctrl (⌃)",
-        "shift": "Shift (⇧)",
+        "cmd": "Cmd (\u2318)",
+        "option": "Option (\u2325)",
+        "ctrl": "Ctrl (\u2303)",
+        "shift": "Shift (\u21e7)",
     }
 
-    def __init__(self, parent=None):
+    def __init__(self, language: str = "ja", parent=None):
         super().__init__(parent)
+        self._lang = language
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -138,8 +113,6 @@ class HotkeyEditor(QtWidgets.QWidget):
         return names
 
 
-
-
 class SettingsDialog(QtWidgets.QDialog):
     """設定編集ダイアログ。
 
@@ -150,19 +123,28 @@ class SettingsDialog(QtWidgets.QDialog):
     # シグナルを使わない（exec() の戻り値で判断）
     # PySide6 + macOS で QDialog のシグナル接続破棄時にクラッシュする問題を回避
 
-    def __init__(self, current_settings: dict, parent=None):
+    def __init__(self, current_settings: dict, language: str = "ja", parent=None):
         super().__init__(parent)
+        self._lang = language
 
-        self.setWindowTitle("Kikitori 設定")
+        self.setWindowTitle(t("settings.title", language))
         self.setMinimumWidth(520)
         # macOS で setWindowFlags 後の destroy でクラッシュする場合があるため
         # WindowContextHelpButtonHint のみ除外する設定は行わない
 
         self._current = current_settings.copy()
 
+        # 言語ラベルマップ {code: label} → {label: code}
+        self._languages = {label: code for code, label in get_language_labels().items()}
+        self._ui_languages = {label: code for code, label in get_ui_language_labels().items()}
+
         apply_dialog_theme(self)
         self._build_ui()
         self._load_values()
+
+    def _tr(self, key: str) -> str:
+        """現在の UI 言語で翻訳文字列を取得する。"""
+        return t(key, self._lang)
 
     def _build_ui(self):
         main_layout = QtWidgets.QVBoxLayout(self)
@@ -181,20 +163,20 @@ class SettingsDialog(QtWidgets.QDialog):
         # ── 言語（音声認識） ──
         self._lang_combo = QtWidgets.QComboBox()
         self._lang_combo.setEditable(False)
-        for display, code in _LANGUAGES.items():
+        for display, code in self._languages.items():
             self._lang_combo.addItem(f"{display} ({code})", code)
-        form_layout.addRow("認識言語:", self._lang_combo)
+        form_layout.addRow(self._tr("settings.lang_label"), self._lang_combo)
 
         # ── UI 表示言語 ──
         self._ui_lang_combo = QtWidgets.QComboBox()
         self._ui_lang_combo.setEditable(False)
-        for display, code in _UI_LANGUAGES.items():
+        for display, code in self._ui_languages.items():
             self._ui_lang_combo.addItem(display, code)
-        form_layout.addRow("UI 表示言語:", self._ui_lang_combo)
+        form_layout.addRow(self._tr("settings.ui_lang_label"), self._ui_lang_combo)
 
         # ── ホットキー ──
-        self._hotkey_editor = HotkeyEditor()
-        form_layout.addRow("ホットキー:", self._hotkey_editor)
+        self._hotkey_editor = HotkeyEditor(language=self._lang)
+        form_layout.addRow(self._tr("settings.hotkey_label"), self._hotkey_editor)
 
         # ── 最低録音時間 ──
         dur_layout = QtWidgets.QHBoxLayout()
@@ -204,13 +186,11 @@ class SettingsDialog(QtWidgets.QDialog):
         self._min_dur_spin.setSuffix(" ms")
         dur_layout.addWidget(self._min_dur_spin)
 
-        dur_hint = QtWidgets.QLabel(
-            "（これより短い録音は誤動作として無視されます）"
-        )
+        dur_hint = QtWidgets.QLabel(self._tr("settings.min_dur_hint"))
         dur_hint.setProperty("secondary", "true")
         dur_layout.addWidget(dur_hint)
         dur_layout.addStretch()
-        form_layout.addRow("最低録音時間:", dur_layout)
+        form_layout.addRow(self._tr("settings.min_dur_label"), dur_layout)
 
         # ── 無音判定閾値 ──
         silence_layout = QtWidgets.QHBoxLayout()
@@ -220,13 +200,11 @@ class SettingsDialog(QtWidgets.QDialog):
         self._silence_spin.setSuffix(" /10000")
         silence_layout.addWidget(self._silence_spin)
 
-        silence_hint = QtWidgets.QLabel(
-            "（100=0.01、これ以下は無音として無視）"
-        )
+        silence_hint = QtWidgets.QLabel(self._tr("settings.silence_hint"))
         silence_hint.setProperty("secondary", "true")
         silence_layout.addWidget(silence_hint)
         silence_layout.addStretch()
-        form_layout.addRow("無音判定閾値:", silence_layout)
+        form_layout.addRow(self._tr("settings.silence_label"), silence_layout)
 
         main_layout.addWidget(form)
 
@@ -234,17 +212,17 @@ class SettingsDialog(QtWidgets.QDialog):
         btn_layout = QtWidgets.QHBoxLayout()
         btn_layout.setSpacing(8)
 
-        reset_btn = QtWidgets.QPushButton("デフォルトに戻す")
+        reset_btn = QtWidgets.QPushButton(self._tr("settings.reset_btn"))
         reset_btn.clicked.connect(self._reset_to_defaults)
         btn_layout.addWidget(reset_btn)
 
         btn_layout.addStretch()
 
-        cancel_btn = QtWidgets.QPushButton("キャンセル")
+        cancel_btn = QtWidgets.QPushButton(self._tr("settings.cancel_btn"))
         cancel_btn.clicked.connect(self.reject)
         btn_layout.addWidget(cancel_btn)
 
-        save_btn = QtWidgets.QPushButton("保存して適用")
+        save_btn = QtWidgets.QPushButton(self._tr("settings.save_btn"))
         save_btn.setProperty("primary", "true")
         save_btn.setDefault(True)
         save_btn.clicked.connect(self._save_and_apply)
