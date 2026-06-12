@@ -208,16 +208,16 @@ class KikitoriUIApp(QtWidgets.QApplication):
             self._tray.setIcon(icon)
 
     def _on_model_loaded(self):
-        """モデル読み込み完了時"""
-        print("[INFO] モデル読み込み完了", flush=True)
-        self._status_action.setText("○ 待機中（モデル読み込み完了）")
+        """音声認識の準備完了時"""
+        print("[INFO] 音声認識の準備完了", flush=True)
+        self._status_action.setText("○ 待機中")
         import threading
         threading.Thread(target=self._app.run, daemon=True).start()
 
     def _on_model_failed(self, message: str):
-        """モデル読み込み失敗時"""
-        print(f"[ERROR] モデル読み込み失敗: {message}", flush=True)
-        self._status_action.setText(f"❌ モデル読み込み失敗")
+        """音声認識の初期化失敗時"""
+        print(f"[ERROR] 音声認識の初期化に失敗しました: {message}", flush=True)
+        self._status_action.setText("❌ 音声認識の初期化失敗")
         import threading
         threading.Thread(target=self._app.run, daemon=True).start()
 

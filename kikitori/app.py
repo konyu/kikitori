@@ -102,9 +102,7 @@ class App:
             self._recorder.set_speech_analyzer(self._speech_analyzer)
             self._hotkey.set_speech_analyzer(self._speech_analyzer)
             self._hotkey.set_transcriber(self._transcriber)
-        print(f"[INFO] モデルを読み込み中: {self._model_name}", flush=True)
         self._transcriber.load()
-        print("[INFO] モデル読み込み完了", flush=True)
         self._corrections.load()
         print(f"[INFO] 校正辞書を読み込みました（{len(self._corrections.get_items())} 件）", flush=True)
 
