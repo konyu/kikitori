@@ -31,9 +31,9 @@ _LANGUAGES: dict[str, str] = {
     "Nederlands": "nl",
     "Polski": "pl",
     "Türkçe": "tr",
-    "العربية": "ar",
-    "हिन्दी": "hi",
-    "ภาษาไทย": "th",
+    "Arabic": "ar",
+    "Hindi": "hi",
+    "Thai": "th",
     "Tiếng Việt": "vi",
 }
 
