@@ -5,7 +5,7 @@ macOS 固有のユーティリティを提供する。
 """
 from pathlib import Path
 
-SETTINGS_PATH = Path.home() / ".kikitori_settings.yaml"
+SETTINGS_PATH = Path.home() / ".kikitori" / "settings.yaml"
 
 
 def load_settings() -> dict:
@@ -23,6 +23,7 @@ def save_settings(settings: dict) -> None:
     """設定辞書を YAML ファイルに保存する。"""
     import yaml
     try:
+        SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
         SETTINGS_PATH.write_text(
             yaml.dump(settings, allow_unicode=True, default_flow_style=False, sort_keys=False),
             encoding="utf-8",

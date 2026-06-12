@@ -1,4 +1,4 @@
-"""校正辞書管理（~/.kikitori_corrections.yaml）
+"""校正辞書管理（~/.kikitori/corrections.yaml）
 
 Whisper 音声認識結果に対し、ユーザー定義の「間違い→訂正」ペアを
 ケースインセンシティブかつ長いキー優先で適用する。
@@ -8,7 +8,7 @@ from pathlib import Path
 
 import yaml
 
-CORRECTIONS_PATH: Path = Path.home() / ".kikitori_corrections.yaml"
+CORRECTIONS_PATH: Path = Path.home() / ".kikitori" / "corrections.yaml"
 
 TEMPLATE = """# Kikitori 校正辞書
 # Whisper の音声認識結果に対し、以下の「間違い: 訂正」ペアを自動適用します。
@@ -22,7 +22,7 @@ use effect: useEffect
 class Corrections:
     """校正辞書を読み込み、STT 結果文字列に適用する。
 
-    path 引数でファイルパスを指定可能（デフォルト: ~/.kikitori_corrections.yaml）。
+    path 引数でファイルパスを指定可能（デフォルト: ~/.kikitori/corrections.yaml）。
     依存注入によるテストが容易な設計。
     """
 
@@ -99,6 +99,7 @@ class Corrections:
         """校正ペア辞書を YAML ファイルに保存し、内部状態も更新する。"""
         self._items = dict(items)
         try:
+            self._path.parent.mkdir(parents=True, exist_ok=True)
             self._path.write_text(
                 yaml.dump(
                     {"corrections": self._items},

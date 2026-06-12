@@ -35,11 +35,13 @@ class SpeechTranscriber:
         locale: str = "ja-JP",
         on_device: bool = True,
         request_auth: bool = True,
+        contextual_strings: list[str] | None = None,
     ):
         self._locale = locale
         self._on_device = on_device
         self._request_auth = request_auth
         self._recognizer = None
+        self._contextual_strings = contextual_strings or []
 
     def load(self) -> None:
         """音声認識の認可をリクエストし、認識エンジンを準備する。
@@ -158,6 +160,8 @@ class SpeechTranscriber:
 
         request.setRequiresOnDeviceRecognition_(self._on_device)
         request.setAddsPunctuation_(True)
+        if self._contextual_strings:
+            request.setContextualStrings_(self._contextual_strings)
         if _DBG: print(f"[DEBUG] transcribe: on_device={self._on_device}, locale={self._locale}", flush=True)
         request.appendAudioPCMBuffer_(buffer)
         request.endAudio()
@@ -231,9 +235,11 @@ class SpeechAnalyzer:
         self,
         locale: str = "ja-JP",
         on_device: bool = True,
+        contextual_strings: list[str] | None = None,
     ):
         self._locale = locale
         self._on_device = on_device
+        self._contextual_strings = contextual_strings or []
 
         # スレッド間通信用
         self._audio_queue: list[np.ndarray] = []
@@ -350,6 +356,8 @@ class SpeechAnalyzer:
 
         request.setRequiresOnDeviceRecognition_(self._on_device)
         request.setAddsPunctuation_(True)
+        if self._contextual_strings:
+            request.setContextualStrings_(self._contextual_strings)
 
         # 事前に AVAudioFormat を作成しておく
         fmt = AVAudioFormat.alloc().initStandardFormatWithSampleRate_channels_(

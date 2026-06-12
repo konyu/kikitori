@@ -62,11 +62,13 @@ class App:
         elif transcriber_type == "apple_speech":
             from kikitori.apple_speech import SpeechTranscriber, SpeechAnalyzer
 
+            terms = glossary.get_terms() if glossary else []
+
             self._transcriber = SpeechTranscriber(
-                locale=APPLE_SPEECH_LOCALE, on_device=APPLE_SPEECH_ON_DEVICE
+                locale=APPLE_SPEECH_LOCALE, on_device=APPLE_SPEECH_ON_DEVICE, contextual_strings=terms
             )
             self._speech_analyzer = SpeechAnalyzer(
-                locale=APPLE_SPEECH_LOCALE, on_device=APPLE_SPEECH_ON_DEVICE
+                locale=APPLE_SPEECH_LOCALE, on_device=APPLE_SPEECH_ON_DEVICE, contextual_strings=terms
             )
         else:
             self._transcriber = Transcriber(model_name)

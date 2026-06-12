@@ -35,4 +35,4 @@ BENCHMARK_MODE: bool = os.environ.get("BENCHMARK_MODE", "").lower() in ("true", 
 DEBUG: bool = os.environ.get("DEBUG", "").lower() in ("true", "1", "yes")
 
 # 専門用語集ファイルパス
-GLOSSARY_PATH: Path = Path.home() / ".kikitori_glossary.yaml"
+GLOSSARY_PATH: Path = Path.home() / ".kikitori" / "glossary.yaml"
