@@ -72,7 +72,7 @@ def _set_dock_icon():
 
 
 class _ModelLoader(QtCore.QThread):
-    """モデル読み込みをバックグラウンドで実行し、完了をシグナルで通知"""
+    """音声認識の初期化をバックグラウンドで実行し、完了をシグナルで通知"""
 
     loaded = QtCore.Signal()
     failed = QtCore.Signal(str)

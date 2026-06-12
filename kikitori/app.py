@@ -102,7 +102,11 @@ class App:
             self._recorder.set_speech_analyzer(self._speech_analyzer)
             self._hotkey.set_speech_analyzer(self._speech_analyzer)
             self._hotkey.set_transcriber(self._transcriber)
+        if self._transcriber_type != "apple_speech":
+            print(f"[INFO] モデルを読み込み中: {self._model_name}", flush=True)
         self._transcriber.load()
+        if self._transcriber_type != "apple_speech":
+            print("[INFO] モデル読み込み完了", flush=True)
         self._corrections.load()
         print(f"[INFO] 校正辞書を読み込みました（{len(self._corrections.get_items())} 件）", flush=True)
 
@@ -139,7 +143,7 @@ class App:
         print("=" * 50)
         print("Kikitori")
         print("=" * 50)
-        print(f"モデル: {self._model_name}")
+        print(f"音声認識: {'Apple Speech' if self._transcriber_type == 'apple_speech' else 'Whisper (' + self._model_name + ')'}")
         print(f"サンプリングレート: {self._sample_rate} Hz")
         print(f"ホットキー: {' + '.join(self._hotkey_config)} (押下中録音 / 解放で出力)")
         print("=" * 50)
