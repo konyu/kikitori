@@ -59,13 +59,12 @@ class CorrectionsDialog(QtWidgets.QDialog):
     保存時に YAML 書き込み → Corrections 再読み込み → 即時反映。
     """
 
-    def __init__(self, corrections: Corrections, on_reload=None, parent=None):
+    def __init__(self, corrections: Corrections, parent=None):
         super().__init__(parent)
 
         self._corrections = corrections
         self._items: dict[str, str] = dict(corrections.get_items())
         self._edited = False
-        self._on_reload = on_reload
 
         self.setWindowTitle("校正辞書設定")
         self.setMinimumWidth(520)
@@ -247,10 +246,6 @@ class CorrectionsDialog(QtWidgets.QDialog):
             if DEBUG: print("[DEBUG] _save_and_apply: calling save_items", flush=True, file=sys.stderr)
             self._corrections.save_items(self._items)
             if DEBUG: print("[DEBUG] _save_and_apply: save_items OK", flush=True, file=sys.stderr)
-            if self._on_reload:
-                if DEBUG: print("[DEBUG] _save_and_apply: calling on_reload", flush=True, file=sys.stderr)
-                self._on_reload()
-                if DEBUG: print("[DEBUG] _save_and_apply: on_reload OK", flush=True, file=sys.stderr)
             if DEBUG: print("[DEBUG] _save_and_apply: calling accept", flush=True, file=sys.stderr)
             self.accept()
             if DEBUG: print("[DEBUG] _save_and_apply: accept OK", flush=True, file=sys.stderr)

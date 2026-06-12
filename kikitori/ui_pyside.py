@@ -172,13 +172,6 @@ class KikitoriUIApp(QtWidgets.QApplication):
         self._loader.failed.connect(self._on_model_failed)
         self._loader.start()
 
-        # Settings / glossary file watchers
-        self._settings_mtime = None
-        self._glossary_mtime = None
-        self._check_timer = QtCore.QTimer(self)
-        self._check_timer.timeout.connect(self._check_settings_change)
-        self._check_timer.start(1000)
-
         # Recording state
         self._recording = False
         self._waveform_timer = QtCore.QTimer(self)
@@ -336,7 +329,7 @@ class KikitoriUIApp(QtWidgets.QApplication):
 
     def _open_glossary_dialog(self):
         """キーワード管理ダイアログを開く。"""
-        self._dialog = GlossaryDialog(self._glossary, on_reload=self._reload_glossary)
+        self._dialog = GlossaryDialog(self._glossary)
         result = self._dialog.exec()
         if result == QtWidgets.QDialog.DialogCode.Accepted:
             self._reload_glossary()
@@ -352,7 +345,7 @@ class KikitoriUIApp(QtWidgets.QApplication):
 
     def _open_corrections_dialog(self):
         """校正辞書管理ダイアログを開く。"""
-        self._dialog = CorrectionsDialog(self._corrections, on_reload=self._reload_corrections)
+        self._dialog = CorrectionsDialog(self._corrections)
         result = self._dialog.exec()
         if result == QtWidgets.QDialog.DialogCode.Accepted:
             self._reload_corrections()
@@ -363,32 +356,6 @@ class KikitoriUIApp(QtWidgets.QApplication):
         self._corrections.load()
         corr_count = len(self._corrections.get_items())
         print(f"[INFO] 校正辞書を再読み込みしました: {corr_count}件", flush=True)
-
-    def _check_settings_change(self):
-        """設定ファイルと用語集ファイルの変更を監視する。"""
-        # 設定ファイルの変更検知
-        if SETTINGS_PATH.exists():
-            try:
-                mtime = SETTINGS_PATH.stat().st_mtime
-                if self._settings_mtime is None:
-                    self._settings_mtime = mtime
-                elif mtime != self._settings_mtime:
-                    self._settings_mtime = mtime
-                    self._reload_settings()
-            except Exception:
-                pass
-
-        # 用語集ファイルの変更検知
-        if GLOSSARY_PATH.exists():
-            try:
-                mtime = GLOSSARY_PATH.stat().st_mtime
-                if self._glossary_mtime is None:
-                    self._glossary_mtime = mtime
-                elif mtime != self._glossary_mtime:
-                    self._glossary_mtime = mtime
-                    self._reload_glossary()
-            except Exception:
-                pass
 
     def _reload_settings(self):
         try:
