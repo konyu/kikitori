@@ -2,6 +2,9 @@
 import os
 from pathlib import Path
 
+# バージョン
+VERSION: str = "0.4"
+
 # 音声設定
 SAMPLE_RATE: int = 16000
 CHANNELS: int = 1
