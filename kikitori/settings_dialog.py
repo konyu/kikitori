@@ -10,7 +10,6 @@ from kikitori.config import (
     DEFAULT_HOTKEY,
     DEFAULT_LANGUAGE,
     MIN_DURATION_MS,
-    MODEL_NAME,
     SILENCE_RMS_THRESHOLD,
 )
 from kikitori.theme import apply_dialog_theme

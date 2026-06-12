@@ -8,10 +8,8 @@ from kikitori.config import (
     CHANNELS,
     DEFAULT_HOTKEY,
     DEFAULT_LANGUAGE,
-    DEFAULT_TRANSCRIBER_TYPE,
     MAX_DURATION,
     MIN_DURATION_MS,
-    MODEL_NAME,
     SAMPLE_RATE,
     SILENCE_RMS_THRESHOLD,
 )
@@ -20,13 +18,11 @@ from kikitori.glossary import Glossary
 from kikitori.hotkey_manager import HotkeyManager
 from kikitori.injector import Injector
 from kikitori.recorder import Recorder
-from kikitori.transcriber import Transcriber
 
 
 class App:
     def __init__(
         self,
-        model_name: str = MODEL_NAME,
         sample_rate: int = SAMPLE_RATE,
         channels: int = CHANNELS,
         language: str = DEFAULT_LANGUAGE,
@@ -37,10 +33,7 @@ class App:
         glossary: "Glossary | None" = None,
         corrections: "Corrections | None" = None,
         silence_rms_threshold: float = SILENCE_RMS_THRESHOLD,
-        transcriber_type: str = DEFAULT_TRANSCRIBER_TYPE,
-        transcriber: object | None = None,
     ):
-        self._model_name = model_name
         self._sample_rate = sample_rate
         self._channels = channels
         self._language = language
@@ -52,17 +45,9 @@ class App:
 
         self._buffer = AudioBuffer()
 
-        # apple_speech 使用時はストリーミング認識用 SpeechAnalyzer を作成
+        # Apple Speech 使用時はストリーミング認識用 SpeechAnalyzer を load() で作成
         self._speech_analyzer = None
-        self._transcriber_type = transcriber_type
         self._glossary_ref = glossary
-        if transcriber is not None:
-            self._transcriber = transcriber
-        elif transcriber_type == "apple_speech":
-            # apple_speech インポートは load() まで遅延（~108ms 節約）
-            self._transcriber = None
-        else:
-            self._transcriber = Transcriber(model_name)
 
         self._recorder = Recorder(
             self._buffer, sample_rate, channels,
@@ -71,7 +56,6 @@ class App:
         self._injector = Injector()
         self._hotkey = HotkeyManager(
             self._recorder,
-            self._transcriber,
             self._injector,
             language=language,
             max_duration=max_duration,
@@ -87,26 +71,15 @@ class App:
         self._listener_thread = None
 
     def load(self):
-        import sys
-        if self._transcriber_type == "apple_speech" and self._transcriber is None:
-            from kikitori.apple_speech import SpeechTranscriber, SpeechAnalyzer
-            terms = self._glossary_ref.get_terms() if self._glossary_ref else []
-            self._transcriber = SpeechTranscriber(
-                locale=APPLE_SPEECH_LOCALE, on_device=APPLE_SPEECH_ON_DEVICE,
-                contextual_strings=terms,
-            )
-            self._speech_analyzer = SpeechAnalyzer(
-                locale=APPLE_SPEECH_LOCALE, on_device=APPLE_SPEECH_ON_DEVICE,
-                contextual_strings=terms,
-            )
-            self._recorder.set_speech_analyzer(self._speech_analyzer)
-            self._hotkey.set_speech_analyzer(self._speech_analyzer)
-            self._hotkey.set_transcriber(self._transcriber)
-        if self._transcriber_type != "apple_speech":
-            print(f"[INFO] モデルを読み込み中: {self._model_name}", flush=True)
-        self._transcriber.load()
-        if self._transcriber_type != "apple_speech":
-            print("[INFO] モデル読み込み完了", flush=True)
+        from kikitori.apple_speech import SpeechAnalyzer
+        terms = self._glossary_ref.get_terms() if self._glossary_ref else []
+        self._speech_analyzer = SpeechAnalyzer(
+            locale=APPLE_SPEECH_LOCALE, on_device=APPLE_SPEECH_ON_DEVICE,
+            contextual_strings=terms,
+        )
+        self._recorder.set_speech_analyzer(self._speech_analyzer)
+        self._hotkey.set_speech_analyzer(self._speech_analyzer)
+        self._speech_analyzer.load()
         self._corrections.load()
         print(f"[INFO] 校正辞書を読み込みました（{len(self._corrections.get_items())} 件）", flush=True)
 
@@ -143,7 +116,7 @@ class App:
         print("=" * 50)
         print("Kikitori")
         print("=" * 50)
-        print(f"音声認識: {'Apple Speech' if self._transcriber_type == 'apple_speech' else 'Whisper (' + self._model_name + ')'}")
+        print(f"音声認識: Apple Speech")
         print(f"サンプリングレート: {self._sample_rate} Hz")
         print(f"ホットキー: {' + '.join(self._hotkey_config)} (押下中録音 / 解放で出力)")
         print("=" * 50)
@@ -165,4 +138,3 @@ class App:
                     NSDate.dateWithTimeIntervalSinceNow_(0.05),
                 )
             listener.join()
-

@@ -26,8 +26,7 @@ except ImportError:
 class SpeechTranscriber:
     """Apple Speech Framework を使ったバッチ音声認識クラス。
 
-    既存の ``Transcriber`` とダックタイピング互換。
-    ``transcribe(audio, prompt="", language="ja") -> str`` インターフェースを提供する。
+    ``transcribe(audio, language="ja") -> str`` インターフェースを提供する。
     """
 
     def __init__(
@@ -254,6 +253,26 @@ class SpeechAnalyzer:
         self.on_partial_result: Callable[[str], None] | None = None
         self.on_final_result: Callable[[str], None] | None = None
         self.on_error: Callable[[str], None] | None = None
+
+    def load(self) -> None:
+        """音声認識の認可をリクエストする。
+
+        初回実行時は macOS の音声認識権限ダイアログが表示される可能性がある。
+        """
+        if SFSpeechRecognizer is None:
+            raise RuntimeError("Apple Speech Framework (PyObjC) が利用できません。")
+
+        # SFSpeechRecognizer のインスタンス化で認可がトリガーされる
+        recognizer = SFSpeechRecognizer.alloc().initWithLocale_(
+            NSLocale.localeWithLocaleIdentifier_(self._locale)
+        )
+        if recognizer is None:
+            raise RuntimeError(
+                f"SFSpeechRecognizer の作成に失敗しました（locale={self._locale}）。"
+                "macOS 14.0 以上が必要です。"
+            )
+        # 認可チェックだけなので破棄してよい
+        del recognizer
 
     def start(self) -> None:
         """音声認識スレッドを開始する。

@@ -1,4 +1,5 @@
-mlx-whisper
+# Kikitori 依存関係
+# Apple Speech Framework 使用（mlx-whisper 不要）
 sounddevice
 numpy
 pynput

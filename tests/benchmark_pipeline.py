@@ -118,7 +118,7 @@ def run_benchmark(iterations: int = 100) -> dict:
         rec.speech_analyzer = speech_analyzer
         inj = FakeInjector()
         mgr = HotkeyManager(
-            rec, None, inj,  # transcriber not used (streaming)
+            rec, inj,
             hotkey=DEFAULT_TEST_HOTKEY,
             speech_analyzer=speech_analyzer,
             **TEST_KWARGS,

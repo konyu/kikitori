@@ -23,9 +23,7 @@ def _restore_to_kana():
     from kikitori.input_source import restore_to_kana as _fn
     return _fn()
 from kikitori.recorder import Recorder, RecordError
-from kikitori.transcriber import Transcriber
 from kikitori.settings import get_frontmost_pid, activate_app_by_pid
-
 
 # pynput.keyboard は遅延インポート（import に ~62ms かかるため）
 _KEY_MAP_CACHE: dict[str, list] | None = None
@@ -48,7 +46,6 @@ def _get_key_map() -> dict[str, list]:
     if _KEY_MAP_CACHE is None:
         _KEY_MAP_CACHE = _build_key_map()
     return _KEY_MAP_CACHE
-
 
 def resolve_hotkey(names: list[str]) -> list[list]:
     """キー名のリストを、各名前に対応する Key オブジェクトのグループに変換する。"""
@@ -76,7 +73,6 @@ def resolve_hotkey(names: list[str]) -> list[list]:
                 raise ValueError(f"未知のホットキー名です: {name}") from exc
     return groups
 
-
 def _key_id(key):
     """キーをハッシュ可能な ID に変換（KeyCode の比較を安定化）。
 
@@ -90,12 +86,10 @@ def _key_id(key):
             return ("char", key.char.lower())
     return key
 
-
 class HotkeyManager:
     def __init__(
         self,
         recorder: Recorder,
-        transcriber: Transcriber,
         injector: Injector,
         language: str = DEFAULT_LANGUAGE,
         max_duration: float = MAX_DURATION,
@@ -109,7 +103,6 @@ class HotkeyManager:
         speech_analyzer: object | None = None,
     ):
         self._recorder = recorder
-        self._transcriber = transcriber
         self._injector = injector
         self._language = language
         self._max_duration = max_duration
@@ -141,10 +134,6 @@ class HotkeyManager:
     def set_speech_analyzer(self, speech_analyzer: object | None) -> None:
         """ストリーミング認識用のSpeechAnalyzerを後から設定する。"""
         self._speech_analyzer = speech_analyzer
-
-    def set_transcriber(self, transcriber: object) -> None:
-        """バッチ認識用のTranscriberを後から設定する。"""
-        self._transcriber = transcriber
 
     # ── タイマー ────────────────────────────────────────────────────────
 
@@ -206,12 +195,12 @@ class HotkeyManager:
         if audio.size < self._min_duration_samples:
             duration_ms = audio.size / SAMPLE_RATE * 1000
             min_ms = self._min_duration_samples / SAMPLE_RATE * 1000
-            print(f"[INFO] 録音が短すぎます（{duration_ms:.0f}ms < {min_ms:.0f}ms） — Whisperに渡しません")
+            print(f"[INFO] 録音が短すぎます（{duration_ms:.0f}ms < {min_ms:.0f}ms） — 認識しません")
             return False
         rms = float(np.sqrt(np.dot(audio, audio) / audio.size))
         if DEBUG: print(f"[DEBUG] _should_transcribe: rms={rms:.6f} threshold={self._silence_rms_threshold}", flush=True)
         if rms < self._silence_rms_threshold:
-            print(f"[INFO] 無音と判定されました（RMS={rms:.4f} < {self._silence_rms_threshold}） — Whisperに渡しません")
+            print(f"[INFO] 無音と判定されました（RMS={rms:.4f} < {self._silence_rms_threshold}） — 認識しません")
             if DEBUG: print("[DEBUG] _should_transcribe → False (silence)", flush=True)
             return False
         if DEBUG: print("[DEBUG] _should_transcribe → True", flush=True)
@@ -392,9 +381,6 @@ class HotkeyManager:
                 self._saved_input_source = False
             return
 
-        # activate_app_by_pid は呼び出し元（stop_recording/on_release）で
-        # speech_analyzer.stop() より先に実行済み。
-
         # ストリーミング認識の結果を取得
         text = ""
         if self._speech_analyzer is not None:
@@ -405,14 +391,7 @@ class HotkeyManager:
             while _time.perf_counter() < deadline and not self._speech_analyzer.is_final():
                 _time.sleep(0.01)
             text = self._speech_analyzer.get_latest_text()
-            if DEBUG: print(f"[DEBUG] _transcribe_and_inject: streaming_text='{text}' (len={len(text)})", flush=True)
-
-        # ストリーミング結果がなければバッチ認識にフォールバック
-        if not text:
-            text = self._transcriber.transcribe(
-                audio, language=self._language
-            )
-            if DEBUG: print(f"[DEBUG] _transcribe_and_inject: batch_text='{text}' (len={len(text)})", flush=True)
+            if DEBUG: print(f"[DEBUG] _transcribe_and_inject: text='{text}' (len={len(text)})", flush=True)
 
         if self._corrections is not None:
             text = self._corrections.correct(text)
@@ -439,8 +418,5 @@ class HotkeyManager:
         if BENCHMARK_MODE:
             print(f"[BENCH] pipeline: transcribe={(t1-t0)*1000:.1f}ms "
                   f"inject={(t2-t1)*1000:.1f}ms "
-                  f"total={(t2-t0)*1000:.1f}ms "
-                  f"stream={'yes' if self._speech_analyzer is not None else 'no'}",
+                  f"total={(t2-t0)*1000:.1f}ms",
                   flush=True)
-
-    # ── プロンプト生成 ───────────────────────────────────────────────

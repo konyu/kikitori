@@ -7,7 +7,6 @@ from kikitori.hotkey_manager import HotkeyManager
 from kikitori.injector import Injector
 from kikitori.recorder import Recorder
 
-
 class FakeListener:
     def __init__(self, on_press=None, on_release=None):
         self.on_press = on_press
@@ -35,22 +34,9 @@ class FakeListener:
     def stop(self):
         self.stopped = True
 
-
-class FakeTranscriberForApp:
-    def __init__(self):
-        self.loaded = False
-
-    def load(self):
-        self.loaded = True
-
-    def transcribe(self, audio, prompt="", language="ja"):
-        return "認識結果"
-
-
 class TestApp:
     def test_app_initializes_components(self):
-        app = App(model_name="test-model")
-        assert app._model_name == "test-model"
+        app = App()
         assert app._sample_rate == 16000
         assert app._buffer is not None
         assert app._recorder is not None
@@ -58,11 +44,10 @@ class TestApp:
         assert app._hotkey is not None
 
     def test_app_loads_model(self):
-        trans = FakeTranscriberForApp()
+        """load() が SpeechAnalyzer を初期化する"""
         app = App()
-        app._transcriber = trans
         app.load()
-        assert trans.loaded
+        assert app._speech_analyzer is not None
 
     def test_app_runs_listener(self):
         listener = FakeListener()
@@ -99,7 +84,6 @@ class TestApp:
     def test_app_accepts_config_params(self):
         """すべての設定パラメータが App に受け入れられる"""
         app = App(
-            model_name="custom-model",
             sample_rate=44100,
             channels=2,
             language="en",
@@ -107,7 +91,6 @@ class TestApp:
             min_duration_ms=1000.0,
             hotkey=["shift"],
         )
-        assert app._model_name == "custom-model"
         assert app._sample_rate == 44100
         assert app._channels == 2
         assert app._language == "en"
@@ -133,7 +116,6 @@ class TestApp:
 
         # HotkeyManager が正しい依存を受け取っている
         assert app._hotkey._recorder is app._recorder
-        assert app._hotkey._transcriber is app._transcriber
         assert app._hotkey._injector is app._injector
 
         # Recorder が AudioBuffer を共有している
@@ -155,9 +137,8 @@ class TestApp:
         """FakeListener 経由でホットキーイベントをシミュレート"""
         buf = AudioBuffer()
         rec = Recorder(buf, stream_factory=lambda *, callback: None)
-        trans = FakeTranscriberForApp()
         inj = Injector()
-        mgr = HotkeyManager(rec, trans, inj)
+        mgr = HotkeyManager(rec, inj)
 
         listener = FakeListener(on_press=mgr.on_press, on_release=mgr.on_release)
 
@@ -166,8 +147,8 @@ class TestApp:
         listener.on_press(Key.alt)
         listener.on_release(Key.alt)
 
-        # App.run は join でブロックするので、ここでは単体で検証
-        assert trans.loaded is False  # このテストでは load していない
+        # 例外なく完了すればOK
+        assert True
 
     def test_app_accepts_glossary_param(self):
         """glossary パラメータが App に受け入れられ HotkeyManager に渡される。"""
@@ -180,7 +161,6 @@ class TestApp:
         """glossary 未指定時は None で HotkeyManager に渡される。"""
         app = App()
         assert app._hotkey._glossary is None
-
 
 class TestAppRunWithDI:
     """依存注入を使った App.run のテスト"""

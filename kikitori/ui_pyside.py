@@ -14,7 +14,6 @@ from kikitori.config import (
     DEFAULT_HOTKEY,
     DEFAULT_LANGUAGE,
     MIN_DURATION_MS,
-    MODEL_NAME,
     SILENCE_RMS_THRESHOLD,
 )
 from kikitori.corrections import CORRECTIONS_PATH, Corrections
