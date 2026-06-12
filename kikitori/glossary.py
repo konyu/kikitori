@@ -5,8 +5,6 @@ Whisper 音声認識の initial_prompt に専門用語を追記し、
 """
 from pathlib import Path
 
-import yaml
-
 GLOSSARY_PATH: Path = Path.home() / ".kikitori" / "glossary.yaml"
 
 TEMPLATE = """# Kikitori 用語集
@@ -44,6 +42,7 @@ class Glossary:
             return
 
         try:
+            import yaml
             data = yaml.safe_load(self._path.read_text(encoding="utf-8"))
         except Exception as e:
             import sys

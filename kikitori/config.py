@@ -2,15 +2,16 @@
 import os
 from pathlib import Path
 
-import numpy as np
-
 # 音声設定
 SAMPLE_RATE: int = 16000
 CHANNELS: int = 1
-AUDIO_DTYPE = np.float32
+AUDIO_DTYPE = "float32"
 
 # 音声認識設定
 DEFAULT_LANGUAGE: str = "ja"
+
+# UI 言語設定（None = OS から自動検出、"ja"=日本語、"en"=英語）
+DEFAULT_UI_LANGUAGE: str | None = None
 
 # 録音設定
 MAX_DURATION: float = 60.0  # 秒

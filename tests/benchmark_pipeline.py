@@ -39,6 +39,9 @@ class FakeSpeechAnalyzer:
     def is_final(self) -> bool:
         return True
 
+    def wait_for_final(self, timeout: float | None = None) -> bool:
+        return True
+
     @property
     def started(self) -> bool:
         return self._started
@@ -135,6 +138,12 @@ def run_benchmark(iterations: int = 100) -> dict:
 
         elapsed_ms = (t1 - t0) * 1000
         times.append(elapsed_ms)
+
+        # Verify pipeline actually produced output (honest benchmark)
+        assert len(inj.injected) == 1, \
+            f"Pipeline failed: expected 1 injection, got {len(inj.injected)} on iteration {len(times)}"
+        assert inj.injected[0] == "benchmark output", \
+            f"Wrong text injected: {inj.injected[0]}"
 
     times.sort()
     n = len(times)

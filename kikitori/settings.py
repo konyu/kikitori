@@ -5,8 +5,9 @@ macOS 固有のユーティリティを提供する。
 """
 from pathlib import Path
 
-SETTINGS_PATH = Path.home() / ".kikitori" / "settings.yaml"
+from kikitori.config import DEFAULT_UI_LANGUAGE
 
+SETTINGS_PATH = Path.home() / ".kikitori" / "settings.yaml"
 
 def load_settings() -> dict:
     """設定ファイルを読み込んで辞書で返す。存在しない場合は空辞書。"""
@@ -17,7 +18,6 @@ def load_settings() -> dict:
         except Exception:
             pass
     return {}
-
 
 def save_settings(settings: dict) -> None:
     """設定辞書を YAML ファイルに保存する。"""
@@ -31,7 +31,6 @@ def save_settings(settings: dict) -> None:
     except Exception:
         pass
 
-
 def reset_settings() -> None:
     """設定ファイルを削除してデフォルト値に戻す。"""
     try:
@@ -40,6 +39,41 @@ def reset_settings() -> None:
     except Exception:
         pass
 
+def detect_os_language(locale_getter=None) -> str:
+    """OS の優先言語から UI 言語を判定する。
+
+    macOS の NSLocale.preferredLanguages() の先頭要素をチェックし、
+    日本語なら "ja"、それ以外は "en" を返す。
+    取得に失敗した場合も "en" を返す。
+
+    locale_getter: テスト用の依存注入。指定があれば NSLocale の代わりに使う。
+    """
+    try:
+        if locale_getter is not None:
+            langs = locale_getter()
+        else:
+            from Foundation import NSLocale
+            langs = NSLocale.preferredLanguages()
+        if langs and len(langs) > 0:
+            first = str(langs[0])
+            return "ja" if first.startswith("ja") else "en"
+    except Exception:
+        pass
+    return "en"
+
+def get_ui_language(settings: dict | None = None) -> str:
+    """UI 言語を解決する。
+
+    1. 設定ファイルの ui_language キー
+    2. OS の言語設定から自動検出
+    3. フォールバック "en"
+    の優先順位で解決する。
+    """
+    if settings and settings.get("ui_language"):
+        return settings["ui_language"]
+    if DEFAULT_UI_LANGUAGE:
+        return DEFAULT_UI_LANGUAGE
+    return detect_os_language()
 
 def get_frontmost_pid() -> int | None:
     """現在フォーカスされているアプリケーションの PID を取得する。
@@ -52,7 +86,6 @@ def get_frontmost_pid() -> int | None:
         return int(app.processIdentifier())
     except Exception:
         return None
-
 
 def activate_app_by_pid(pid: int) -> bool:
     """指定した PID のアプリケーションをアクティブにする。

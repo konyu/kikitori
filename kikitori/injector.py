@@ -1,8 +1,6 @@
 """クリップボード経由テキスト入力"""
 import threading
 
-import pyperclip
-
 from kikitori.config import BENCHMARK_MODE, DEBUG
 
 class Injector:
@@ -17,7 +15,11 @@ class Injector:
         else:
             from pynput.keyboard import Controller
             self._controller = Controller()
-        self._clipboard = clipboard or pyperclip
+        if clipboard is not None:
+            self._clipboard = clipboard
+        else:
+            import pyperclip
+            self._clipboard = pyperclip
         self._restore_generation = 0
         self._restore_lock = threading.Lock()
         self._pending_original = ""

@@ -1,16 +1,24 @@
 """スレッドセーフな録音バッファ管理"""
 import threading
 
-import numpy as np
-
 from kikitori.config import AUDIO_DTYPE, MAX_DURATION, SAMPLE_RATE
 
+# 遅延 numpy import（初回の AudioBuffer インスタンス化時に C 拡張をロード）
+_np = None
+
+def _get_np():
+    global _np
+    if _np is None:
+        import numpy as np
+        _np = np
+    return _np
 
 class AudioBuffer:
     # Pre-allocate enough for max recording duration to avoid repeated allocations
     _MAX_SAMPLES = int(MAX_DURATION * SAMPLE_RATE)
 
     def __init__(self):
+        np = _get_np()
         self._recording = False
         self._pos = 0
         self._buf = np.zeros(self._MAX_SAMPLES, dtype=AUDIO_DTYPE)
@@ -25,7 +33,8 @@ class AudioBuffer:
             self._recording = True
             self._pos = 0
 
-    def append(self, data: np.ndarray):
+    def append(self, data):
+        np = _get_np()
         with self._lock:
             if not self._recording:
                 return
@@ -41,7 +50,8 @@ class AudioBuffer:
                     self._buf[self._pos:end] = data[:n].astype(AUDIO_DTYPE)
                 self._pos = end
 
-    def stop(self) -> np.ndarray:
+    def stop(self):
+        np = _get_np()
         with self._lock:
             self._recording = False
             if self._pos == 0:
@@ -53,19 +63,21 @@ class AudioBuffer:
 
     def get_rms(self) -> float:
         """録音データの RMS（実効値）を返す。無音判定用。"""
+        np = _get_np()
         with self._lock:
             if self._pos == 0:
                 return 0.0
             chunk = self._buf[:self._pos]
             return float(np.sqrt(np.dot(chunk, chunk) / chunk.size))
 
-    def get_recent_amplitudes(self, n_bars: int = 30, window_ms: float = 50.0) -> np.ndarray:
+    def get_recent_amplitudes(self, n_bars: int = 30, window_ms: float = 50.0):
         """直近の音声振幅を n_bars 個分取得する。UI 波形表示用。"""
+        np = _get_np()
         with self._lock:
             if self._pos == 0:
-                return np.zeros(n_bars, dtype=np.float32)
+                return np.zeros(n_bars, dtype=AUDIO_DTYPE)
             samples_per_bar = max(1, int(window_ms / 1000 * SAMPLE_RATE))
-            amplitudes = np.zeros(n_bars, dtype=np.float32)
+            amplitudes = np.zeros(n_bars, dtype=AUDIO_DTYPE)
             for i in range(n_bars):
                 end = self._pos - i * samples_per_bar
                 start = max(0, end - samples_per_bar)

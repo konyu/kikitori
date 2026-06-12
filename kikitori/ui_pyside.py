@@ -25,6 +25,7 @@ from kikitori.settings import (
     SETTINGS_PATH,
     activate_app_by_pid,
     get_frontmost_pid,
+    get_ui_language,
     load_settings,
     save_settings,
 )
@@ -105,6 +106,7 @@ class KikitoriUIApp(QtWidgets.QApplication):
         self._hotkey = self._settings.get("hotkey", DEFAULT_HOTKEY)
         self._min_duration_ms = self._settings.get("min_duration_ms", MIN_DURATION_MS)
         self._silence_rms_threshold = self._settings.get("silence_rms_threshold", SILENCE_RMS_THRESHOLD)
+        self._ui_language = get_ui_language(self._settings)
 
         # Glossary（load() は先に必要 — get_terms() が App.load() で使われる）
         self._glossary = Glossary()
@@ -291,6 +293,7 @@ class KikitoriUIApp(QtWidgets.QApplication):
         self._hotkey = settings.get("hotkey", self._hotkey)
         self._min_duration_ms = settings.get("min_duration_ms", self._min_duration_ms)
         self._silence_rms_threshold = settings.get("silence_rms_threshold", self._silence_rms_threshold)
+        self._ui_language = settings.get("ui_language", self._ui_language)
 
         # 内部状態に即時反映
         self._app._language = self._language
@@ -304,6 +307,7 @@ class KikitoriUIApp(QtWidgets.QApplication):
         # 設定ファイルに保存（内部キャッシュも更新）
         self._settings = {
             "language": self._language,
+            "ui_language": self._ui_language,
             "hotkey": self._hotkey,
             "min_duration_ms": self._min_duration_ms,
             "silence_rms_threshold": self._silence_rms_threshold,
@@ -361,16 +365,19 @@ class KikitoriUIApp(QtWidgets.QApplication):
             new_hotkey = list(DEFAULT_HOTKEY)
             new_min_dur = MIN_DURATION_MS
             new_silence = SILENCE_RMS_THRESHOLD
+            new_ui_lang = get_ui_language({})
         else:
             new_lang = settings.get("language", self._language)
             new_hotkey = settings.get("hotkey", self._hotkey)
             new_min_dur = settings.get("min_duration_ms", self._min_duration_ms)
             new_silence = settings.get("silence_rms_threshold", self._silence_rms_threshold)
+            new_ui_lang = settings.get("ui_language", self._ui_language)
 
         self._language = new_lang
         self._hotkey = new_hotkey
         self._min_duration_ms = new_min_dur
         self._silence_rms_threshold = new_silence
+        self._ui_language = new_ui_lang
 
         self._app._language = new_lang
         self._app._hotkey._language = new_lang

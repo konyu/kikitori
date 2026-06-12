@@ -1,8 +1,6 @@
 """ホットキー状態管理（設定ファイルで変更可能）"""
 import threading
 
-import numpy as np
-
 from kikitori.config import (
     BENCHMARK_MODE,
     DEBUG,
@@ -184,7 +182,6 @@ class HotkeyManager:
 
     def _should_transcribe(self, audio) -> bool:
         """録音が最低長を満たし、無音でなければTrue。短すぎるか無音の場合はFalseを返しログ出力。"""
-        import sys
         if DEBUG:
             print(f"[DEBUG] _should_transcribe: audio.size={audio.size} "
                   f"dtype={audio.dtype} ndim={audio.ndim}", flush=True)
@@ -197,12 +194,15 @@ class HotkeyManager:
             min_ms = self._min_duration_samples / SAMPLE_RATE * 1000
             print(f"[INFO] 録音が短すぎます（{duration_ms:.0f}ms < {min_ms:.0f}ms） — 認識しません")
             return False
-        rms = float(np.sqrt(np.dot(audio, audio) / audio.size))
-        if DEBUG: print(f"[DEBUG] _should_transcribe: rms={rms:.6f} threshold={self._silence_rms_threshold}", flush=True)
-        if rms < self._silence_rms_threshold:
-            print(f"[INFO] 無音と判定されました（RMS={rms:.4f} < {self._silence_rms_threshold}） — 認識しません")
-            if DEBUG: print("[DEBUG] _should_transcribe → False (silence)", flush=True)
-            return False
+        # silence_rms_threshold <= 0 の場合は無音チェックを無効化（ユーザー設定）
+        if self._silence_rms_threshold > 0:
+            import numpy as np
+            rms = float(np.sqrt(np.dot(audio, audio) / audio.size))
+            if DEBUG: print(f"[DEBUG] _should_transcribe: rms={rms:.6f} threshold={self._silence_rms_threshold}", flush=True)
+            if rms < self._silence_rms_threshold:
+                print(f"[INFO] 無音と判定されました（RMS={rms:.4f} < {self._silence_rms_threshold}） — 認識しません")
+                if DEBUG: print("[DEBUG] _should_transcribe → False (silence)", flush=True)
+                return False
         if DEBUG: print("[DEBUG] _should_transcribe → True", flush=True)
         return True
 
@@ -384,12 +384,8 @@ class HotkeyManager:
         # ストリーミング認識の結果を取得
         text = ""
         if self._speech_analyzer is not None:
-            # 最終認識結果が得られるまで待つ（speech_analyzer.stop() 後、
-            # バックグラウンドの daemon スレッドが endAudio → 最終結果受信までに
-            # 最大 ~200ms かかるため）
-            deadline = _time.perf_counter() + 0.4
-            while _time.perf_counter() < deadline and not self._speech_analyzer.is_final():
-                _time.sleep(0.01)
+            # wait_for_final: 最終認識結果が来るまでスレッドをブロックせず待機
+            self._speech_analyzer.wait_for_final(timeout=0.25)
             text = self._speech_analyzer.get_latest_text()
             if DEBUG: print(f"[DEBUG] _transcribe_and_inject: text='{text}' (len={len(text)})", flush=True)
 

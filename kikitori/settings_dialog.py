@@ -1,6 +1,6 @@
 """設定編集ダイアログ（PySide6）
 
-言語、プロンプト、ホットキー、最低録音時間、モデル名を
+言語、UI表示言語、ホットキー、最低録音時間、無音判定閾値を
 GUI 上で編集・保存し、即時反映する。
 """
 
@@ -12,9 +12,10 @@ from kikitori.config import (
     MIN_DURATION_MS,
     SILENCE_RMS_THRESHOLD,
 )
+from kikitori.settings import detect_os_language
 from kikitori.theme import apply_dialog_theme
 
-# Whisper がサポートする主要言語コード（表示名 → コード）
+# 音声認識用の言語コード（表示名 → コード）
 _LANGUAGES: dict[str, str] = {
     "日本語": "ja",
     "English": "en",
@@ -36,6 +37,11 @@ _LANGUAGES: dict[str, str] = {
     "Tiếng Việt": "vi",
 }
 
+# UI 表示言語（表示名 → コード）
+_UI_LANGUAGES: dict[str, str] = {
+    "日本語": "ja",
+    "English": "en",
+}
 
 class HotkeyEditor(QtWidgets.QWidget):
     """ホットキー設定用の複合ウィジェット。
@@ -172,12 +178,19 @@ class SettingsDialog(QtWidgets.QDialog):
             QtWidgets.QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow
         )
 
-        # ── 言語 ──
+        # ── 言語（音声認識） ──
         self._lang_combo = QtWidgets.QComboBox()
         self._lang_combo.setEditable(False)
         for display, code in _LANGUAGES.items():
             self._lang_combo.addItem(f"{display} ({code})", code)
-        form_layout.addRow("言語:", self._lang_combo)
+        form_layout.addRow("認識言語:", self._lang_combo)
+
+        # ── UI 表示言語 ──
+        self._ui_lang_combo = QtWidgets.QComboBox()
+        self._ui_lang_combo.setEditable(False)
+        for display, code in _UI_LANGUAGES.items():
+            self._ui_lang_combo.addItem(display, code)
+        form_layout.addRow("UI 表示言語:", self._ui_lang_combo)
 
         # ── ホットキー ──
         self._hotkey_editor = HotkeyEditor()
@@ -248,6 +261,11 @@ class SettingsDialog(QtWidgets.QDialog):
         else:
             self._lang_combo.setEditText(lang_code)
 
+        ui_lang = self._current.get("ui_language") or detect_os_language()
+        idx = self._ui_lang_combo.findData(ui_lang)
+        if idx >= 0:
+            self._ui_lang_combo.setCurrentIndex(idx)
+
         hotkey = self._current.get("hotkey", DEFAULT_HOTKEY)
         self._hotkey_editor.set_hotkey(hotkey)
 
@@ -265,6 +283,7 @@ class SettingsDialog(QtWidgets.QDialog):
 
         return {
             "language": lang_code,
+            "ui_language": self._ui_lang_combo.currentData() or "en",
             "hotkey": self._hotkey_editor.get_hotkey(),
             "min_duration_ms": self._min_dur_spin.value(),
             "silence_rms_threshold": self._silence_spin.value() / 10000,

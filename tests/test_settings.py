@@ -6,6 +6,8 @@ import pytest
 
 from kikitori.settings import (
     SETTINGS_PATH,
+    detect_os_language,
+    get_ui_language,
     load_settings,
     save_settings,
     reset_settings,
@@ -70,6 +72,41 @@ class TestSettingsIO:
 
 
 class TestMacOSUtils:
+    def test_detect_os_language_ja(self):
+        """OS言語が日本語なら 'ja' を返す"""
+        assert detect_os_language(lambda: ["ja-JP"]) == "ja"
+
+    def test_detect_os_language_en(self):
+        """OS言語が英語なら 'en' を返す"""
+        assert detect_os_language(lambda: ["en-US"]) == "en"
+
+    def test_detect_os_language_other_falls_back_to_en(self):
+        """日本語以外の言語は 'en' にフォールバック"""
+        assert detect_os_language(lambda: ["fr-FR"]) == "en"
+
+    def test_detect_os_language_fallback_on_error(self):
+        """NSLocale 取得失敗時は 'en' にフォールバック"""
+        def broken():
+            raise RuntimeError("simulated failure")
+        assert detect_os_language(broken) == "en"
+
+    def test_get_ui_language_from_settings(self):
+        """設定ファイルの ui_language が最優先"""
+        assert get_ui_language({"ui_language": "ja"}) == "ja"
+        assert get_ui_language({"ui_language": "en"}) == "en"
+
+    def test_get_ui_language_falls_back_to_os(self):
+        """設定なし → OS 検出（locale_getter 経由）"""
+        # get_ui_language は detect_os_language() を呼ぶ（依存注入なし）
+        # 実 OS 言語が返るので ja/en のいずれか
+        result = get_ui_language({})
+        assert result in ("ja", "en")
+
+    def test_get_ui_language_none_settings(self):
+        """settings=None でも OS 検出で解決"""
+        result = get_ui_language(None)
+        assert result in ("ja", "en")
+
     def test_get_frontmost_pid_returns_int_or_none(self):
         """PID が整数または None で返る"""
         pid = get_frontmost_pid()

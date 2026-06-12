@@ -3,10 +3,7 @@
 Whisper 音声認識結果に対し、ユーザー定義の「間違い→訂正」ペアを
 ケースインセンシティブかつ長いキー優先で適用する。
 """
-import re
 from pathlib import Path
-
-import yaml
 
 CORRECTIONS_PATH: Path = Path.home() / ".kikitori" / "corrections.yaml"
 
@@ -40,6 +37,7 @@ class Corrections:
             return
 
         try:
+            import yaml
             data = yaml.safe_load(self._path.read_text(encoding="utf-8"))
         except Exception as e:
             import sys
@@ -99,6 +97,7 @@ class Corrections:
         """校正ペア辞書を YAML ファイルに保存し、内部状態も更新する。"""
         self._items = dict(items)
         try:
+            import yaml
             self._path.parent.mkdir(parents=True, exist_ok=True)
             self._path.write_text(
                 yaml.dump(
