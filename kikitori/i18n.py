@@ -31,8 +31,6 @@ STRINGS: dict[str, dict[str, str]] = {
         "app.log.silence": "無音と判定されました（RMS={rms:.4f} < {threshold}）— 認識しません",
         "app.log.record_failed": "録音開始失敗: {error}",
         "app.banner.title": "Kikitori",
-        "app.banner.engine": "音声認識: Apple Speech",
-        "app.banner.sample_rate": "サンプリングレート: {rate} Hz",
         "app.banner.hotkey": "ホットキー: {hotkey} (押下中録音 / 解放で出力)",
 
         # ── settings_dialog ──
@@ -130,8 +128,6 @@ STRINGS: dict[str, dict[str, str]] = {
         "app.log.silence": "Detected as silence (RMS={rms:.4f} < {threshold}) — skipped",
         "app.log.record_failed": "Recording start failed: {error}",
         "app.banner.title": "Kikitori",
-        "app.banner.engine": "Engine: Apple Speech",
-        "app.banner.sample_rate": "Sample rate: {rate} Hz",
         "app.banner.hotkey": "Hotkey: {hotkey} (hold to record / release to output)",
 
         # ── settings_dialog ──

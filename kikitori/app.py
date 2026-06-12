@@ -129,8 +129,6 @@ class App:
         print("=" * 50)
         print(t("app.banner.title", ui))
         print("=" * 50)
-        print(t("app.banner.engine", ui))
-        print(t("app.banner.sample_rate", ui).format(rate=self._sample_rate))
         hotkey_str = ' + '.join(self._hotkey_config)
         print(t("app.banner.hotkey", ui).format(hotkey=hotkey_str))
         print("=" * 50)
