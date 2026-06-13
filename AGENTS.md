@@ -1,30 +1,25 @@
 # AGENTS.md — Kikitori
 
-Apple Silicon Mac 向け音声認識入力ツール。ホットキー押下中に録音し、解放時に `mlx-whisper` でテキスト変換・自動ペーストする macOS メニューバーアプリ。
+macOS 向け音声認識入力ツール。ホットキー押下中に録音し、解放時に Apple Speech Framework でテキスト変換・自動ペーストする macOS メニューバーアプリ（オーバーレイUI付き）。
 
 ## プロジェクト構成
 
 ```
 .
-├── main.py                  # CLI エントリポイント（kikitori.app.App を起動）
-├── menu_bar_app.py          # rumps 版メニューバーアプリ
-├── pyside_main.py           # PySide6 版（オーバーレイUI付き）
-├── run.sh                   # 起動スクリプト（仮想環境チェック・権限チェック）
-├── setup.py                 # py2app ビルド設定（非推奨、Homebrew Formula で配布）
+├── pyside_main.py           # アプリ起動エントリポイント
 ├── requirements.txt         # Python 依存関係
-├── assets/                  # アイコン画像（icon-idle.png, icon-recording.png）
+├── assets/                  # アイコン画像
 ├── tests/                   # pytest テスト
 └── kikitori/                # メインパッケージ
     ├── __init__.py
     ├── app.py               # アプリ統合（App クラス）
     ├── apple_speech.py      # Apple Speech Framework ラッパー（SFSpeechRecognizer）
     ├── audio_buffer.py      # スレッドセーフ録音バッファ（numpy 配列）
-    ├── config.py            # 設定定数（SAMPLE_RATE, MODEL_NAME, DEFAULT_HOTKEY 等）
+    ├── config.py            # 設定定数（VERSION, DEFAULT_HOTKEY 等）
     ├── hotkey_manager.py    # ホットキー状態管理（pynput リスナー制御・録音→推論パイプライン）
     ├── injector.py          # クリップボード経由テキスト入力（pyperclip + pynput Cmd+V）
     ├── overlay.py           # PySide6 オーバーレイUI（波形アニメーション）
     ├── recorder.py          # 録音ストリーム制御（sounddevice InputStream）
-    ├── transcriber.py       # mlx-whisper ラッパー（依存注入対応）
     └── ui_pyside.py         # PySide6 メニューバー＋オーバーレイ統合
 ```
 
@@ -39,15 +34,9 @@ source venv/bin/activate
 pip install -r requirements.txt
 
 # テスト実行
-python -m pytest tests/ -v
+pytest tests/ -v
 
-# CLI モードで起動
-python main.py
-
-# メニューバーアプリ起動
-./run.sh
-
-# PySide6 版起動（オーバーレイUI付き）
+# アプリ起動（オーバーレイUI付き）
 python pyside_main.py
 ```
 
@@ -73,33 +62,34 @@ python pyside_main.py
 - `Transcriber` / `Recorder` はテスト用に関数注入可能
 - 設定値は `kikitori.config` に集約
 - Homebrew Formula は別リポジトリ `konyu/homebrew-kikitori` で管理（`Formula/` はアプリ本体に含めない）
+- GitHub Actions を用いて `vX.Y.Z` タグプッシュ時に bottle ビルドと Homebrew リポジトリの更新を全自動化。
 
 ## 主要な技術的制約
 
-- **Apple Silicon 専用**: M1/M2/M3/M4。Intel Mac 非対応（`mlx-whisper` が Metal GPU 必須）
-- **macOS 14+ 推奨**: アクセシビリティ API・マイク権限
+- **macOS要要件**: macOS 14.0 (Sonoma) 以上必須。
+- **推奨環境**: Apple Silicon Mac 推奨（`SFSpeechRecognizer` のオンデバイス完全ローカル音声認識を安定利用するため）。
 - **動作に必要な権限**:
   - マイク（システム設定 → プライバシーとセキュリティ → マイク）
   - アクセシビリティ（システム設定 → プライバシーとセキュリティ → アクセシビリティ）
-- **配布は Homebrew Formula**: py2app/PyInstaller は mlx-whisper の `.metallib` や PortAudio `.dylib` のバンドルが困難なため非推奨
-- **初回起動時**: `mlx-whisper` が Hugging Face からモデル（数百MB）をダウンロード
+  - 音声認識（初回起動時に許可ダイアログが表示される）
+- **配布・インストール**: Homebrew Formula (bottle) 経由。
 - **設定ファイル**: `~/.kikitori_settings.yaml` （language, prompt, hotkey, min_duration_ms）
-- **デフォルトホットキー**: Option 単体
-- **録音**: 16000Hz, モノラル, float32, 最大60秒, 最低500ms（誤動作防止）
-- **Apple Speech Framework**: IDE 実行で `SIGABRT` の可能性があるためターミナル直接実行推奨。`prompt` 引数は無視される。オフライン認識は macOS 14+ で `requiresOnDeviceRecognition = True`
+- **デフォルトホットキー**: 右 Option キー
+- **録音**: 16000Hz, モノラル, float32, 最低500ms（誤動作防止）
+- **Apple Speech Framework (`apple_speech.py`)**: 
+  - `requiresOnDeviceRecognition = True` を指定し、ローカル完結での認識を強制（macOS 14以降での動作を前提）。
 
 ## 依存ライブラリ
 
 | ライブラリ | 用途 |
 |-----------|------|
-| `mlx-whisper` | Apple Silicon 最適化 Whisper 音声認識 |
+| `PySide6-Essentials` | オーバーレイ UI 版 GUI、メニューバー（QtWebEngine 等を含まない軽量版） |
 | `sounddevice` | マイク録音（PortAudio） |
 | `numpy` | 音声データ配列処理 |
 | `pynput` | グローバルホットキー監視・キーエミュレーション |
 | `pyperclip` | クリップボード操作 |
-| `rumps` | macOS メニューバー UI（軽量） |
-| `PySide6` | オーバーレイ UI 版 GUI |
+| `pyobjc-framework-Speech` | Apple Speech Framework 連携（`SFSpeechRecognizer`） |
 | `pyobjc-framework-Cocoa` | macOS Cocoa フレームワーク連携 |
+| `pyobjc-framework-AVFoundation` | 音声認識フレームワークの内部依存解決用 |
 | `pyyaml` | 設定ファイル読み込み |
 | `pytest` | テストフレームワーク |
-| `pyobjc-framework-Speech` | Apple Speech Framework 連携（`SFSpeechRecognizer`） |
