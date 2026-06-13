@@ -57,9 +57,9 @@ public final class SpeechRecognizer: @unchecked Sendable {
     }
     
     public func stop() async -> String {
-        NSLog("[Kikitori] stop() called, isRunning=\(isRunning), totalFrames=\(totalFrameCount), format=\(audioFormat?.description ?? "nil")")
+        DebugLogger.shared.log("stop() called, isRunning=\(isRunning), totalFrames=\(totalFrameCount), format=\(audioFormat?.description ?? "nil")")
         guard isRunning, let t = transcriber, let a = analyzer else {
-            NSLog("[Kikitori] stop() early exit: isRunning=\(isRunning) transcriber=\(transcriber != nil) analyzer=\(analyzer != nil)")
+            DebugLogger.shared.log("stop() early exit: isRunning=\(isRunning) transcriber=\(transcriber != nil) analyzer=\(analyzer != nil)")
             return ""
         }
         isRunning = false
@@ -69,9 +69,9 @@ public final class SpeechRecognizer: @unchecked Sendable {
         if minDurationMs > 0 {
             let sampleRate = audioFormat?.sampleRate ?? 16000
             let minFrames = AVAudioFrameCount(Double(minDurationMs) * sampleRate / 1000)
-            NSLog("[Kikitori] minDuration check: frames=\(totalFrameCount) minFrames=\(minFrames) minDurationMs=\(minDurationMs)")
+            DebugLogger.shared.log("minDuration check: frames=\(totalFrameCount) minFrames=\(minFrames) minDurationMs=\(minDurationMs)")
             if totalFrameCount < minFrames {
-                NSLog("[Kikitori] FILTER: too short, returning empty")
+                DebugLogger.shared.log("FILTER: too short, returning empty")
                 return ""
             }
         }
@@ -79,14 +79,14 @@ public final class SpeechRecognizer: @unchecked Sendable {
         // 無音 RMS フィルタ
         if silenceRmsThreshold > 0 {
             let rms = bufferQueue.calculateRMS()
-            NSLog("[Kikitori] silenceRms check: rms=\(rms) threshold=\(silenceRmsThreshold)")
+            DebugLogger.shared.log("silenceRms check: rms=\(rms) threshold=\(silenceRmsThreshold)")
             if rms < Float(silenceRmsThreshold) {
-                NSLog("[Kikitori] FILTER: silence detected, returning empty")
+                DebugLogger.shared.log("FILTER: silence detected, returning empty")
                 return ""
             }
         }
 
-        NSLog("[Kikitori] starting recognizer pipeline...")
+        DebugLogger.shared.log("starting recognizer pipeline...")
         let stream = bufferQueue.makeStream().map { AnalyzerInput(buffer: $0) }
         do { _ = try await a.analyzeSequence(stream) } catch { }
         try? await a.finalizeAndFinishThroughEndOfInput()
@@ -98,7 +98,7 @@ public final class SpeechRecognizer: @unchecked Sendable {
             }
         } catch { }
         let final = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        NSLog("[Kikitori] recognition result: '\(final)' (len=\(final.count))")
+        DebugLogger.shared.log("recognition result: '\(final)' (len=\(final.count))")
         return final
     }
 }

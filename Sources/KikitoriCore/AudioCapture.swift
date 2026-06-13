@@ -52,7 +52,7 @@ public final class AudioCapture: @unchecked Sendable {
         if let target = targetFormat {
             if !_logFormatOnce {
                 _logFormatOnce = true
-                NSLog("[Kikitori] AudioFormat: input=\(inputFmt) target=\(target) commonFormat=\(target.commonFormat.rawValue)")
+                DebugLogger.shared.log("AudioFormat: input=\(inputFmt) target=\(target) commonFormat=\(target.commonFormat.rawValue)")
             }
             guard let cvt = AVAudioConverter(from: inputFmt, to: target) else { return }
             let outFrames = AVAudioFrameCount(Double(buffer.frameLength) * target.sampleRate / inputFmt.sampleRate)
