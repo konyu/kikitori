@@ -4,7 +4,10 @@ import AppKit
 public final class HotkeyManager: @unchecked Sendable {
     public var onKeyDown: (@Sendable () -> Void)?
     public var onKeyUp: (@Sendable () -> Void)?
-    
+
+    /// 現在ホットキーが押下中か（スレッドセーフ）
+    public var isDown: Bool { lock.withLock { down } }
+
     private var global: Any?
     private var local: Any?
     private var down = false

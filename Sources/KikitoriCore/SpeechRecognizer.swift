@@ -10,6 +10,12 @@ public final class SpeechRecognizer: @unchecked Sendable {
     private var audioFormat: AVAudioFormat?
     private var isRunning = false
     
+    /// 最低録音時間（ミリ秒）。これ未満は空文字を返す。
+    public var minDurationMs: Int = 300
+
+    /// 無音判定 RMS 閾値。0 で無効。
+    public var silenceRmsThreshold: Double = 0.0001
+
     public var compatibleAudioFormat: AVAudioFormat? { audioFormat }
     public var totalFrameCount: AVAudioFrameCount { bufferQueue.totalFrameCount }
     
@@ -38,7 +44,24 @@ public final class SpeechRecognizer: @unchecked Sendable {
         guard isRunning, let t = transcriber, let a = analyzer else { return "" }
         isRunning = false
         bufferQueue.finish()
-        
+
+        // 最低録音時間フィルタ
+        if minDurationMs > 0 {
+            let sampleRate = audioFormat?.sampleRate ?? 16000
+            let minFrames = AVAudioFrameCount(Double(minDurationMs) * sampleRate / 1000)
+            if totalFrameCount < minFrames {
+                return ""
+            }
+        }
+
+        // 無音 RMS フィルタ
+        if silenceRmsThreshold > 0 {
+            let rms = bufferQueue.calculateRMS()
+            if rms < Float(silenceRmsThreshold) {
+                return ""
+            }
+        }
+
         let stream = bufferQueue.makeStream().map { AnalyzerInput(buffer: $0) }
         do { _ = try await a.analyzeSequence(stream) } catch { }
         try? await a.finalizeAndFinishThroughEndOfInput()
@@ -76,7 +99,26 @@ final class BufferQueue: @unchecked Sendable {
     func finish() {
         lock.withLock { finished = true }
     }
-    
+
+    /// 全バッファの RMS（実効値）を計算する。無音判定用。
+    func calculateRMS() -> Float {
+        var sumSq: Float = 0
+        var totalFrames: AVAudioFrameCount = 0
+        lock.withLock {
+            for buf in buffers {
+                guard let data = buf.floatChannelData?.pointee else { continue }
+                let frames = Int(buf.frameLength)
+                for i in 0..<frames {
+                    let s = data[i]
+                    sumSq += s * s
+                }
+                totalFrames += buf.frameLength
+            }
+        }
+        guard totalFrames > 0 else { return 0 }
+        return sqrtf(sumSq / Float(totalFrames))
+    }
+
     func makeStream() -> AsyncStream<AVAudioPCMBuffer> {
         AsyncStream { continuation in
             lock.withLock {
