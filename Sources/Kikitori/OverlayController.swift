@@ -1,35 +1,43 @@
 import SwiftUI
 import AppKit
 
+// MARK: - Waveform Bar Model
+
+@MainActor
+final class WaveformModel: ObservableObject {
+    @Published var levels: [Float] = [0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05,
+                                       0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05,
+                                       0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05]
+
+    func push(_ amp: Float) {
+        let clamped = min(max(amp, 0.01), 1.0)
+        // 先頭に新しい値を追加、末尾を削除
+        var new = levels
+        new.append(clamped)
+        new.removeFirst()
+        levels = new
+    }
+}
+
 // MARK: - View
 
 struct OverlayView: View {
-    @State private var pulse = false
+    @ObservedObject var model: WaveformModel
 
     var body: some View {
-        HStack(spacing: 10) {
-            // 録音インジケーター（パルスする赤丸）
-            Circle()
-                .fill(.red)
-                .frame(width: 8, height: 8)
-                .scaleEffect(pulse ? 1.3 : 0.7)
-                .opacity(pulse ? 1.0 : 0.4)
-
-            Text("入力中...")
-                .font(.system(size: 13, weight: .medium))
-                .foregroundColor(.white.opacity(0.9))
+        HStack(spacing: 2) {
+            ForEach(0..<model.levels.count, id: \.self) { i in
+                RoundedRectangle(cornerRadius: 1)
+                    .fill(.white.opacity(0.9))
+                    .frame(width: 2, height: CGFloat(model.levels[i]) * 28 + 2)
+            }
         }
-        .padding(.horizontal, 20)
+        .padding(.horizontal, 16)
         .padding(.vertical, 10)
         .background(
             Capsule()
                 .fill(.black.opacity(0.85))
         )
-        .onAppear {
-            withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
-                pulse = true
-            }
-        }
     }
 }
 
@@ -39,11 +47,12 @@ struct OverlayView: View {
 final class OverlayController: NSObject {
     private var window: NSWindow?
     private var hosting: NSHostingView<OverlayView>?
+    private let model = WaveformModel()
 
     func show() {
         guard window == nil else { return }
 
-        let view = OverlayView()
+        let view = OverlayView(model: model)
         let hosting = NSHostingView(rootView: view)
         self.hosting = hosting
         hosting.frame.size = hosting.fittingSize
@@ -74,5 +83,9 @@ final class OverlayController: NSObject {
         window?.orderOut(nil)
         window = nil
         hosting = nil
+    }
+
+    func updateAmplitude(_ amp: Float) {
+        model.push(amp)
     }
 }

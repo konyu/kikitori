@@ -21,6 +21,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         DebugLogger.shared.enabled = settings.debug
         corrections.load()
         hotkey.config = HotkeyConfig.parse(from: settings.hotkey)
+        capture.onAmplitude = { [weak self] amp in
+            self?.overlay.updateAmplitude(amp)
+        }
 
         item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let btn = item.button {
