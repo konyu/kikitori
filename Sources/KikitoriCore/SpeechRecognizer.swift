@@ -19,6 +19,9 @@ public final class SpeechRecognizer: @unchecked Sendable {
     /// 認識言語コード（例: "ja", "en"）。デフォルト: "ja"
     public var language: String = "ja"
 
+    /// 音声認識精度向上用の用語リスト（AnalysisContext.contextualStrings に渡す）
+    public var contextualStrings: [String] = []
+
     public var compatibleAudioFormat: AVAudioFormat? { audioFormat }
     public var totalFrameCount: AVAudioFrameCount { bufferQueue.totalFrameCount }
     
@@ -31,7 +34,15 @@ public final class SpeechRecognizer: @unchecked Sendable {
         
         let format = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [t])
         try await a.prepareToAnalyze(in: format)
-        
+
+        // 用語リストがあれば AnalysisContext に設定
+        if !contextualStrings.isEmpty {
+            let ctx = AnalysisContext()
+            ctx.contextualStrings[.general] = contextualStrings
+            try? await a.setContext(ctx)
+            DebugLogger.shared.log("contextualStrings set: \(contextualStrings)")
+        }
+
         self.transcriber = t
         self.analyzer = a
         self.audioFormat = format

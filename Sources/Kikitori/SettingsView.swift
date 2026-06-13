@@ -16,6 +16,7 @@ final class SettingsViewModel: ObservableObject {
     @Published var maxDurationSec: Double = 60
     @Published var silenceRmsThreshold: Double = 0.0001
     @Published var debugEnabled: Bool = false
+    @Published var glossaryText: String = ""
 
     private let settings: SettingsManager
 
@@ -31,6 +32,7 @@ final class SettingsViewModel: ObservableObject {
         maxDurationSec = Double(settings.maxDurationSec)
         silenceRmsThreshold = settings.silenceRmsThreshold
         debugEnabled = settings.debug
+        glossaryText = settings.glossary.joined(separator: "\n")
     }
 
     private func loadHotkeyToggles() {
@@ -56,6 +58,11 @@ final class SettingsViewModel: ObservableObject {
         settings.maxDurationSec = Int(maxDurationSec)
         settings.silenceRmsThreshold = silenceRmsThreshold
         settings.debug = debugEnabled
+        // 用語リスト: 1行1用語 → 空行除去 → 配列
+        settings.glossary = glossaryText
+            .split(separator: "\n")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
         settings.save()
     }
 
@@ -72,6 +79,7 @@ final class SettingsViewModel: ObservableObject {
     func reset() {
         settings.reset()
         load()
+        glossaryText = ""
     }
 
     /// 認識言語の選択肢
@@ -143,6 +151,17 @@ struct SettingsView: View {
             HStack {
                 Spacer()
                 Button("デフォルトに戻す") { vm.reset() }
+            }
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("認識精度向上用語（1行1用語）:")
+                    .font(.subheadline)
+                TextEditor(text: $vm.glossaryText)
+                    .font(.system(size: 12, design: .monospaced))
+                    .frame(height: 60)
+                    .border(.secondary.opacity(0.3))
             }
         }
     }

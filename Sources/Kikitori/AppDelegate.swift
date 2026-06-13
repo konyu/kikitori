@@ -59,6 +59,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         r.language = settings.language
         r.minDurationMs = settings.minDurationMs
         r.silenceRmsThreshold = settings.silenceRmsThreshold
+        r.contextualStrings = settings.glossary
         recognizer = r
         let c = capture
 
