@@ -41,7 +41,11 @@ public final class SpeechRecognizer: @unchecked Sendable {
     }
     
     public func stop() async -> String {
-        guard isRunning, let t = transcriber, let a = analyzer else { return "" }
+        NSLog("[Kikitori] stop() called, isRunning=\(isRunning), totalFrames=\(totalFrameCount), format=\(audioFormat?.description ?? "nil")")
+        guard isRunning, let t = transcriber, let a = analyzer else {
+            NSLog("[Kikitori] stop() early exit: isRunning=\(isRunning) transcriber=\(transcriber != nil) analyzer=\(analyzer != nil)")
+            return ""
+        }
         isRunning = false
         bufferQueue.finish()
 
@@ -49,7 +53,9 @@ public final class SpeechRecognizer: @unchecked Sendable {
         if minDurationMs > 0 {
             let sampleRate = audioFormat?.sampleRate ?? 16000
             let minFrames = AVAudioFrameCount(Double(minDurationMs) * sampleRate / 1000)
+            NSLog("[Kikitori] minDuration check: frames=\(totalFrameCount) minFrames=\(minFrames) minDurationMs=\(minDurationMs)")
             if totalFrameCount < minFrames {
+                NSLog("[Kikitori] FILTER: too short, returning empty")
                 return ""
             }
         }
@@ -57,11 +63,14 @@ public final class SpeechRecognizer: @unchecked Sendable {
         // 無音 RMS フィルタ
         if silenceRmsThreshold > 0 {
             let rms = bufferQueue.calculateRMS()
+            NSLog("[Kikitori] silenceRms check: rms=\(rms) threshold=\(silenceRmsThreshold)")
             if rms < Float(silenceRmsThreshold) {
+                NSLog("[Kikitori] FILTER: silence detected, returning empty")
                 return ""
             }
         }
 
+        NSLog("[Kikitori] starting recognizer pipeline...")
         let stream = bufferQueue.makeStream().map { AnalyzerInput(buffer: $0) }
         do { _ = try await a.analyzeSequence(stream) } catch { }
         try? await a.finalizeAndFinishThroughEndOfInput()
@@ -72,7 +81,9 @@ public final class SpeechRecognizer: @unchecked Sendable {
                 text += String(result.text.characters)
             }
         } catch { }
-        return text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let final = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        NSLog("[Kikitori] recognition result: '\(final)' (len=\(final.count))")
+        return final
     }
 }
 
@@ -106,13 +117,21 @@ final class BufferQueue: @unchecked Sendable {
         var totalFrames: AVAudioFrameCount = 0
         lock.withLock {
             for buf in buffers {
-                guard let data = buf.floatChannelData?.pointee else { continue }
                 let frames = Int(buf.frameLength)
-                for i in 0..<frames {
-                    let s = data[i]
-                    sumSq += s * s
+                // Float32 と Int16 の両対応
+                if let floatData = buf.floatChannelData?.pointee {
+                    for i in 0..<frames {
+                        let s = floatData[i]
+                        sumSq += s * s
+                    }
+                    totalFrames += buf.frameLength
+                } else if let intData = buf.int16ChannelData?.pointee {
+                    for i in 0..<frames {
+                        let s = Float(intData[i]) / 32768.0
+                        sumSq += s * s
+                    }
+                    totalFrames += buf.frameLength
                 }
-                totalFrames += buf.frameLength
             }
         }
         guard totalFrames > 0 else { return 0 }

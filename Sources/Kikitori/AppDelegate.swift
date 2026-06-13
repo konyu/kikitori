@@ -62,20 +62,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func stop() {
-        guard recording else { return }
+        guard recording else {
+            NSLog("[Kikitori] stop() ignored: not recording")
+            return
+        }
         recording = false
+        NSLog("[Kikitori] stop() - cancelling autoStop, stopping capture")
         cancelAutoStop()
         capture.stop()
 
         let r = recognizer; recognizer = nil
-        guard let r else { return }
+        guard let r else {
+            NSLog("[Kikitori] stop() - no recognizer")
+            return
+        }
         Task {
             let text = await r.stop()
+            NSLog("[Kikitori] stop() - recognizer returned: '\(text)'")
             var final = text
             if !final.isEmpty {
                 final = corrections.apply(to: final)
+                NSLog("[Kikitori] stop() - after corrections: '\(final)'")
             }
-            if !final.isEmpty { injector.inject(final) }
+            if !final.isEmpty {
+                NSLog("[Kikitori] stop() - injecting: '\(final)'")
+                injector.inject(final)
+            } else {
+                NSLog("[Kikitori] stop() - empty text, skipping inject")
+            }
             Task.detached { [weak self] in self?.tracker.restore() }
         }
     }
