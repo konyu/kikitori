@@ -5,38 +5,79 @@
 | コンポーネント | ファイル | 役割 |
 |-------------|---------|------|
 | AudioCapture | `Sources/KikitoriCore/AudioCapture.swift` | 専用シリアルキュー上の AVAudioEngine。マイク入力 → 必要に応じて AVAudioConverter でリサンプル → コールバック |
-| SpeechRecognizer | `Sources/KikitoriCore/SpeechRecognizer.swift` | SpeechAnalyzer + SpeechTranscriber（macOS 26.0 の新 API）。BufferQueue にバッファを貯め、録音終了時に AsyncStream<AnalyzerInput> で analyzeSequence → finalizeAndFinishThroughEndOfInput → results 収集 |
+| SpeechRecognizer | `Sources/KikitoriCore/SpeechRecognizer.swift` | SpeechAnalyzer + SpeechTranscriber（macOS 26.0 API）。BufferQueue → AsyncStream<AnalyzerInput> → analyzeSequence → finalizeAndFinishThroughEndOfInput → results 収集 |
 | HotkeyManager | `Sources/KikitoriCore/HotkeyManager.swift` | NSEvent.addGlobalMonitorForEvents（.flagsChanged）。Option キー押下/解放を NSLock でスレッドセーフに検知 |
 | TextInjector | `Sources/KikitoriCore/TextInjector.swift` | NSPasteboard.general にコピー → CGEvent で Cmd+V（virtualKey 0x09）を .cghidEventTap にポスト |
-| AppDelegate | `Sources/Kikitori/AppDelegate.swift` | NSMenu メニューバー。onKeyDown → startRecording（Task { } で @MainActor をブロックせず）、onKeyUp → stopRecording → inject |
+| AppDelegate | `Sources/Kikitori/AppDelegate.swift` | NSMenu メニューバー。onKeyDown → startRecording（Task {} で @MainActor をブロックせず）、onKeyUp → stopRecording → inject |
 | main | `Sources/Kikitori/main.swift` | NSApplication.accessory で起動 |
 
 ### アーキテクチャ上の重要判断
 - **AVAudioEngine は専用シリアルキューで実行**: メインアクターをブロックしない（エンジン起動に ~100ms かかるため）
 - **AudioCapture.start() は async throws**: `withCheckedThrowingContinuation` + `queue.async` で非同期化
-- **全クラスは @unchecked Sendable**: Swift 6 の厳密並行性チェックに対応（NSLock、AVAudioEngine 等の内部可変状態を自前で保護）
+- **全クラスは @unchecked Sendable**: Swift 6 の厳密並行性チェックに対応
 - **NSLock.withLock {}**: async コンテキストからの lock()/unlock() 禁止に対応
-- **SwiftUI 非依存**: 空白ウィンドウ問題を回避。純粋 AppKit
 
 ---
 
-## 実装予定機能
+## 実装順序
 
-| # | 仕様 | 優先度 | Python 版参照 |
-|---|------|--------|-------------|
-| 02 | Frontmost App Tracker | 高 | `settings.py:get_frontmost_pid()` |
-| 03 | IME 自動切替 | 中 | `input_source.py` |
-| 04 | Min Duration Filter | 高 | `hotkey_manager.py:_should_transcribe()` |
-| 05 | Max Duration AutoStop | 高 | `hotkey_manager.py:_start_auto_stop_timer()` |
-| 06 | Silence RMS Filter | 高 | `hotkey_manager.py:_should_transcribe()` |
-| 07 | Custom Hotkey | 高 | `hotkey_manager.py:resolve_hotkey()` |
-| 08 | Settings File | 高 | `settings.py`, `config.py` |
-| 09 | Settings GUI | 中 | `settings_dialog.py` |
-| 10 | Glossary | 低 | `glossary.py`, `glossary_dialog.py` |
-| 11 | Corrections | 低 | `corrections.py`, `corrections_dialog.py` |
-| 12 | i18n | 中 | `i18n.py` |
-| 13 | Waveform Overlay | 中 | `overlay.py`, `audio_buffer.py:get_recent_amplitudes()` |
-| 15 | Debug Mode | 低 | `config.py:DEBUG/BENCHMARK_MODE` |
-| 16 | Homebrew Formula | 高 | `Formula/kikitori.rb` |
+### Phase 1: Foundation（基盤）— 最初に固める
+| # | 仕様 | 理由 |
+|---|------|------|
+| **08** | Settings File | 全機能の設定を永続化する基盤。他機能の多くが依存。 |
+| **12** | i18n | GUI/ログの日本語/英語切替。早期に入れておかないと後で文字列の修正漏れが起きる。 |
 
-> #01, #03, #14 は欠番（#01=未定義、#03=IME切替は開発中検討、#14=未定義）
+### Phase 2: Core Improvements（録音・認識パイプライン強化）
+| # | 仕様 | 理由 |
+|---|------|------|
+| **04** | Min Duration Filter | 誤タップ防止。実装が単純で効果大。 |
+| **06** | Silence RMS Filter | 無音フィルタ。RMS 計算は AudioCapture に追加するだけ。 |
+| **02** | Frontmost App Tracker | ペースト後のアプリ復帰。独立していて依存少。 |
+| **11** | Corrections | 認識テキストの後処理置換。独立コンポーネント。 |
+| **05** | Max Duration AutoStop | 長時間録音の自動停止＋再録音。やや複雑（タイマー＋状態管理）。 |
+
+### Phase 3: UX / Polish
+| # | 仕様 | 理由 |
+|---|------|------|
+| **07** | Custom Hotkey | #08 に依存。Option 以外のキーを使いたいユーザー向け。 |
+| **09** | Settings GUI | #08 + #12 + #07 に依存。SwiftUI ウィンドウ。 |
+| **13** | Waveform Overlay | 録音中フィードバック。SwiftUI 依存だが単独で実装可。 |
+
+### Phase 4: Deployment / Tooling
+| # | 仕様 | 理由 |
+|---|------|------|
+| **16** | Homebrew Formula | `brew install` 配布。リリース準備時に。 |
+| **15** | Debug Mode | 開発者ツール。NSLog ラッパー。 |
+| **10** | Glossary | Apple Speech API に contextualStrings 相当があるか要確認。不確実なので最後。 |
+
+### Pending（ペンディング）
+| # | 仕様 | 理由 |
+|---|------|------|
+| **03** | IME Auto Switch | Carbon TIS API が macOS 26.0 で動作するか要検証。録音開始時に ASCII 切替 + ペースト後復元。IDE 実行で SIGABRT リスク。 |
+
+> #01, #14 は欠番
+
+---
+
+## 依存グラフ
+```
+           ┌──────────────────────────┐
+           │      08 Settings File     │ ← Phase 1
+           └────────┬─────────────────┘
+                    │
+    ┌───────────────┼───────────────┐
+    ▼               ▼               ▼
+  04 MinDur    06 Silence    07 CustomHotkey (Phase 3)
+  (Phase 2)    (Phase 2)          │
+                    │              ▼
+                    │       09 Settings GUI (Phase 3)
+                    │
+  12 i18n ← Phase 1（独立）
+  02 Frontmost ← Phase 2（独立）
+  11 Corrections ← Phase 2（独立）
+  05 MaxDuration ← Phase 2（独立）
+  13 Overlay ← Phase 3（独立）
+  16 Formula ← Phase 4（独立）
+  15 Debug ← Phase 4（独立）
+  10 Glossary ← Phase 4（API要確認）
+```
