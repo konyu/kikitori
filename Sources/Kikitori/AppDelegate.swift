@@ -13,6 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var recognizer: SpeechRecognizer?
     private var recording = false
     private var autoStopTask: Task<Void, Never>?
+    private var settingsWindow: SettingsWindowController?
 
     func applicationDidFinishLaunching(_ n: Notification) {
         settings.load()
@@ -24,6 +25,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             btn.image = NSImage(systemSymbolName: "mic", accessibilityDescription: "Kikitori")
         }
         let m = NSMenu()
+        m.addItem(NSMenuItem(title: "Settings", action: #selector(showSettings), keyEquivalent: ","))
+        m.addItem(.separator())
         m.addItem(NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q"))
         item.menu = m
 
@@ -121,6 +124,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if hotkey.isDown {
             start()
         }
+    }
+
+    @objc private func showSettings() {
+        if settingsWindow == nil {
+            settingsWindow = SettingsWindowController(settings: settings) { [weak self] in
+                self?.hotkey.config = HotkeyConfig.parse(from: self?.settings.hotkey ?? ["option"])
+            }
+        }
+        settingsWindow?.show()
     }
 
     @objc private func quit() {

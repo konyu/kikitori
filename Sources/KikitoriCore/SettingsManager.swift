@@ -15,25 +15,25 @@ public final class SettingsManager: @unchecked Sendable {
     // MARK: - 設定値（デフォルト値付き）
 
     /// 認識言語（例: "ja", "en"）
-    public private(set) var language: String = "ja"
+    public var language: String = "ja"
 
     /// UI 言語（"ja" or "en"）。nil の場合は OS から自動検出。
-    public private(set) var uiLanguage: String? = nil
+    public var uiLanguage: String? = nil
 
     /// ホットキー名の配列（例: ["option"], ["ctrl", "shift"], ["f13"]）
-    public private(set) var hotkey: [String] = ["option"]
+    public var hotkey: [String] = ["option"]
 
     /// 最低録音時間（ミリ秒）
-    public private(set) var minDurationMs: Int = 300
+    public var minDurationMs: Int = 300
 
     /// 最大録音時間（秒）
-    public private(set) var maxDurationSec: Int = 60
+    public var maxDurationSec: Int = 60
 
     /// 無音判定 RMS 閾値（0 で無効）
-    public private(set) var silenceRmsThreshold: Double = 0.0001
+    public var silenceRmsThreshold: Double = 0.0001
 
     /// デバッグログ有効フラグ
-    public private(set) var debug: Bool = false
+    public var debug: Bool = false
 
     // MARK: - 初期化
 
