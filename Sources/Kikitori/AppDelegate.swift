@@ -14,6 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var recording = false
     private var autoStopTask: Task<Void, Never>?
     private var settingsWindow: SettingsWindowController?
+    private let overlay = OverlayController()
 
     func applicationDidFinishLaunching(_ n: Notification) {
         settings.load()
@@ -48,6 +49,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard !recording else { return }
         recording = true
 
+        overlay.show()
+
         let r = SpeechRecognizer()
         r.language = settings.language
         r.minDurationMs = settings.minDurationMs
@@ -79,6 +82,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSLog("[Kikitori] stop() - cancelling autoStop, stopping capture")
         cancelAutoStop()
         capture.stop()
+        overlay.hide()
 
         let r = recognizer; recognizer = nil
         guard let r else {
