@@ -25,9 +25,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             btn.image = NSImage(systemSymbolName: "mic", accessibilityDescription: "Kikitori")
         }
         let m = NSMenu()
-        m.addItem(NSMenuItem(title: "Settings", action: #selector(showSettings), keyEquivalent: ","))
+        let settingsItem = NSMenuItem(title: "Settings", action: #selector(showSettings), keyEquivalent: ",")
+        settingsItem.target = self
+        m.addItem(settingsItem)
         m.addItem(.separator())
-        m.addItem(NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q"))
+        let quitItem = NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q")
+        quitItem.target = self
+        m.addItem(quitItem)
         item.menu = m
 
         hotkey.onKeyDown = { [weak self] in
@@ -45,6 +49,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         recording = true
 
         let r = SpeechRecognizer()
+        r.language = settings.language
         r.minDurationMs = settings.minDurationMs
         r.silenceRmsThreshold = settings.silenceRmsThreshold
         recognizer = r
@@ -126,16 +131,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    @objc private func showSettings() {
+    @objc func showSettings() {
         if settingsWindow == nil {
             settingsWindow = SettingsWindowController(settings: settings) { [weak self] in
-                self?.hotkey.config = HotkeyConfig.parse(from: self?.settings.hotkey ?? ["option"])
+                self?.reloadSettings()
             }
         }
         settingsWindow?.show()
     }
 
-    @objc private func quit() {
+    private func reloadSettings() {
+        settings.load()
+        hotkey.config = HotkeyConfig.parse(from: settings.hotkey)
+    }
+
+    @objc func quit() {
         hotkey.stop()
         NSApp.terminate(nil)
     }

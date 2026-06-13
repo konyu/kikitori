@@ -67,14 +67,29 @@ struct SettingsView: View {
     let onDismiss: () -> Void
 
     var body: some View {
-        TabView {
-            generalTab
-                .tabItem { Label("一般", systemImage: "gearshape") }
-            filtersTab
-                .tabItem { Label("フィルタ", systemImage: "waveform") }
+        VStack(spacing: 0) {
+            TabView {
+                generalTab
+                    .tabItem { Label("一般", systemImage: "gearshape") }
+                    .padding(20)
+                filtersTab
+                    .tabItem { Label("フィルタ", systemImage: "waveform") }
+                    .padding(20)
+            }
+            Divider()
+            HStack {
+                Spacer()
+                Button("キャンセル") { onDismiss() }
+                Button("保存して適用") {
+                    vm.save()
+                    onDismiss()
+                }
+                .keyboardShortcut(.defaultAction)
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 10)
         }
-        .padding()
-        .frame(width: 420, height: 320)
+        .frame(width: 420, height: 350)
     }
 
     private var generalTab: some View {
@@ -130,17 +145,6 @@ struct SettingsView: View {
             }
 
             Toggle("デバッグログ", isOn: $vm.debugEnabled)
-
-            HStack {
-                Spacer()
-                Button("キャンセル") { onDismiss() }
-                Button("保存して適用") {
-                    vm.save()
-                    onDismiss()
-                }
-                .keyboardShortcut(.defaultAction)
-            }
-            .padding(.top)
         }
     }
 }
@@ -160,7 +164,7 @@ final class SettingsWindowController: NSWindowController {
         let window = NSWindow(contentViewController: hosting)
         window.title = "Kikitori 設定"
         window.styleMask = [.titled, .closable, .miniaturizable]
-        window.setContentSize(NSSize(width: 420, height: 320))
+        window.setContentSize(NSSize(width: 420, height: 350))
         window.center()
         window.isReleasedWhenClosed = false
 
@@ -172,6 +176,7 @@ final class SettingsWindowController: NSWindowController {
     func show() {
         vm.load()
         window?.center()
-        showWindow(nil)
+        window?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 }

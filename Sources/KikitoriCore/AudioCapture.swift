@@ -2,10 +2,11 @@ import Foundation
 @preconcurrency import AVFoundation
 import Speech
 
-/// マイク音声キャプチャ。専用キューで AVAudioEngine を操作。
+/// マイク音声キャプチャ。専用シリアルキューで AVAudioEngine を操作。
 public final class AudioCapture: @unchecked Sendable {
     private let engine = AVAudioEngine()
     private let queue = DispatchQueue(label: "com.kikitori.audio")
+    private var tapInstalled = false
     
     public var targetFormat: AVAudioFormat?
     public var onAudioBuffer: ((AVAudioPCMBuffer) -> Void)?
@@ -16,11 +17,17 @@ public final class AudioCapture: @unchecked Sendable {
         try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
             queue.async {
                 do {
+                    guard !self.tapInstalled else {
+                        // 既に開始済み
+                        cont.resume()
+                        return
+                    }
                     let input = self.engine.inputNode
                     let inputFmt = input.outputFormat(forBus: 0)
                     input.installTap(onBus: 0, bufferSize: 4096, format: inputFmt) { [weak self] buf, _ in
                         self?.deliver(buf, from: inputFmt)
                     }
+                    self.tapInstalled = true
                     self.engine.prepare()
                     try self.engine.start()
                     cont.resume()
@@ -33,6 +40,8 @@ public final class AudioCapture: @unchecked Sendable {
     
     public func stop() {
         queue.sync {
+            guard self.tapInstalled else { return }
+            self.tapInstalled = false
             engine.inputNode.removeTap(onBus: 0)
             engine.stop()
         }

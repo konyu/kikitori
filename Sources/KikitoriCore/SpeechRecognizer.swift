@@ -16,13 +16,16 @@ public final class SpeechRecognizer: @unchecked Sendable {
     /// 無音判定 RMS 閾値。0 で無効。
     public var silenceRmsThreshold: Double = 0.0001
 
+    /// 認識言語コード（例: "ja", "en"）。デフォルト: "ja"
+    public var language: String = "ja"
+
     public var compatibleAudioFormat: AVAudioFormat? { audioFormat }
     public var totalFrameCount: AVAudioFrameCount { bufferQueue.totalFrameCount }
     
     public init() {}
     
     public func start() async throws {
-        let locale = Locale(identifier: "ja-JP")
+        let locale = Self.locale(for: language)
         let t = SpeechTranscriber(locale: locale, preset: .transcription)
         let a = SpeechAnalyzer(modules: [t])
         
@@ -35,6 +38,19 @@ public final class SpeechRecognizer: @unchecked Sendable {
         self.isRunning = true
     }
     
+    /// 言語コード → Locale 変換
+    private static func locale(for code: String) -> Locale {
+        switch code {
+        case "ja": return Locale(identifier: "ja-JP")
+        case "en": return Locale(identifier: "en-US")
+        case "zh": return Locale(identifier: "zh-CN")
+        case "ko": return Locale(identifier: "ko-KR")
+        case "fr": return Locale(identifier: "fr-FR")
+        case "de": return Locale(identifier: "de-DE")
+        default:  return Locale(identifier: "ja-JP")
+        }
+    }
+
     public func addAudio(_ buffer: AVAudioPCMBuffer) {
         guard isRunning else { return }
         bufferQueue.append(buffer)
