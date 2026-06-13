@@ -27,7 +27,7 @@ struct SettingsManagerTests {
 
         #expect(manager.language == "ja")
         #expect(manager.uiLanguage == nil)
-        #expect(manager.hotkey == ["option"])
+        #expect(manager.hotkey == ["fn"])
         #expect(manager.minDurationMs == 300)
         #expect(manager.maxDurationSec == 60)
         #expect(manager.silenceRmsThreshold == 0.0001)
@@ -80,7 +80,7 @@ struct SettingsManagerTests {
         #expect(manager.minDurationMs == 100)
         // 未指定キーはデフォルト
         #expect(manager.uiLanguage == nil)
-        #expect(manager.hotkey == ["option"])
+        #expect(manager.hotkey == ["fn"])
         #expect(manager.maxDurationSec == 60)
     }
 
@@ -98,7 +98,7 @@ struct SettingsManagerTests {
         manager2.load()
 
         #expect(manager2.language == "ja")
-        #expect(manager2.hotkey == ["option"])
+        #expect(manager2.hotkey == ["fn"])
         #expect(manager2.minDurationMs == 300)
         #expect(manager2.debug == false)
     }
@@ -142,7 +142,7 @@ struct SettingsManagerTests {
         #expect(!FileManager.default.fileExists(atPath: path.path))
         #expect(manager.language == "ja")
         #expect(manager.uiLanguage == nil)
-        #expect(manager.hotkey == ["option"])
+        #expect(manager.hotkey == ["fn"])
         #expect(manager.minDurationMs == 300)
         #expect(manager.maxDurationSec == 60)
         #expect(manager.silenceRmsThreshold == 0.0001)

@@ -14,7 +14,7 @@ public enum HotkeyConfig: Equatable, Sendable {
 
     /// 文字列配列からパース（例: ["option"], ["ctrl", "shift"], ["f13"]）
     public static func parse(from names: [String]) -> HotkeyConfig {
-        guard !names.isEmpty else { return .option }
+        guard !names.isEmpty else { return .modifiers([.fn]) }
 
         // "option" → .option
         if names.count == 1 && names[0].lowercased() == "option" {
@@ -41,7 +41,7 @@ public enum HotkeyConfig: Equatable, Sendable {
         }
 
         // パース失敗 → デフォルト
-        return .option
+        return .modifiers([.fn])
     }
 
     // MARK: - Key Code Map
@@ -85,12 +85,24 @@ public enum HotkeyConfig: Equatable, Sendable {
 // MARK: - Hotkey Modifier
 
 public enum HotkeyModifier: String, CaseIterable, Sendable {
-    case ctrl, alt, cmd, shift
+    case fn, ctrl, alt, cmd, shift
     // "option" は config 文字列としては .option case にマップされる
+
+    /// ユーザー向け表示名
+    var displayName: String {
+        switch self {
+        case .fn:    return "Fn"
+        case .ctrl:  return "Control ⌃"
+        case .alt:   return "Option ⌥"
+        case .cmd:   return "Command ⌘"
+        case .shift: return "Shift ⇧"
+        }
+    }
 
     /// NSEvent.ModifierFlags の対応フラグ
     var flag: NSEvent.ModifierFlags {
         switch self {
+        case .fn:    return .function
         case .ctrl:  return .control
         case .alt:   return .option
         case .cmd:   return .command

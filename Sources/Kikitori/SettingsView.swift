@@ -7,7 +7,11 @@ import KikitoriCore
 final class SettingsViewModel: ObservableObject {
     @Published var language: String = "ja"
     @Published var uiLanguage: String = "ja"
-    @Published var hotkeyText: String = "option"
+    @Published var hotkeyFn: Bool = false
+    @Published var hotkeyCtrl: Bool = false
+    @Published var hotkeyAlt: Bool = false
+    @Published var hotkeyCmd: Bool = false
+    @Published var hotkeyShift: Bool = false
     @Published var minDurationMs: Double = 300
     @Published var maxDurationSec: Double = 60
     @Published var silenceRmsThreshold: Double = 0.0001
@@ -22,24 +26,47 @@ final class SettingsViewModel: ObservableObject {
     func load() {
         language = settings.language
         uiLanguage = settings.uiLanguage ?? "ja"
-        hotkeyText = settings.hotkey.joined(separator: ", ")
+        loadHotkeyToggles()
         minDurationMs = Double(settings.minDurationMs)
         maxDurationSec = Double(settings.maxDurationSec)
         silenceRmsThreshold = settings.silenceRmsThreshold
         debugEnabled = settings.debug
     }
 
+    private func loadHotkeyToggles() {
+        hotkeyFn = false; hotkeyCtrl = false; hotkeyAlt = false
+        hotkeyCmd = false; hotkeyShift = false
+        for name in settings.hotkey {
+            switch name.lowercased() {
+            case "fn":    hotkeyFn = true
+            case "ctrl":  hotkeyCtrl = true
+            case "alt", "option": hotkeyAlt = true
+            case "cmd":   hotkeyCmd = true
+            case "shift": hotkeyShift = true
+            default: break
+            }
+        }
+    }
+
     func save() {
         settings.language = language
         settings.uiLanguage = uiLanguage
-        settings.hotkey = hotkeyText.split(separator: ",").map {
-            $0.trimmingCharacters(in: .whitespaces)
-        }
+        settings.hotkey = hotkeyArray
         settings.minDurationMs = Int(minDurationMs)
         settings.maxDurationSec = Int(maxDurationSec)
         settings.silenceRmsThreshold = silenceRmsThreshold
         settings.debug = debugEnabled
         settings.save()
+    }
+
+    private var hotkeyArray: [String] {
+        var keys: [String] = []
+        if hotkeyFn { keys.append("fn") }
+        if hotkeyCtrl { keys.append("ctrl") }
+        if hotkeyAlt { keys.append("option") }
+        if hotkeyCmd { keys.append("cmd") }
+        if hotkeyShift { keys.append("shift") }
+        return keys.isEmpty ? ["fn"] : keys
     }
 
     func reset() {
@@ -105,14 +132,14 @@ struct SettingsView: View {
                 Text("English").tag("en")
             }
 
-            HStack {
-                Text("ホットキー:")
-                TextField("option", text: $vm.hotkeyText)
-                    .frame(width: 200)
-                Text("(例: ctrl, shift  /  cmd, space  /  f13)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
+            Text("ホットキー（修飾キーの組み合わせ）:")
+                .font(.subheadline)
+            
+            Toggle("Fn      🌐", isOn: $vm.hotkeyFn)
+            Toggle("Control ⌃", isOn: $vm.hotkeyCtrl)
+            Toggle("Option  ⌥", isOn: $vm.hotkeyAlt)
+            Toggle("Command ⌘", isOn: $vm.hotkeyCmd)
+            Toggle("Shift    ⇧", isOn: $vm.hotkeyShift)
 
             HStack {
                 Spacer()

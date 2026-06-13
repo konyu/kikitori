@@ -21,7 +21,7 @@ public final class SettingsManager: @unchecked Sendable {
     public var uiLanguage: String? = nil
 
     /// ホットキー名の配列（例: ["option"], ["ctrl", "shift"], ["f13"]）
-    public var hotkey: [String] = ["option"]
+    public var hotkey: [String] = ["fn"]
 
     /// 最低録音時間（ミリ秒）
     public var minDurationMs: Int = 300
@@ -112,7 +112,7 @@ public final class SettingsManager: @unchecked Sendable {
     private func _resetProperties() {
         language = "ja"
         uiLanguage = nil
-        hotkey = ["option"]
+        hotkey = ["fn"]
         minDurationMs = 300
         maxDurationSec = 60
         silenceRmsThreshold = 0.0001

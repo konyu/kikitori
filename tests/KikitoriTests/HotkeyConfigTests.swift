@@ -9,16 +9,22 @@ struct HotkeyConfigTests {
         #expect(config == .option)
     }
 
-    @Test("空配列 → .option（デフォルト）")
+    @Test("空配列 → .modifiers([.fn])（デフォルト）")
     func testParseEmpty() {
         let config = HotkeyConfig.parse(from: [])
-        #expect(config == .option)
+        #expect(config == .modifiers([.fn]))
     }
 
-    @Test("未知キー名 → .option にフォールバック")
+    @Test("未知キー名 → .modifiers([.fn]) にフォールバック")
     func testParseUnknown() {
         let config = HotkeyConfig.parse(from: ["unknown_key"])
-        #expect(config == .option)
+        #expect(config == .modifiers([.fn]))
+    }
+
+    @Test("fn 修飾キー")
+    func testParseFn() {
+        let config = HotkeyConfig.parse(from: ["fn"])
+        #expect(config == .modifiers([.fn]))
     }
 
     @Test("単一修飾キー: ctrl")
