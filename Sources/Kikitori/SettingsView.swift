@@ -91,7 +91,7 @@ final class SettingsViewModel: ObservableObject {
 
 struct SettingsView: View {
     @ObservedObject var vm: SettingsViewModel
-    let onDismiss: () -> Void
+    let onSave: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
@@ -106,10 +106,9 @@ struct SettingsView: View {
             Divider()
             HStack {
                 Spacer()
-                Button("キャンセル") { onDismiss() }
-                Button("保存して適用") {
+                Button("保存") {
                     vm.save()
-                    onDismiss()
+                    onSave()
                 }
                 .keyboardShortcut(.defaultAction)
             }
@@ -181,21 +180,27 @@ struct SettingsView: View {
 final class SettingsWindowController: NSWindowController {
     private let vm: SettingsViewModel
 
-    init(settings: SettingsManager, onDismiss: @escaping () -> Void) {
+    init(settings: SettingsManager, onSave: @escaping () -> Void) {
         self.vm = SettingsViewModel(settings: settings)
         vm.load()
 
-        let view = SettingsView(vm: vm, onDismiss: onDismiss)
-        let hosting = NSHostingController(rootView: view)
-
-        let window = NSWindow(contentViewController: hosting)
+        let window = NSWindow(
+            contentRect: .zero,
+            styleMask: [.titled, .closable, .miniaturizable],
+            backing: .buffered,
+            defer: true
+        )
         window.title = "Kikitori 設定"
-        window.styleMask = [.titled, .closable, .miniaturizable]
         window.setContentSize(NSSize(width: 420, height: 350))
         window.center()
         window.isReleasedWhenClosed = false
 
         super.init(window: window)
+
+        let view = SettingsView(vm: vm, onSave: { [weak self] in
+            onSave()
+        })
+        window.contentViewController = NSHostingController(rootView: view)
     }
 
     required init?(coder: NSCoder) { fatalError() }

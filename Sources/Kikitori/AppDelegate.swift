@@ -133,9 +133,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func showSettings() {
         if settingsWindow == nil {
-            settingsWindow = SettingsWindowController(settings: settings) { [weak self] in
+            settingsWindow = SettingsWindowController(settings: settings, onSave: { [weak self] in
                 self?.reloadSettings()
-            }
+            })
         }
         settingsWindow?.show()
     }
