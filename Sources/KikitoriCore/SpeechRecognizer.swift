@@ -10,7 +10,9 @@ public final class SpeechRecognizer: @unchecked Sendable {
     private var isRunning = false
     
     private let lock = NSLock()
+    private let audioStream: AsyncStream<AVAudioPCMBuffer>
     private var audioContinuation: AsyncStream<AVAudioPCMBuffer>.Continuation?
+    private var setupTask: Task<Void, Never>?
     private var analyzerTask: Task<Void, Never>?
     private var _totalFrameCount: AVAudioFrameCount = 0
     private var buffersForRMS: [AVAudioPCMBuffer] = []
@@ -33,46 +35,56 @@ public final class SpeechRecognizer: @unchecked Sendable {
         lock.withLock { _totalFrameCount }
     }
     
-    public init() {}
-    
-    public func start() async throws {
-        let locale = Self.locale(for: language)
-        let t = SpeechTranscriber(locale: locale, preset: .transcription)
-        let a = SpeechAnalyzer(modules: [t])
-        
-        let format = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [t])
-        try await a.prepareToAnalyze(in: format)
-
-        // 用語リストがあれば AnalysisContext に設定（解析開始前に行う）
-        if !contextualStrings.isEmpty {
-            let ctx = AnalysisContext()
-            ctx.contextualStrings[.general] = contextualStrings
-            do {
-                try await a.setContext(ctx)
-                DebugLogger.shared.log("Context successfully applied: \(contextualStrings)")
-            } catch {
-                DebugLogger.shared.log("Failed to apply context: \(error)")
-            }
-        }
-
+    public init() {
         let (stream, continuation) = AsyncStream.makeStream(of: AVAudioPCMBuffer.self)
-        
-        lock.withLock {
-            self.transcriber = t
-            self.analyzer = a
-            self.audioFormat = format
-            self.audioContinuation = continuation
-            self.isRunning = true
-            self._totalFrameCount = 0
-            self.buffersForRMS = []
-        }
-        
-        let analyzerStream = SendableAnalyzerStream(base: stream.map { AnalyzerInput(buffer: $0) })
-        self.analyzerTask = Task {
+        self.audioStream = stream
+        self.audioContinuation = continuation
+        self.isRunning = true
+    }
+    
+    public func start() {
+        self.setupTask = Task {
+            let locale = Self.locale(for: language)
+            let t = SpeechTranscriber(locale: locale, preset: .transcription)
+            let a = SpeechAnalyzer(modules: [t])
+            
+            let format = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [t])
             do {
-                _ = try await a.analyzeSequence(analyzerStream)
+                try await a.prepareToAnalyze(in: format)
             } catch {
-                DebugLogger.shared.log("analyzeSequence error: \(error)")
+                DebugLogger.shared.log("prepareToAnalyze failed: \(error)")
+                return
+            }
+
+            if !contextualStrings.isEmpty {
+                let ctx = AnalysisContext()
+                ctx.contextualStrings[.general] = contextualStrings
+                try? await a.setContext(ctx)
+            }
+
+            let shouldStartAnalyzer = lock.withLock { () -> Bool in
+                self.transcriber = t
+                self.analyzer = a
+                self.audioFormat = format
+                return self.isRunning
+            }
+            
+            // isRunningがfalseなら、すでにstop()が呼ばれているので解析タスクを開始しつつ、すぐにストリームを終了させる
+            // （audioContinuation?.finish() は stop() で呼ばれる）
+            let converter = BufferConverter()
+            let analyzerStream = SendableAnalyzerStream(base: audioStream.map { rawBuffer in
+                if let f = format {
+                    let converted = converter.convert(rawBuffer, to: f)
+                    return AnalyzerInput(buffer: converted)
+                }
+                return AnalyzerInput(buffer: rawBuffer)
+            })
+            self.analyzerTask = Task {
+                do {
+                    _ = try await a.analyzeSequence(analyzerStream)
+                } catch {
+                    DebugLogger.shared.log("analyzeSequence error: \(error)")
+                }
             }
         }
     }
@@ -102,6 +114,9 @@ public final class SpeechRecognizer: @unchecked Sendable {
     }
     
     public func stop() async -> String {
+        // 初期化タスクが終わるのを確実に待つ（言語変更時などにprepareToAnalyzeが数秒かかる場合があるため）
+        _ = await self.setupTask?.result
+
         let (t, a, format, frames, buffers) = lock.withLock {
             let t1 = self.transcriber
             let a1 = self.analyzer
@@ -192,5 +207,23 @@ struct SendableAnalyzerStream: AsyncSequence, @unchecked Sendable {
     
     func makeAsyncIterator() -> Iterator {
         Iterator(base: base.makeAsyncIterator())
+    }
+}
+
+final class BufferConverter: @unchecked Sendable {
+    private var converter: AVAudioConverter?
+    private var outputFormat: AVAudioFormat?
+    
+    func convert(_ rawBuffer: AVAudioPCMBuffer, to format: AVAudioFormat) -> AVAudioPCMBuffer {
+        if converter == nil || outputFormat != format {
+            converter = AVAudioConverter(from: rawBuffer.format, to: format)
+            outputFormat = format
+        }
+        guard let cvt = converter else { return rawBuffer }
+        let outFrames = AVAudioFrameCount(Double(rawBuffer.frameLength) * format.sampleRate / rawBuffer.format.sampleRate)
+        guard let out = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: outFrames) else { return rawBuffer }
+        var err: NSError?
+        cvt.convert(to: out, error: &err) { _, s in s.pointee = .haveData; return rawBuffer }
+        return out.frameLength > 0 ? out : rawBuffer
     }
 }

@@ -63,7 +63,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         hotkey.onKeyDown = { [weak self] in
             Task { @MainActor in
-                self?.tracker.capture()  // 初回押下時のみ PID 記憶
+                self?.tracker.capture()
                 self?.start()
             }
         }
@@ -77,7 +77,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         overlay.show()
 
-        // 録音開始時に常に最新のファイル内容を読み込む（Python版と同等の動作）
+        // 録音開始時に常に最新のファイル内容を読み込む
         settings.load()
         corrections.load()
 
@@ -93,7 +93,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         Task {
             do {
-                try await r.start()
+                r.start()
                 if let f = r.compatibleAudioFormat { c.targetFormat = f }
                 c.onAudioBuffer = { r.addAudio($0) }
                 try await c.start()
