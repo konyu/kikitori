@@ -8,13 +8,21 @@ final class WaveformModel: ObservableObject {
     @Published var levels: [Float] = Array(repeating: 0.05, count: 12)
 
     func push(_ amp: Float) {
-        // RMS値は非常に小さいため（通常0.01〜0.05）、大きく乗算して波形がしっかり動くようにする
-        let clamped = min(max(amp * 15.0, 0.05), 1.0)
-        // 先頭に新しい値を追加、末尾を削除
-        var new = levels
-        new.append(clamped)
-        new.removeFirst()
-        levels = new
+        let boosted = sqrt(amp) * 3.5 
+        let clamped = min(max(boosted, 0.05), 1.0)
+        
+        var newLevels: [Float] = []
+        for i in 0..<12 {
+            // 中央が一番高く、端に行くほど低くなる係数 (0.3 〜 1.0)
+            let centerBias = 1.0 - (abs(Float(i) - 5.5) / 5.5) * 0.7
+            
+            // 声が出ている時だけ各バーにランダムな揺らぎを加える
+            let noise = clamped > 0.1 ? Float.random(in: 0.6...1.4) : 1.0
+            
+            let val = clamped * centerBias * noise
+            newLevels.append(val)
+        }
+        levels = newLevels
     }
 }
 
@@ -43,19 +51,18 @@ struct OverlayView: View {
             HStack(spacing: 4) {
                 ForEach(0..<model.levels.count, id: \.self) { i in
                     let level = model.levels[i]
-                    let centerBias = 1.0 - abs(Double(i) - 5.5) / 5.5 * 0.15
-                    let h = max(4.0, CGFloat(level) * 60.0 * CGFloat(centerBias))
+                    let h = max(4.0, CGFloat(level) * 30.0)
                     
                     RoundedRectangle(cornerRadius: 2)
                         .fill(Color(red: 160/255, green: 175/255, blue: 190/255).opacity(0.85))
-                        .frame(width: 4, height: min(h, 22))
+                        .frame(width: 4, height: min(h, 24)) // 以前と同じぐらいの高さ制限
                 }
             }
-            // 音声レベルの変化を滑らかにアニメーションさせ、流れるようなイメージにする
-            .animation(.linear(duration: 0.1), value: model.levels)
+            // 流れるのをやめ、その場で滑らかに波打つアニメーション
+            .animation(.interactiveSpring(response: 0.15, dampingFraction: 0.6, blendDuration: 0.1), value: model.levels)
         }
         .padding(.horizontal, 24)
-        .frame(height: 44)
+        .frame(height: 44) // 全体の高さを元に戻す
         // Apple Liquid Glassデザイン (薄いマテリアル＋エッジハイライト＋シャドウ)
         .background(
             Capsule()
