@@ -32,3 +32,6 @@ dist/
 build/
 *.egg-info/
 .build/
+
+# Swift build artifacts
+Kikitori.app/

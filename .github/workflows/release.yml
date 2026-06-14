@@ -1,106 +1,36 @@
-name: Build and Release Bottle
+name: Build and Release DMG
 
 on:
   push:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+
 jobs:
-  build-bottle:
-    runs-on: macos-15  # Apple Silicon (M-series)
+  build-dmg:
+    runs-on: macos-15
     steps:
-      - name: Checkout Code
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Extract version
         id: get_version
         run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
 
-      - name: Build bottle
+      - name: Install create-dmg
+        run: brew install create-dmg
+
+      - name: Build DMG
         run: |
-          set -e
-          VERSION="${{ env.VERSION }}"
-          CELLAR_DIR="kikitori/$VERSION"
-          mkdir -p "$CELLAR_DIR/bin"
+          chmod +x scripts/build-dmg.sh
+          VERSION=${{ env.VERSION }} bash scripts/build-dmg.sh
 
-          echo "=== Swift build ==="
-          swift build -c release --disable-sandbox --build-path .build
-
-          echo "=== Copy binary ==="
-          cp .build/release/Kikitori "$CELLAR_DIR/bin/kikitori"
-
-          echo "=== Create INSTALL_RECEIPT.json ==="
-          python3 -c "
-          import json, time
-          receipt = {
-              'homebrew_version': '5.0.4', 'used_options': [], 'unused_options': [],
-              'built_as_bottle': True, 'poured_from_bottle': False, 'loaded_from_api': False,
-              'installed_as_dependency': False, 'installed_on_request': True,
-              'changed_files': [], 'time': int(time.time()), 'source_modified_time': int(time.time()),
-              'compiler': 'clang', 'aliases': [], 'runtime_dependencies': [],
-              'source': {'path': '/opt/homebrew/Library/Taps/konyu/homebrew-kikitori/Formula/kikitori.rb', 'tap': 'konyu/kikitori', 'spec': 'stable', 'versions': {'stable': '$VERSION'}},
-              'stdlib': 'libc++', 'arch': 'arm64',
-          }
-          with open('$CELLAR_DIR/INSTALL_RECEIPT.json', 'w') as f:
-              json.dump(receipt, f, indent=2)
-          "
-
-          echo "=== Compress bottle ==="
-          BOTTLE_NAME="kikitori-$VERSION.arm64_sequoia.bottle.tar.gz"
-          tar czf "$BOTTLE_NAME" kikitori/
-          
-          BOTTLE_SHA=$(shasum -a 256 "$BOTTLE_NAME" | cut -d' ' -f1)
-          
-          echo "BOTTLE_NAME=$BOTTLE_NAME" >> $GITHUB_ENV
-          echo "BOTTLE_SHA=$BOTTLE_SHA" >> $GITHUB_ENV
-          
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
+      - name: Upload DMG to Release
+        uses: softprops/action-gh-release@v2
         with:
-          files: ${{ env.BOTTLE_NAME }}
+          files: dist/Kikitori-${{ env.VERSION }}.dmg
           draft: false
           prerelease: false
           generate_release_notes: true
-
-  update-tap:
-    needs: build-bottle
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Tap Repo
-        uses: actions/checkout@v4
-        with:
-          repository: konyu/homebrew-kikitori
-          token: ${{ secrets.TAP_GITHUB_TOKEN }}
-          path: tap
-
-      - name: Update Formula
-        run: |
-          cd tap
-          VERSION=${GITHUB_REF#refs/tags/v}
-          
-          BOTTLE_URL="https://github.com/konyu/kikitori/releases/download/v$VERSION/kikitori-$VERSION.arm64_sequoia.bottle.tar.gz"
-          curl -sL -o bottle.tar.gz "$BOTTLE_URL"
-          BOTTLE_SHA=$(sha256sum bottle.tar.gz | cut -d' ' -f1)
-          
-          echo "BOTTLE_SHA=$BOTTLE_SHA"
-
-          python3 -c "
-          import re
-          with open('Formula/kikitori.rb', 'r') as f: text = f.read()
-          text = re.sub(r'tag:\s+\"v[^\"]+\"', f'tag:      \"v$VERSION\"', text)
-          text = re.sub(r'revision:\s+\"[^\"]+\"', f'revision: \"$GITHUB_SHA\"', text)
-          text = re.sub(r'root_url\s+\"[^\"]+\"', f'root_url \"https://github.com/konyu/kikitori/releases/download/v$VERSION\"', text)
-          # Add or update bottle sha256
-          if 'sha256 cellar: :any_skip_relocation, arm64_sequoia:' in text:
-              text = re.sub(r'sha256 cellar: :any_skip_relocation, arm64_sequoia: \"[^\"]+\"', f'sha256 cellar: :any_skip_relocation, arm64_sequoia: \"$BOTTLE_SHA\"', text)
-          else:
-              # Insert sha256 before 'end' in bottle block
-              text = re.sub(r'(bottle do.*?\n)', f'\\\\1    sha256 cellar: :any_skip_relocation, arm64_sequoia: \"$BOTTLE_SHA\"\n', text, count=1, flags=re.DOTALL)
-          with open('Formula/kikitori.rb', 'w') as f: f.write(text)
-          "
-          
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add Formula/kikitori.rb
-          git commit -m "Update kikitori to v$VERSION"
-          git push origin main
