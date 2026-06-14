@@ -8,5 +8,6 @@ if args.contains("--version") || args.contains("-v") {
 
 let a = NSApplication.shared
 a.setActivationPolicy(.accessory)
-a.delegate = AppDelegate()
+let delegate = AppDelegate()
+a.delegate = delegate
 a.run()

@@ -25,10 +25,19 @@ struct OverlayView: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            // 青いマイクインジケーター (フラットな青)
-            Circle()
-                .fill(Color(red: 84/255, green: 164/255, blue: 255/255))
-                .frame(width: 20, height: 20)
+            // アイコン
+            if let img = IconLoader.loadIdleIcon() {
+                Image(nsImage: img)
+                    .resizable()
+                    .renderingMode(.template)
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 22, height: 22)
+                    .foregroundColor(Color(red: 84/255, green: 164/255, blue: 255/255))
+            } else {
+                Circle()
+                    .fill(Color(red: 84/255, green: 164/255, blue: 255/255))
+                    .frame(width: 26, height: 26)
+            }
 
             // 12本の波形バー
             HStack(spacing: 4) {
@@ -105,7 +114,7 @@ final class OverlayController: NSObject {
         win.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
         win.ignoresMouseEvents = true
         win.contentViewController = hosting
-        win.makeKeyAndOrderFront(nil)
+        win.orderFrontRegardless()
         self.window = win
     }
 

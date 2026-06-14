@@ -11,7 +11,8 @@ let package = Package(
         .target(name: "KikitoriCore"),
         .executableTarget(
             name: "Kikitori",
-            dependencies: ["KikitoriCore"]
+            dependencies: ["KikitoriCore"],
+            resources: [.process("Resources")]
         ),
         .testTarget(
             name: "KikitoriTests",

@@ -216,7 +216,7 @@ final class SettingsWindowController: NSWindowController {
 
         super.init(window: window)
 
-        let view = SettingsView(vm: vm, onSave: { [weak self] in
+        let view = SettingsView(vm: vm, onSave: {
             onSave()
         })
         window.contentViewController = NSHostingController(rootView: view)

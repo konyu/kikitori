@@ -27,7 +27,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let btn = item.button {
-            btn.image = NSImage(systemSymbolName: "mic", accessibilityDescription: "Kikitori")
+            if let icon = IconLoader.loadIdleIcon() {
+                // メニューバーアイコンがシステム再描画時に消えるバグを防ぐため、
+                // 正しく新しい NSImage コンテキストに描画（リサイズ）する
+                let ratio = icon.size.width / icon.size.height
+                let newSize = NSSize(width: 18 * ratio, height: 18)
+                let resized = NSImage(size: newSize)
+                resized.lockFocus()
+                icon.draw(in: NSRect(origin: .zero, size: newSize),
+                          from: NSRect(origin: .zero, size: icon.size),
+                          operation: .sourceOver,
+                          fraction: 1.0)
+                resized.unlockFocus()
+                resized.isTemplate = true
+                btn.image = resized
+            } else {
+                btn.image = NSImage(systemSymbolName: "mic", accessibilityDescription: "Kikitori")
+            }
         }
         let m = NSMenu()
         let settingsItem = NSMenuItem(title: "Settings", action: #selector(showSettings), keyEquivalent: ",")
