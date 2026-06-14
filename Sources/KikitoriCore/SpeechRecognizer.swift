@@ -26,12 +26,8 @@ public final class SpeechRecognizer: @unchecked Sendable {
     /// 認識言語コード（例: "ja", "en"）。デフォルト: "ja"
     public var language: String = "ja"
 
-    /// 音声認識精度向上用の用語リスト（AnalysisContext.contextualStrings に渡す）
-    /// ※現状はGlossary機能ドロップにより使用しませんが、APIとして残しています
-    public var contextualStrings: [String] = []
-
     public var compatibleAudioFormat: AVAudioFormat? { audioFormat }
-    public var totalFrameCount: AVAudioFrameCount { 
+    var totalFrameCount: AVAudioFrameCount { 
         lock.withLock { _totalFrameCount }
     }
     
@@ -52,17 +48,11 @@ public final class SpeechRecognizer: @unchecked Sendable {
             do {
                 try await a.prepareToAnalyze(in: format)
             } catch {
-                DebugLogger.shared.log("prepareToAnalyze failed: \(error)")
+                DebugLogger.log("prepareToAnalyze failed: \(error)")
                 return
             }
 
-            if !contextualStrings.isEmpty {
-                let ctx = AnalysisContext()
-                ctx.contextualStrings[.general] = contextualStrings
-                try? await a.setContext(ctx)
-            }
-
-            let shouldStartAnalyzer = lock.withLock { () -> Bool in
+            _ = lock.withLock {
                 self.transcriber = t
                 self.analyzer = a
                 self.audioFormat = format
@@ -72,19 +62,26 @@ public final class SpeechRecognizer: @unchecked Sendable {
             // isRunningがfalseなら、すでにstop()が呼ばれているので解析タスクを開始しつつ、すぐにストリームを終了させる
             // （audioContinuation?.finish() は stop() で呼ばれる）
             let converter = BufferConverter()
-            let analyzerStream = SendableAnalyzerStream(base: audioStream.map { rawBuffer in
-                if let f = format {
-                    let converted = converter.convert(rawBuffer, to: f)
-                    return AnalyzerInput(buffer: converted)
+            let (analyzerStream, analyzerCont) = AsyncStream<AnalyzerInput>.makeStream()
+            let bridgeTask = Task {
+                for await rawBuffer in audioStream {
+                    let buffer: AVAudioPCMBuffer
+                    if let f = format {
+                        buffer = converter.convert(rawBuffer, to: f)
+                    } else {
+                        buffer = rawBuffer
+                    }
+                    analyzerCont.yield(AnalyzerInput(buffer: buffer))
                 }
-                return AnalyzerInput(buffer: rawBuffer)
-            })
+                analyzerCont.finish()
+            }
             self.analyzerTask = Task {
                 do {
                     _ = try await a.analyzeSequence(analyzerStream)
                 } catch {
-                    DebugLogger.shared.log("analyzeSequence error: \(error)")
+                    DebugLogger.log("analyzeSequence error: \(error)")
                 }
+                bridgeTask.cancel()
             }
         }
     }
@@ -128,7 +125,7 @@ public final class SpeechRecognizer: @unchecked Sendable {
             return (t1, a1, f1, fr, bufs)
         }
 
-        DebugLogger.shared.log("stop() called, isRunning=false, totalFrames=\(frames), format=\(format?.description ?? "nil")")
+        DebugLogger.log("stop() called, isRunning=false, totalFrames=\(frames), format=\(format?.description ?? "nil")")
         guard let t = t, let a = a else {
             return ""
         }
@@ -138,7 +135,7 @@ public final class SpeechRecognizer: @unchecked Sendable {
             let sampleRate = format?.sampleRate ?? 16000
             let minFrames = AVAudioFrameCount(Double(minDurationMs) * sampleRate / 1000)
             if frames < minFrames {
-                DebugLogger.shared.log("FILTER: too short, returning empty")
+                DebugLogger.log("FILTER: too short, returning empty")
                 return ""
             }
         }
@@ -147,7 +144,7 @@ public final class SpeechRecognizer: @unchecked Sendable {
         if silenceRmsThreshold > 0 {
             let rms = calculateRMS(buffers)
             if rms < Float(silenceRmsThreshold) {
-                DebugLogger.shared.log("FILTER: silence detected, returning empty")
+                DebugLogger.log("FILTER: silence detected, returning empty")
                 return ""
             }
         }
@@ -162,7 +159,7 @@ public final class SpeechRecognizer: @unchecked Sendable {
             }
         } catch { }
         let final = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        DebugLogger.shared.log("recognition result: '\(final)'")
+        DebugLogger.log("recognition result: '\(final)'")
         return final
     }
 
@@ -170,16 +167,11 @@ public final class SpeechRecognizer: @unchecked Sendable {
         var sumSq: Float = 0
         var totalFrames: AVAudioFrameCount = 0
         for buf in buffers {
-            let frames = Int(buf.frameLength)
-            if let floatData = buf.floatChannelData?.pointee {
+            if let floatData = buf.floatChannelData {
+                let frames = Int(buf.frameLength)
+                let ptr = floatData.pointee
                 for i in 0..<frames {
-                    let s = floatData[i]
-                    sumSq += s * s
-                }
-                totalFrames += buf.frameLength
-            } else if let intData = buf.int16ChannelData?.pointee {
-                for i in 0..<frames {
-                    let s = Float(intData[i]) / 32768.0
+                    let s = ptr[i]
                     sumSq += s * s
                 }
                 totalFrames += buf.frameLength
@@ -192,29 +184,13 @@ public final class SpeechRecognizer: @unchecked Sendable {
 
 // MARK: - Concurrency Workarounds
 
-struct SendableAnalyzerStream: AsyncSequence, @unchecked Sendable {
-    typealias Element = AnalyzerInput
-    typealias AsyncIterator = Iterator
-    
-    let base: AsyncMapSequence<AsyncStream<AVAudioPCMBuffer>, AnalyzerInput>
-    
-    struct Iterator: AsyncIteratorProtocol {
-        var base: AsyncMapSequence<AsyncStream<AVAudioPCMBuffer>, AnalyzerInput>.AsyncIterator
-        mutating func next() async -> AnalyzerInput? {
-            await base.next()
-        }
-    }
-    
-    func makeAsyncIterator() -> Iterator {
-        Iterator(base: base.makeAsyncIterator())
-    }
-}
-
 final class BufferConverter: @unchecked Sendable {
     private var converter: AVAudioConverter?
     private var outputFormat: AVAudioFormat?
     
     func convert(_ rawBuffer: AVAudioPCMBuffer, to format: AVAudioFormat) -> AVAudioPCMBuffer {
+        // フォーマットが同一なら変換スキップ
+        if rawBuffer.format == format { return rawBuffer }
         if converter == nil || outputFormat != format {
             converter = AVAudioConverter(from: rawBuffer.format, to: format)
             outputFormat = format

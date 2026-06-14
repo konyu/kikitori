@@ -23,8 +23,6 @@ public final class HotkeyManager: @unchecked Sendable {
 
     private var _down = false
     private let lock = NSLock()
-
-    /// 修飾キーベースのホットキーで、現在の修飾キーが必要条件を満たしているか
     private var modifiersSatisfied = false
 
     public init() {}
@@ -77,70 +75,54 @@ public final class HotkeyManager: @unchecked Sendable {
 
     // MARK: - Event Handling
 
+    /// _down のアトミックな状態遷移。true → fire down, false → fire up
+    private func _transition(wantDown: Bool) -> (fireDown: Bool, fireUp: Bool) {
+        lock.withLock {
+            modifiersSatisfied = wantDown
+            if wantDown, !_down { _down = true; return (true, false) }
+            if !wantDown, _down { _down = false; return (false, true) }
+            return (false, false)
+        }
+    }
+
     private func handleFlagsChanged(_ e: NSEvent) {
-        guard e.type == .flagsChanged else { return }
         let flags = e.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        let satisfied = flags.contains(config.modifierFlags)
 
         switch config {
         case .option, .modifiers:
-            let target = config.modifierFlags
-            let satisfied = flags.contains(target)
-            let (fireDown, fireUp): (Bool, Bool) = lock.withLock {
-                modifiersSatisfied = satisfied
-                if satisfied, !_down { _down = true; return (true, false) }
-                if !satisfied, _down { _down = false; return (false, true) }
-                return (false, false)
-            }
+            let (fireDown, fireUp) = _transition(wantDown: satisfied)
             if fireDown { onKeyDown?() }
             if fireUp { onKeyUp?() }
 
-        case .key(let mods, let keyCode):
-            // 修飾キー状態だけ更新。キー押下は handleKeyEvent で処理。
-            let targetMods: NSEvent.ModifierFlags = mods.reduce(into: []) { $0.formUnion($1.flag) }
-            let satisfied = flags.contains(targetMods)
+        case .key:
             lock.withLock { modifiersSatisfied = satisfied }
-
-            // 修飾キーが不足したら即アップ
             if !satisfied {
-                let wasDown: Bool = lock.withLock {
-                    if _down { _down = false; return true }
-                    return false
-                }
-                if wasDown { onKeyUp?() }
+                let (_, fireUp) = _transition(wantDown: false)
+                if fireUp { onKeyUp?() }
             }
         }
     }
 
     private func handleKeyEvent(_ e: NSEvent, down: Bool) {
-        guard case .key(let mods, let targetKeyCode) = config else { return }
+        guard case .key(_, let targetKeyCode) = config else { return }
+        guard e.keyCode == targetKeyCode else { return }
 
-        let satisfied: Bool = lock.withLock { modifiersSatisfied }
-        guard satisfied else {
-            // 修飾キー不足時はキー解放チェック
-            if !down, e.keyCode == targetKeyCode {
-                let wasDown: Bool = lock.withLock {
-                    if _down { _down = false; return true }
-                    return false
-                }
-                if wasDown { onKeyUp?() }
+        let s: Bool = lock.withLock { modifiersSatisfied }
+        guard s else {
+            if !down {
+                let (_, fireUp) = _transition(wantDown: false)
+                if fireUp { onKeyUp?() }
             }
             return
         }
 
-        if down, e.keyCode == targetKeyCode {
-            let shouldFire: Bool = lock.withLock {
-                if !_down { _down = true; return true }
-                return false
-            }
-            if shouldFire { onKeyDown?() }
-        }
-
-        if !down, e.keyCode == targetKeyCode {
-            let wasDown: Bool = lock.withLock {
-                if _down { _down = false; return true }
-                return false
-            }
-            if wasDown { onKeyUp?() }
+        if down {
+            let (fireDown, _) = _transition(wantDown: true)
+            if fireDown { onKeyDown?() }
+        } else {
+            let (_, fireUp) = _transition(wantDown: false)
+            if fireUp { onKeyUp?() }
         }
     }
 }

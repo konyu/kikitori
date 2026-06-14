@@ -18,8 +18,6 @@ final class CorrectionsViewModel: ObservableObject {
     func save() {
         corrections.setPairs(pairs.map { ($0.wrong, $0.right) })
         corrections.save()
-        // AppDelegate で持っている Corrections に即時反映される
-        // （Corrections クラスが共有インスタンスとして動作しているため）
     }
 
     func add(wrong: String, right: String) {

@@ -19,31 +19,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let overlay = OverlayController()
 
     func applicationDidFinishLaunching(_ n: Notification) {
+        NSApp.setActivationPolicy(.accessory)
         settings.load()
         i18n.setLanguage(settings.uiLanguage)
-        DebugLogger.shared.enabled = settings.debug
+        DebugLogger.enabled = settings.debug
         corrections.load()
         hotkey.config = HotkeyConfig.parse(from: settings.hotkey)
         capture.onAmplitude = { [weak self] amp in
             self?.overlay.updateAmplitude(amp)
         }
 
-        item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        item = NSStatusBar.system.statusItem(withLength: 24)
         if let btn = item.button {
             if let icon = IconLoader.loadIdleIcon() {
-                // メニューバーアイコンがシステム再描画時に消えるバグを防ぐため、
-                // 正しく新しい NSImage コンテキストに描画（リサイズ）する
-                let ratio = icon.size.width / icon.size.height
-                let newSize = NSSize(width: 18 * ratio, height: 18)
-                let resized = NSImage(size: newSize)
-                resized.lockFocus()
-                icon.draw(in: NSRect(origin: .zero, size: newSize),
-                          from: NSRect(origin: .zero, size: icon.size),
-                          operation: .sourceOver,
-                          fraction: 1.0)
-                resized.unlockFocus()
-                resized.isTemplate = true
-                btn.image = resized
+                icon.size = NSSize(width: 18, height: 18)
+                btn.image = icon
             } else {
                 btn.image = NSImage(systemSymbolName: "mic", accessibilityDescription: "Kikitori")
             }
@@ -107,33 +97,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func stop() {
         guard recording else {
-            DebugLogger.shared.log("stop() ignored: not recording")
+            DebugLogger.log("stop() ignored: not recording")
             return
         }
         recording = false
-        DebugLogger.shared.log("stop() - cancelling autoStop, stopping capture")
+        DebugLogger.log("stop() - cancelling autoStop, stopping capture")
         cancelAutoStop()
         capture.stop()
         overlay.hide()
 
         let r = recognizer; recognizer = nil
         guard let r else {
-            DebugLogger.shared.log("stop() - no recognizer")
+            DebugLogger.log("stop() - no recognizer")
             return
         }
         Task {
             let text = await r.stop()
-            DebugLogger.shared.log("stop() - recognizer returned: '\(text)'")
+            DebugLogger.log("stop() - recognizer returned: '\(text)'")
             var final = text
             if !final.isEmpty {
                 final = corrections.apply(to: final)
-                DebugLogger.shared.log("stop() - after corrections: '\(final)'")
+                DebugLogger.log("stop() - after corrections: '\(final)'")
             }
             if !final.isEmpty {
-                DebugLogger.shared.log("stop() - injecting: '\(final)'")
+                DebugLogger.log("stop() - injecting: '\(final)'")
                 injector.inject(final)
             } else {
-                DebugLogger.shared.log("stop() - empty text, skipping inject")
+                DebugLogger.log("stop() - empty text, skipping inject")
             }
             Task.detached { [weak self] in self?.tracker.restore() }
         }
@@ -186,7 +176,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func reloadSettings() {
         settings.load()
         i18n.setLanguage(settings.uiLanguage)
-        DebugLogger.shared.enabled = settings.debug
+        DebugLogger.enabled = settings.debug
         hotkey.config = HotkeyConfig.parse(from: settings.hotkey)
         
         if let m = item.menu {

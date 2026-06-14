@@ -1,5 +1,32 @@
 import AppKit
 
+// MARK: - Frontmost App Tracker
+
+/// 最前面アプリの PID を記憶・復元する。
+public final class FrontmostAppTracker: @unchecked Sendable {
+    private let lock = NSLock()
+    private var capturedPID: pid_t?
+
+    public init() {}
+
+    @discardableResult
+    public func capture() -> pid_t? {
+        let app = NSWorkspace.shared.frontmostApplication
+        let pid = app?.processIdentifier
+        lock.withLock { capturedPID = pid }
+        return pid
+    }
+
+    public func restore() {
+        let pid: pid_t? = lock.withLock { capturedPID }
+        guard let pid else { return }
+        guard let app = NSRunningApplication(processIdentifier: pid) else { return }
+        app.activate(options: .activateAllWindows)
+    }
+}
+
+// MARK: - Text Injector
+
 /// テキスト注入。クリップボード経由 Cmd+V でテキストを貼り付ける。
 /// 注入前に元のクリップボードを保存し、注入後に復元する。
 public final class TextInjector: @unchecked Sendable {

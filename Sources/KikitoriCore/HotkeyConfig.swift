@@ -1,4 +1,3 @@
-import Foundation
 import AppKit
 
 // MARK: - Hotkey Config
@@ -32,7 +31,7 @@ public enum HotkeyConfig: Equatable, Sendable {
             }
         }
 
-        if let keyName, let kc = keyCodeMap[keyName] {
+        if let keyName, let kc = Self.keyCode(for: keyName) {
             return .key(modifiers: modifiers, keyCode: kc)
         }
 
@@ -44,62 +43,37 @@ public enum HotkeyConfig: Equatable, Sendable {
         return .modifiers([.fn])
     }
 
-    // MARK: - Key Code Map
+    // MARK: - Key Code Lookup
 
-    /// キー名 → macOS virtual key code
-    static let keyCodeMap: [String: UInt16] = {
-        var map: [String: UInt16] = [:]
-
-        // a-z: kVK_ANSI_A (0) to kVK_ANSI_Z (25)
-        for (i, char) in "abcdefghijklmnopqrstuvwxyz".enumerated() {
-            map[String(char)] = UInt16(i)
+    /// キー名 → macOS virtual key code（a-z, 0-9 は計算、それ以外はテーブル引き）
+    static func keyCode(for name: String) -> UInt16? {
+        // 単一文字 a-z / 0-9 はパターンで計算
+        if name.utf8.count == 1, let ch = name.utf8.first {
+            switch ch {
+            case 0x61...0x7A: return UInt16(ch - 0x61)       // a-z → 0-25
+            case 0x30...0x39: return UInt16(ch - 0x30 + 29)   // 0-9 → 29-38
+            default: break
+            }
         }
+        // 特殊キー・ファンクションキー
+        return specialKeyCodes[name]
+    }
 
-        // 0-9: kVK_ANSI_0 (29) to kVK_ANSI_9 (38)
-        for (i, char) in "0123456789".enumerated() {
-            map[String(char)] = UInt16(i + 29)
-        }
-
-        // Special keys
-        map["space"] = 49    // kVK_Space
-        map["tab"] = 48      // kVK_Tab
-        map["escape"] = 53   // kVK_Escape
-        map["return"] = 36   // kVK_Return
-        map["delete"] = 51   // kVK_Delete
-        map["up"] = 126      // kVK_UpArrow
-        map["down"] = 125    // kVK_DownArrow
-        map["left"] = 123    // kVK_LeftArrow
-        map["right"] = 124   // kVK_RightArrow
-
-        // F1-F20
-        let fKeys: [UInt16] = [122, 120, 99, 118, 96, 97, 98, 100, 101, 109,
-                               103, 111, 105, 107, 113, 106, 64, 79, 80, 90]
-        for (i, code) in fKeys.enumerated() {
-            map["f\(i + 1)"] = code
-        }
-
-        return map
-    }()
+    private static let specialKeyCodes: [String: UInt16] = [
+        "space": 49, "tab": 48, "escape": 53, "return": 36, "delete": 51,
+        "up": 126, "down": 125, "left": 123, "right": 124,
+        "f1": 122, "f2": 120, "f3": 99, "f4": 118, "f5": 96,
+        "f6": 97, "f7": 98, "f8": 100, "f9": 101, "f10": 109,
+        "f11": 103, "f12": 111, "f13": 105, "f14": 107, "f15": 113,
+        "f16": 106, "f17": 64, "f18": 79, "f19": 80, "f20": 90,
+    ]
 }
 
 // MARK: - Hotkey Modifier
 
-public enum HotkeyModifier: String, CaseIterable, Sendable {
+public enum HotkeyModifier: String, Sendable {
     case fn, ctrl, alt, cmd, shift
-    // "option" は config 文字列としては .option case にマップされる
 
-    /// ユーザー向け表示名
-    var displayName: String {
-        switch self {
-        case .fn:    return "Fn"
-        case .ctrl:  return "Control ⌃"
-        case .alt:   return "Option ⌥"
-        case .cmd:   return "Command ⌘"
-        case .shift: return "Shift ⇧"
-        }
-    }
-
-    /// NSEvent.ModifierFlags の対応フラグ
     var flag: NSEvent.ModifierFlags {
         switch self {
         case .fn:    return .function
@@ -119,7 +93,7 @@ extension HotkeyConfig {
         switch self {
         case .option: return .option
         case .modifiers(let mods), .key(let mods, _):
-            return mods.reduce([]) { $0.union($1.flag) }
+            return mods.reduce(into: NSEvent.ModifierFlags()) { $0.formUnion($1.flag) }
         }
     }
 

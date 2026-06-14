@@ -1,6 +1,7 @@
 import Testing
 @testable import KikitoriCore
 
+@MainActor
 struct I18nTests {
 
     @Test("ja 言語で全キーが日本語を返す")

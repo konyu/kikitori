@@ -1,14 +1,14 @@
 import Foundation
 
 /// UI 表示言語
-public enum Language: String, CaseIterable, Sendable {
+public enum Language: String, Sendable {
     case ja, en
 }
 
 /// 翻訳キー
-public enum TranslationKey: String, CaseIterable, Sendable {
+public enum TranslationKey: Int, Sendable {
     // Menu
-    case menuSettings, menuCorrections, menuQuit
+    case menuSettings = 0, menuCorrections, menuQuit
 
     // Status
     case statusIdle, statusRecording
@@ -20,8 +20,7 @@ public enum TranslationKey: String, CaseIterable, Sendable {
     case logModelReady, listenerStarted, emptyAudio, tooShort, silence
 
     // Settings
-    case settingsTitle
-    case tabGeneral, tabFilters
+    case settingsTitle, tabGeneral, tabFilters
     case settingsLanguageLabel, settingsUILanguageLabel
     case settingsHotkeyLabel, settingsMinDurLabel, settingsMaxDurLabel, settingsRmsLabel, settingsDebugLabel
     case settingsMinDurHint
@@ -29,8 +28,7 @@ public enum TranslationKey: String, CaseIterable, Sendable {
     case msUnit, secUnit
     
     // Corrections
-    case correctionsTitle
-    case correctionsInstruction
+    case correctionsTitle, correctionsInstruction
     case correctionsOpenFile, correctionsReload
     case correctionsWrongCol, correctionsRightCol
     case btnAdd, btnEdit, btnDelete
@@ -56,106 +54,112 @@ public final class I18n: ObservableObject {
         }
     }
 
-    /// 現在の言語設定
-    public var currentLanguage: Language { language }
-
     /// 翻訳文字列を取得
     public func t(_ key: TranslationKey) -> String {
-        Self.strings[language]?[key] ?? Self.strings[.ja]?[key] ?? key.rawValue
+        switch language {
+        case .ja: return Self._lookup(key, Self.jaStrings)
+        case .en: return Self._lookup(key, Self.enStrings)
+        }
     }
 
-    // MARK: - 文字列辞書
+    // MARK: - 文字列テーブル（TranslationKey.rawValue でインデックス）
 
-    private static let strings: [Language: [TranslationKey: String]] = [
-        .ja: [
-            .menuSettings: "設定",
-            .menuCorrections: "校正設定...",
-            .menuQuit: "終了",
-            .statusIdle: "待機中",
-            .statusRecording: "録音中",
-            .errorModelFailed: "音声認識の初期化に失敗",
-            .errorRecordFailed: "録音開始失敗",
-            .logModelReady: "音声認識の準備完了",
-            .listenerStarted: "ホットキーリスナーを開始",
-            .emptyAudio: "録音データが空です",
-            .tooShort: "録音が短すぎます",
-            .silence: "無音と判定されました",
-            .settingsTitle: "Kikitori 設定",
-            .tabGeneral: "一般",
-            .tabFilters: "フィルタ",
-            .settingsLanguageLabel: "認識言語:",
-            .settingsUILanguageLabel: "UI 表示言語:",
-            .settingsHotkeyLabel: "ホットキー（修飾キーの組み合わせ）:",
-            .settingsMinDurLabel: "最低録音時間:",
-            .settingsMaxDurLabel: "最大録音時間:",
-            .settingsRmsLabel: "無音判定 RMS:",
-            .settingsDebugLabel: "デバッグログ",
-            .settingsMinDurHint: "これより短い録音は無視されます",
-            .settingsResetBtn: "デフォルトに戻す",
-            .settingsCancelBtn: "キャンセル",
-            .settingsSaveBtn: "保存",
-            .btnClose: "閉じる",
-            .msUnit: "ms",
-            .secUnit: "秒",
-            .correctionsTitle: "校正設定 (Corrections)",
-            .correctionsInstruction: "yaml形式で置換ルールを記述します。左に音声認識の誤変換、右に正しい単語を記述してください。",
-            .correctionsOpenFile: "ファイルを開く",
-            .correctionsReload: "再読み込み",
-            .correctionsWrongCol: "間違い (変換前)",
-            .correctionsRightCol: "訂正 (変換後)",
-            .btnAdd: "追加",
-            .btnEdit: "編集",
-            .btnDelete: "削除",
-            .correctionsAddTitle: "ペアを追加",
-            .correctionsEditTitle: "ペアを編集",
-            .correctionsWrongLabel: "間違い (例: use effect):",
-            .correctionsRightLabel: "訂正 (例: useEffect):",
-        ],
-        .en: [
-            .menuSettings: "Settings",
-            .menuCorrections: "Corrections...",
-            .menuQuit: "Quit",
-            .statusIdle: "Idle",
-            .statusRecording: "Recording",
-            .errorModelFailed: "Speech recognition init failed",
-            .errorRecordFailed: "Recording start failed",
-            .logModelReady: "Speech recognition ready",
-            .listenerStarted: "Hotkey listener started",
-            .emptyAudio: "Recording data is empty",
-            .tooShort: "Recording too short",
-            .silence: "Detected as silence",
-            .settingsTitle: "Kikitori Settings",
-            .tabGeneral: "General",
-            .tabFilters: "Filters",
-            .settingsLanguageLabel: "Recognition language:",
-            .settingsUILanguageLabel: "UI language:",
-            .settingsHotkeyLabel: "Hotkey (Modifiers):",
-            .settingsMinDurLabel: "Min duration:",
-            .settingsMaxDurLabel: "Max duration:",
-            .settingsRmsLabel: "Silence RMS:",
-            .settingsDebugLabel: "Debug Log",
-            .settingsMinDurHint: "Shorter recordings are ignored",
-            .settingsResetBtn: "Reset Defaults",
-            .settingsCancelBtn: "Cancel",
-            .settingsSaveBtn: "Save",
-            .btnClose: "Close",
-            .msUnit: "ms",
-            .secUnit: "sec",
-            .correctionsTitle: "Corrections",
-            .correctionsInstruction: "Write replacement rules in yaml format. Place the misrecognized word on the left and the correct word on the right.",
-            .correctionsOpenFile: "Open File",
-            .correctionsReload: "Reload",
-            .correctionsWrongCol: "Wrong (Before)",
-            .correctionsRightCol: "Right (After)",
-            .btnAdd: "Add",
-            .btnEdit: "Edit",
-            .btnDelete: "Delete",
-            .correctionsAddTitle: "Add Pair",
-            .correctionsEditTitle: "Edit Pair",
-            .correctionsWrongLabel: "Wrong (e.g. use effect):",
-            .correctionsRightLabel: "Right (e.g. useEffect):",
-        ],
+    private nonisolated static let jaStrings: [String] = [
+        "設定",                             // menuSettings
+        "校正設定...",                       // menuCorrections
+        "終了",                             // menuQuit
+        "待機中",                           // statusIdle
+        "録音中",                           // statusRecording
+        "音声認識の初期化に失敗",             // errorModelFailed
+        "録音開始失敗",                      // errorRecordFailed
+        "音声認識の準備完了",                // logModelReady
+        "ホットキーリスナーを開始",          // listenerStarted
+        "録音データが空です",                // emptyAudio
+        "録音が短すぎます",                  // tooShort
+        "無音と判定されました",              // silence
+        "Kikitori 設定",                    // settingsTitle
+        "一般",                             // tabGeneral
+        "フィルタ",                         // tabFilters
+        "認識言語:",                        // settingsLanguageLabel
+        "UI 表示言語:",                     // settingsUILanguageLabel
+        "ホットキー（修飾キーの組み合わせ）:", // settingsHotkeyLabel
+        "最低録音時間:",                    // settingsMinDurLabel
+        "最大録音時間:",                    // settingsMaxDurLabel
+        "無音判定 RMS:",                    // settingsRmsLabel
+        "デバッグログ",                      // settingsDebugLabel
+        "これより短い録音は無視されます",     // settingsMinDurHint
+        "デフォルトに戻す",                  // settingsResetBtn
+        "キャンセル",                       // settingsCancelBtn
+        "保存",                             // settingsSaveBtn
+        "閉じる",                           // btnClose
+        "ms",                               // msUnit
+        "秒",                               // secUnit
+        "校正設定 (Corrections)",           // correctionsTitle
+        "yaml形式で置換ルールを記述します。左に音声認識の誤変換、右に正しい単語を記述してください。", // correctionsInstruction
+        "ファイルを開く",                    // correctionsOpenFile
+        "再読み込み",                       // correctionsReload
+        "間違い (変換前)",                   // correctionsWrongCol
+        "訂正 (変換後)",                     // correctionsRightCol
+        "追加",                             // btnAdd
+        "編集",                             // btnEdit
+        "削除",                             // btnDelete
+        "ペアを追加",                        // correctionsAddTitle
+        "ペアを編集",                        // correctionsEditTitle
+        "間違い (例: use effect):",          // correctionsWrongLabel
+        "訂正 (例: useEffect):",             // correctionsRightLabel
     ]
+
+    private nonisolated static let enStrings: [String] = [
+        "Settings",
+        "Corrections...",
+        "Quit",
+        "Idle",
+        "Recording",
+        "Speech recognition init failed",
+        "Recording start failed",
+        "Speech recognition ready",
+        "Hotkey listener started",
+        "Recording data is empty",
+        "Recording too short",
+        "Detected as silence",
+        "Kikitori Settings",
+        "General",
+        "Filters",
+        "Recognition language:",
+        "UI language:",
+        "Hotkey (Modifiers):",
+        "Min duration:",
+        "Max duration:",
+        "Silence RMS:",
+        "Debug Log",
+        "Shorter recordings are ignored",
+        "Reset Defaults",
+        "Cancel",
+        "Save",
+        "Close",
+        "ms",
+        "sec",
+        "Corrections",
+        "Write replacement rules in yaml format. Place the misrecognized word on the left and the correct word on the right.",
+        "Open File",
+        "Reload",
+        "Wrong (Before)",
+        "Right (After)",
+        "Add",
+        "Edit",
+        "Delete",
+        "Add Pair",
+        "Edit Pair",
+        "Wrong (e.g. use effect):",
+        "Right (e.g. useEffect):",
+    ]
+
+    private nonisolated static func _lookup(_ key: TranslationKey, _ arr: [String]) -> String {
+        let idx = key.rawValue
+        guard idx < arr.count else { return "\(key)" }
+        let s = arr[idx]
+        return s.isEmpty ? "\(key)" : s
+    }
 
     // MARK: - OS 言語検出
 

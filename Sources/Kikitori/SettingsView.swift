@@ -75,16 +75,14 @@ final class SettingsViewModel: ObservableObject {
     }
 
     /// 認識言語の選択肢
-    var languageOptions: [(String, String)] {
-        [
-            ("ja", "日本語"),
-            ("en", "English"),
-            ("zh", "中文"),
-            ("ko", "한국어"),
-            ("fr", "Français"),
-            ("de", "Deutsch"),
-        ]
-    }
+    static let languageOptions: [(String, String)] = [
+        ("ja", "日本語"),
+        ("en", "English"),
+        ("zh", "中文"),
+        ("ko", "한국어"),
+        ("fr", "Français"),
+        ("de", "Deutsch"),
+    ]
 }
 
 // MARK: - View
@@ -122,7 +120,7 @@ struct SettingsView: View {
     private var generalTab: some View {
         Form {
             Picker(i18n.t(.settingsLanguageLabel), selection: $vm.language) {
-                ForEach(vm.languageOptions, id: \.0) { code, label in
+                ForEach(SettingsViewModel.languageOptions, id: \.0) { code, label in
                     Text(label).tag(code)
                 }
             }

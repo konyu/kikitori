@@ -1,6 +1,4 @@
-import Foundation
 @preconcurrency import AVFoundation
-import Speech
 
 /// マイク音声キャプチャ。専用シリアルキューで AVAudioEngine を操作。
 public final class AudioCapture: @unchecked Sendable {
@@ -8,9 +6,15 @@ public final class AudioCapture: @unchecked Sendable {
     private let queue = DispatchQueue(label: "com.kikitori.audio")
     private var tapInstalled = false
     
-    public var targetFormat: AVAudioFormat?
+    public var targetFormat: AVAudioFormat? {
+        didSet {
+            if targetFormat != oldValue { _converter = nil }
+        }
+    }
     public var onAudioBuffer: ((AVAudioPCMBuffer) -> Void)?
     public var onAmplitude: (@MainActor @Sendable (Float) -> Void)?
+    
+    private var _converter: AVAudioConverter?
     
     public init() {}
     
@@ -48,49 +52,32 @@ public final class AudioCapture: @unchecked Sendable {
         }
     }
     
-    private var _logFormatOnce = false
-    
     /// バッファの RMS を計算（振幅 0.0〜1.0 に正規化）
-    private static func _rms(from buffer: AVAudioPCMBuffer, format: AVAudioFormat) -> Float {
+    private static func _rms(from buffer: AVAudioPCMBuffer) -> Float {
         let frames = Int(buffer.frameLength)
-        guard frames > 0 else { return 0 }
-        let ch = Int(buffer.format.channelCount)
-        
-        if let floatData = buffer.floatChannelData {
-            var sum: Float = 0
-            for c in 0..<ch {
-                let ptr = floatData[c]
-                for i in 0..<frames { sum += ptr[i] * ptr[i] }
-            }
-            return sqrt(sum / Float(frames * ch))
-        } else if let int16Data = buffer.int16ChannelData {
-            var sum: Float = 0
-            let scale: Float = 32768
-            for c in 0..<ch {
-                let ptr = int16Data[c]
-                for i in 0..<frames {
-                    let v = Float(ptr[i]) / scale
-                    sum += v * v
-                }
-            }
-            return sqrt(sum / Float(frames * ch))
-        }
-        return 0
+        guard frames > 0, let ptr = buffer.floatChannelData?[0] else { return 0 }
+        var sum: Float = 0
+        for i in 0..<frames { sum += ptr[i] * ptr[i] }
+        return sqrt(sum / Float(frames))
     }
 
     private func deliver(_ buffer: AVAudioPCMBuffer, from inputFmt: AVAudioFormat) {
         // 振幅コールバック（メインアクター）
         if let cb = onAmplitude {
-            let rms = Self._rms(from: buffer, format: inputFmt)
+            let rms = Self._rms(from: buffer)
             DispatchQueue.main.async { cb(rms) }
         }
 
         if let target = targetFormat {
-            if !_logFormatOnce {
-                _logFormatOnce = true
-                DebugLogger.shared.log("AudioFormat: input=\(inputFmt) target=\(target) commonFormat=\(target.commonFormat.rawValue)")
+            // フォーマットが同一なら変換スキップ
+            if inputFmt == target {
+                onAudioBuffer?(buffer)
+                return
             }
-            guard let cvt = AVAudioConverter(from: inputFmt, to: target) else { return }
+            if _converter == nil {
+                _converter = AVAudioConverter(from: inputFmt, to: target)
+            }
+            guard let cvt = _converter else { return }
             let outFrames = AVAudioFrameCount(Double(buffer.frameLength) * target.sampleRate / inputFmt.sampleRate)
             guard let out = AVAudioPCMBuffer(pcmFormat: target, frameCapacity: outFrames) else { return }
             var err: NSError?

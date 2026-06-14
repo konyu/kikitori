@@ -81,37 +81,22 @@ public final class Corrections: @unchecked Sendable {
     private func _load() {
         guard FileManager.default.fileExists(atPath: fileURL.path) else { return }
         guard let text = try? String(contentsOf: fileURL, encoding: .utf8) else { return }
-
-        _ = SimpleYAML.parse(text)  // 手動パースするのでフラット辞書は使わない
+        let dict = SimpleYAML.parse(text)
         var result: [(String, String)] = []
-
-        // "corrections:" セクションを探す（SimpleYAML はフラットな辞書のみ返すので、
-        // 手動で corrections: 行以下をパースする）
-        for line in text.split(separator: "\n", omittingEmptySubsequences: false) {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            guard !trimmed.isEmpty, !trimmed.hasPrefix("#"), !trimmed.hasPrefix("corrections:") else { continue }
-            guard let colon = trimmed.firstIndex(of: ":") else { continue }
-            let key = String(trimmed[..<colon])
-                .trimmingCharacters(in: .whitespaces)
-                .trimmingCharacters(in: CharacterSet(charactersIn: "'\""))
-            let value = String(trimmed[trimmed.index(after: colon)...])
-                .trimmingCharacters(in: .whitespaces)
-                .trimmingCharacters(in: CharacterSet(charactersIn: "'\""))
-            guard !key.isEmpty, !value.isEmpty else { continue }
+        result.reserveCapacity(dict.count)
+        for (key, value) in dict {
+            guard !key.isEmpty, !value.isEmpty, key != "corrections" else { continue }
             result.append((key, value))
         }
-
         pairs = result
     }
 
     private func _save() {
-        var lines: [String] = ["corrections:"]
+        var dict: [String: String] = [:]
         for (wrong, right) in pairs {
-            let w = wrong.contains(" ") ? "\"\(wrong)\"" : wrong
-            let r = right.contains(" ") ? "\"\(right)\"" : right
-            lines.append("  \(w): \(r)")
+            dict[wrong] = right
         }
-        let yaml = lines.joined(separator: "\n") + "\n"
+        let yaml = SimpleYAML.serialize(dict)
 
         let dir = fileURL.deletingLastPathComponent()
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
