@@ -34,6 +34,9 @@ public enum TranslationKey: Int, Sendable {
     case btnAdd, btnEdit, btnDelete
     case correctionsAddTitle, correctionsEditTitle
     case correctionsWrongLabel, correctionsRightLabel
+    
+    // Updates
+    case menuCheckUpdates
 }
 
 /// 多言語対応マネージャー
@@ -107,6 +110,8 @@ public final class I18n: ObservableObject {
         "ペアを編集",                        // correctionsEditTitle
         "間違い (例: use effect):",          // correctionsWrongLabel
         "訂正 (例: useEffect):",             // correctionsRightLabel
+        
+        "アップデートを確認...",              // menuCheckUpdates
     ]
 
     private nonisolated static let enStrings: [String] = [
@@ -152,6 +157,8 @@ public final class I18n: ObservableObject {
         "Edit Pair",
         "Wrong (e.g. use effect):",
         "Right (e.g. useEffect):",
+        
+        "Check for Updates...",              // menuCheckUpdates
     ]
 
     private nonisolated static func _lookup(_ key: TranslationKey, _ arr: [String]) -> String {

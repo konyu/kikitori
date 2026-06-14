@@ -24,6 +24,15 @@ mkdir -p "$APP_BUNDLE/Contents/Resources"
 # バイナリコピー
 cp "$BUILD_DIR/$APP_NAME" "$APP_BUNDLE/Contents/MacOS/"
 
+# Sparkle.framework をバンドル
+mkdir -p "$APP_BUNDLE/Contents/Frameworks"
+SPARKLE_FW="$BUILD_DIR/Sparkle.framework"
+if [ -d "$SPARKLE_FW" ]; then
+  cp -R "$SPARKLE_FW" "$APP_BUNDLE/Contents/Frameworks/"
+else
+  echo "WARNING: Sparkle.framework not found at $SPARKLE_FW"
+fi
+
 # アイコンコピー
 if [ -f "$BUILD_DIR/${APP_NAME}_Kikitori.bundle/Contents/Resources/icon-idle.png" ]; then
   cp "$BUILD_DIR/${APP_NAME}_Kikitori.bundle/Contents/Resources/icon-idle.png" "$APP_BUNDLE/Contents/Resources/"
@@ -72,6 +81,10 @@ cat > "$APP_BUNDLE/Contents/Info.plist" << PLIST
     <string>14.0</string>
     <key>LSUIElement</key>
     <true/>
+    <key>SUFeedURL</key>
+    <string>https://github.com/konyu/kikitori/releases/latest/download/appcast.xml</string>
+    <key>SUEnableInstallerLauncherService</key>
+    <true/>
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>NSMicrophoneUsageDescription</key>
@@ -112,3 +125,6 @@ fi
 
 echo "=== Done: $DIST_DIR/$DMG_NAME ==="
 ls -lh "$DIST_DIR/$DMG_NAME"
+
+echo "=== Ad-hoc code sign ==="
+codesign --sign - --deep --force "$APP_BUNDLE" 2>&1 || echo "WARNING: ad-hoc signing failed (non-fatal)"

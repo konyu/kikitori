@@ -1,5 +1,6 @@
 import AppKit
 import KikitoriCore
+import Sparkle
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -17,6 +18,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var settingsWindow: SettingsWindowController?
     private var correctionsWindow: CorrectionsWindowController?
     private let overlay = OverlayController()
+    private let updater = SPUStandardUpdaterController(
+        startingUpdater: true,
+        updaterDelegate: nil,
+        userDriverDelegate: nil
+    )
 
     func applicationDidFinishLaunching(_ n: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -46,6 +52,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let correctionsItem = NSMenuItem(title: i18n.t(.menuCorrections), action: #selector(showCorrections), keyEquivalent: "e")
         correctionsItem.target = self
         m.addItem(correctionsItem)
+        
+        m.addItem(.separator())
+        let updateItem = NSMenuItem(title: i18n.t(.menuCheckUpdates), action: #selector(checkForUpdates), keyEquivalent: "")
+        updateItem.target = self
+        m.addItem(updateItem)
         
         m.addItem(.separator())
         let quitItem = NSMenuItem(title: i18n.t(.menuQuit), action: #selector(quit), keyEquivalent: "q")
@@ -187,6 +198,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         
         settingsWindow?.window?.title = i18n.t(.settingsTitle)
         correctionsWindow?.window?.title = i18n.t(.correctionsTitle)
+    }
+
+    @objc func checkForUpdates() {
+        updater.checkForUpdates(nil)
     }
 
     @objc func quit() {
