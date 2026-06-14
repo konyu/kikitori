@@ -6,7 +6,7 @@
 ## Python 版参照
 `kikitori/overlay.py`（PySide6 QWidget）:
 - フレームレス、最前面、フォーカス拒否、マウス透過、半透明背景
-- 36 本の縦バー波形 + 青いマイクインジケーター
+- 12 本の縦バー波形 + 青いマイクインジケーター
 - 30fps タイマーでアニメーション更新
 - Aqua Voice 風カプセル型ピルデザイン（170×44px）
 - 画面中央下に配置
@@ -68,7 +68,7 @@ private func createWindow() -> NSWindow {
 ### OverlayWaveformView（SwiftUI）
 ```swift
 struct OverlayWaveformView: View {
-    @State var amplitudes: [Float] = Array(repeating: 0, count: 36)
+    @State var amplitudes: [Float] = Array(repeating: 0, count: 12)
     @State var phase: Double = 0
     let timer = Timer.publish(every: 1/30, on: .main, in: .common).autoconnect()
     
@@ -87,8 +87,8 @@ struct OverlayWaveformView: View {
                 
                 Spacer().frame(width: 10)
                 
-                // 36本の波形バー
-                ForEach(0..<36, id: \.self) { i in
+                // 12本の波形バー
+                ForEach(0..<12, id: \.self) { i in
                     WaveformBar(amplitude: amplitudes[i], isActive: maxAmplitude > 0.05)
                 }
                 
@@ -111,7 +111,7 @@ struct OverlayWaveformView: View {
 private var sampleBuffer: [Float] = []
 private var bufferCount = 0
 
-func calculateAmplitudes(nBars: Int = 36, windowMs: Float = 50.0) -> [Float] {
+func calculateAmplitudes(nBars: Int = 12, windowMs: Float = 50.0) -> [Float] {
     // 直近のサンプルから振幅を計算
     // Python 版と同様のロジック
 }
