@@ -8,7 +8,7 @@ public enum Language: String, CaseIterable, Sendable {
 /// 翻訳キー
 public enum TranslationKey: String, CaseIterable, Sendable {
     // Menu
-    case menuSettings, menuQuit
+    case menuSettings, menuCorrections, menuQuit
 
     // Status
     case statusIdle, statusRecording
@@ -21,18 +21,39 @@ public enum TranslationKey: String, CaseIterable, Sendable {
 
     // Settings
     case settingsTitle
+    case tabGeneral, tabFilters
     case settingsLanguageLabel, settingsUILanguageLabel
-    case settingsHotkeyLabel, settingsMinDurLabel, settingsMinDurHint
-    case settingsResetBtn, settingsCancelBtn, settingsSaveBtn
+    case settingsHotkeyLabel, settingsMinDurLabel, settingsMaxDurLabel, settingsRmsLabel, settingsDebugLabel
+    case settingsMinDurHint
+    case settingsResetBtn, settingsCancelBtn, settingsSaveBtn, btnClose
+    case msUnit, secUnit
+    
+    // Corrections
+    case correctionsTitle
+    case correctionsInstruction
+    case correctionsOpenFile, correctionsReload
+    case correctionsWrongCol, correctionsRightCol
+    case btnAdd, btnEdit, btnDelete
+    case correctionsAddTitle, correctionsEditTitle
+    case correctionsWrongLabel, correctionsRightLabel
 }
 
 /// 多言語対応マネージャー
-public final class I18n: Sendable {
-    private let language: Language
+@MainActor
+public final class I18n: ObservableObject {
+    @Published public private(set) var language: Language
 
     /// システム言語から自動判定して初期化
     public init(language: Language? = nil) {
         self.language = language ?? Self.detectOSLanguage()
+    }
+    
+    public func setLanguage(_ code: String?) {
+        if let code = code, let l = Language(rawValue: code) {
+            self.language = l
+        } else {
+            self.language = Self.detectOSLanguage()
+        }
     }
 
     /// 現在の言語設定
@@ -48,6 +69,7 @@ public final class I18n: Sendable {
     private static let strings: [Language: [TranslationKey: String]] = [
         .ja: [
             .menuSettings: "設定",
+            .menuCorrections: "校正設定...",
             .menuQuit: "終了",
             .statusIdle: "待機中",
             .statusRecording: "録音中",
@@ -59,17 +81,39 @@ public final class I18n: Sendable {
             .tooShort: "録音が短すぎます",
             .silence: "無音と判定されました",
             .settingsTitle: "Kikitori 設定",
+            .tabGeneral: "一般",
+            .tabFilters: "フィルタ",
             .settingsLanguageLabel: "認識言語:",
             .settingsUILanguageLabel: "UI 表示言語:",
-            .settingsHotkeyLabel: "ホットキー:",
+            .settingsHotkeyLabel: "ホットキー（修飾キーの組み合わせ）:",
             .settingsMinDurLabel: "最低録音時間:",
+            .settingsMaxDurLabel: "最大録音時間:",
+            .settingsRmsLabel: "無音判定 RMS:",
+            .settingsDebugLabel: "デバッグログ",
             .settingsMinDurHint: "これより短い録音は無視されます",
             .settingsResetBtn: "デフォルトに戻す",
             .settingsCancelBtn: "キャンセル",
-            .settingsSaveBtn: "保存して適用",
+            .settingsSaveBtn: "保存",
+            .btnClose: "閉じる",
+            .msUnit: "ms",
+            .secUnit: "秒",
+            .correctionsTitle: "校正設定 (Corrections)",
+            .correctionsInstruction: "yaml形式で置換ルールを記述します。左に音声認識の誤変換、右に正しい単語を記述してください。",
+            .correctionsOpenFile: "ファイルを開く",
+            .correctionsReload: "再読み込み",
+            .correctionsWrongCol: "間違い (変換前)",
+            .correctionsRightCol: "訂正 (変換後)",
+            .btnAdd: "追加",
+            .btnEdit: "編集",
+            .btnDelete: "削除",
+            .correctionsAddTitle: "ペアを追加",
+            .correctionsEditTitle: "ペアを編集",
+            .correctionsWrongLabel: "間違い (例: use effect):",
+            .correctionsRightLabel: "訂正 (例: useEffect):",
         ],
         .en: [
             .menuSettings: "Settings",
+            .menuCorrections: "Corrections...",
             .menuQuit: "Quit",
             .statusIdle: "Idle",
             .statusRecording: "Recording",
@@ -81,14 +125,35 @@ public final class I18n: Sendable {
             .tooShort: "Recording too short",
             .silence: "Detected as silence",
             .settingsTitle: "Kikitori Settings",
+            .tabGeneral: "General",
+            .tabFilters: "Filters",
             .settingsLanguageLabel: "Recognition language:",
             .settingsUILanguageLabel: "UI language:",
-            .settingsHotkeyLabel: "Hotkey:",
+            .settingsHotkeyLabel: "Hotkey (Modifiers):",
             .settingsMinDurLabel: "Min duration:",
+            .settingsMaxDurLabel: "Max duration:",
+            .settingsRmsLabel: "Silence RMS:",
+            .settingsDebugLabel: "Debug Log",
             .settingsMinDurHint: "Shorter recordings are ignored",
-            .settingsResetBtn: "Reset to Defaults",
+            .settingsResetBtn: "Reset Defaults",
             .settingsCancelBtn: "Cancel",
-            .settingsSaveBtn: "Save & Apply",
+            .settingsSaveBtn: "Save",
+            .btnClose: "Close",
+            .msUnit: "ms",
+            .secUnit: "sec",
+            .correctionsTitle: "Corrections",
+            .correctionsInstruction: "Write replacement rules in yaml format. Place the misrecognized word on the left and the correct word on the right.",
+            .correctionsOpenFile: "Open File",
+            .correctionsReload: "Reload",
+            .correctionsWrongCol: "Wrong (Before)",
+            .correctionsRightCol: "Right (After)",
+            .btnAdd: "Add",
+            .btnEdit: "Edit",
+            .btnDelete: "Delete",
+            .correctionsAddTitle: "Add Pair",
+            .correctionsEditTitle: "Edit Pair",
+            .correctionsWrongLabel: "Wrong (e.g. use effect):",
+            .correctionsRightLabel: "Right (e.g. useEffect):",
         ],
     ]
 

@@ -8,6 +8,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let hotkey = HotkeyManager()
     private let injector = TextInjector()
     private let settings = SettingsManager()
+    private let i18n = I18n()
     private let corrections = Corrections()
     private let tracker = FrontmostAppTracker()
     private var recognizer: SpeechRecognizer?
@@ -19,6 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ n: Notification) {
         settings.load()
+        i18n.setLanguage(settings.uiLanguage)
         DebugLogger.shared.enabled = settings.debug
         corrections.load()
         hotkey.config = HotkeyConfig.parse(from: settings.hotkey)
@@ -47,16 +49,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         let m = NSMenu()
-        let settingsItem = NSMenuItem(title: "Settings", action: #selector(showSettings), keyEquivalent: ",")
+        let settingsItem = NSMenuItem(title: i18n.t(.menuSettings), action: #selector(showSettings), keyEquivalent: ",")
         settingsItem.target = self
         m.addItem(settingsItem)
         
-        let correctionsItem = NSMenuItem(title: "Corrections...", action: #selector(showCorrections), keyEquivalent: "e")
+        let correctionsItem = NSMenuItem(title: i18n.t(.menuCorrections), action: #selector(showCorrections), keyEquivalent: "e")
         correctionsItem.target = self
         m.addItem(correctionsItem)
         
         m.addItem(.separator())
-        let quitItem = NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q")
+        let quitItem = NSMenuItem(title: i18n.t(.menuQuit), action: #selector(quit), keyEquivalent: "q")
         quitItem.target = self
         m.addItem(quitItem)
         item.menu = m
@@ -167,7 +169,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func showSettings() {
         if settingsWindow == nil {
-            settingsWindow = SettingsWindowController(settings: settings, onSave: { [weak self] in
+            settingsWindow = SettingsWindowController(settings: settings, i18n: i18n, onSave: { [weak self] in
                 self?.reloadSettings()
             })
         }
@@ -176,15 +178,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func showCorrections() {
         if correctionsWindow == nil {
-            correctionsWindow = CorrectionsWindowController(corrections: corrections)
+            correctionsWindow = CorrectionsWindowController(corrections: corrections, i18n: i18n)
         }
         correctionsWindow?.show()
     }
 
     private func reloadSettings() {
         settings.load()
+        i18n.setLanguage(settings.uiLanguage)
         DebugLogger.shared.enabled = settings.debug
         hotkey.config = HotkeyConfig.parse(from: settings.hotkey)
+        
+        if let m = item.menu {
+            m.items[0].title = i18n.t(.menuSettings)
+            m.items[1].title = i18n.t(.menuCorrections)
+            m.items[3].title = i18n.t(.menuQuit)
+        }
+        
+        settingsWindow?.window?.title = i18n.t(.settingsTitle)
+        correctionsWindow?.window?.title = i18n.t(.correctionsTitle)
     }
 
     @objc func quit() {

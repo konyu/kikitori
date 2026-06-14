@@ -57,6 +57,7 @@ struct CorrectionItem: Identifiable {
 
 struct CorrectionsView: View {
     @ObservedObject var vm: CorrectionsViewModel
+    @ObservedObject var i18n: I18n
     @State private var selection: Set<UUID> = []
     @State private var isShowingEditor = false
     @State private var editingItem: CorrectionItem?
@@ -67,29 +68,29 @@ struct CorrectionsView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("ファイル: ~/.kikitori/corrections.yaml")
+                Text("~/.kikitori/corrections.yaml")
                     .font(.caption)
                     .foregroundColor(.secondary)
                 Spacer()
-                Button(action: { vm.openFile() }) { Label("ファイルを開く", systemImage: "arrow.up.right.square") }
-                Button(action: { vm.reload() }) { Label("再読み込み", systemImage: "arrow.clockwise") }
+                Button(action: { vm.openFile() }) { Label(i18n.t(.correctionsOpenFile), systemImage: "arrow.up.right.square") }
+                Button(action: { vm.reload() }) { Label(i18n.t(.correctionsReload), systemImage: "arrow.clockwise") }
             }
             .padding()
 
             Table(vm.pairs, selection: $selection) {
-                TableColumn("間違い (変換前)", value: \.wrong)
-                TableColumn("訂正 (変換後)", value: \.right)
+                TableColumn(i18n.t(.correctionsWrongCol), value: \.wrong)
+                TableColumn(i18n.t(.correctionsRightCol), value: \.right)
             }
             .frame(minHeight: 200)
 
             HStack {
-                Button(action: openAdd) { Label("追加", systemImage: "plus") }
-                Button(action: openEdit) { Label("編集", systemImage: "pencil") }
+                Button(action: openAdd) { Label(i18n.t(.btnAdd), systemImage: "plus") }
+                Button(action: openEdit) { Label(i18n.t(.btnEdit), systemImage: "pencil") }
                     .disabled(selection.count != 1)
-                Button(action: deleteSelected) { Label("削除", systemImage: "minus") }
+                Button(action: deleteSelected) { Label(i18n.t(.btnDelete), systemImage: "minus") }
                     .disabled(selection.isEmpty)
                 Spacer()
-                Button("閉じる") {
+                Button(i18n.t(.btnClose)) {
                     NSApp.sendAction(#selector(NSWindow.performClose(_:)), to: nil, from: nil)
                 }
             }
@@ -124,16 +125,16 @@ struct CorrectionsView: View {
 
     private var editorSheet: some View {
         VStack(spacing: 20) {
-            Text(editingItem == nil ? "ペアを追加" : "ペアを編集")
+            Text(editingItem == nil ? i18n.t(.correctionsAddTitle) : i18n.t(.correctionsEditTitle))
                 .font(.headline)
             Form {
-                TextField("間違い (例: use effect):", text: $editWrong)
-                TextField("訂正 (例: useEffect):", text: $editRight)
+                TextField(i18n.t(.correctionsWrongLabel), text: $editWrong)
+                TextField(i18n.t(.correctionsRightLabel), text: $editRight)
             }
             .frame(width: 320)
             HStack {
-                Button("キャンセル") { isShowingEditor = false }
-                Button("保存") {
+                Button(i18n.t(.settingsCancelBtn)) { isShowingEditor = false }
+                Button(i18n.t(.settingsSaveBtn)) {
                     let w = editWrong.trimmingCharacters(in: .whitespaces)
                     let r = editRight.trimmingCharacters(in: .whitespaces)
                     if !w.isEmpty, !r.isEmpty {
@@ -158,7 +159,7 @@ struct CorrectionsView: View {
 final class CorrectionsWindowController: NSWindowController {
     private let vm: CorrectionsViewModel
 
-    init(corrections: Corrections) {
+    init(corrections: Corrections, i18n: I18n) {
         self.vm = CorrectionsViewModel(corrections: corrections)
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 480, height: 360),
@@ -166,12 +167,12 @@ final class CorrectionsWindowController: NSWindowController {
             backing: .buffered,
             defer: true
         )
-        window.title = "Kikitori 校正設定"
+        window.title = i18n.t(.correctionsTitle)
         window.center()
         window.isReleasedWhenClosed = false
         super.init(window: window)
 
-        let view = CorrectionsView(vm: vm)
+        let view = CorrectionsView(vm: vm, i18n: i18n)
         window.contentViewController = NSHostingController(rootView: view)
     }
 

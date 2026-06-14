@@ -91,22 +91,23 @@ final class SettingsViewModel: ObservableObject {
 
 struct SettingsView: View {
     @ObservedObject var vm: SettingsViewModel
+    @ObservedObject var i18n: I18n
     let onSave: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
             TabView {
                 generalTab
-                    .tabItem { Label("一般", systemImage: "gearshape") }
+                    .tabItem { Label(i18n.t(.tabGeneral), systemImage: "gearshape") }
                     .padding(20)
                 filtersTab
-                    .tabItem { Label("フィルタ", systemImage: "waveform") }
+                    .tabItem { Label(i18n.t(.tabFilters), systemImage: "waveform") }
                     .padding(20)
             }
             Divider()
             HStack {
                 Spacer()
-                Button("保存") {
+                Button(i18n.t(.settingsSaveBtn)) {
                     vm.save()
                     onSave()
                 }
@@ -120,18 +121,18 @@ struct SettingsView: View {
 
     private var generalTab: some View {
         Form {
-            Picker("認識言語:", selection: $vm.language) {
+            Picker(i18n.t(.settingsLanguageLabel), selection: $vm.language) {
                 ForEach(vm.languageOptions, id: \.0) { code, label in
                     Text(label).tag(code)
                 }
             }
 
-            Picker("UI 表示言語:", selection: $vm.uiLanguage) {
+            Picker(i18n.t(.settingsUILanguageLabel), selection: $vm.uiLanguage) {
                 Text("日本語").tag("ja")
                 Text("English").tag("en")
             }
 
-            Text("ホットキー（修飾キーの組み合わせ）:")
+            Text(i18n.t(.settingsHotkeyLabel))
                 .font(.subheadline)
             
             Toggle("Fn      🌐", isOn: $vm.hotkeyFn)
@@ -142,7 +143,7 @@ struct SettingsView: View {
 
             HStack {
                 Spacer()
-                Button("デフォルトに戻す") { vm.reset() }
+                Button(i18n.t(.settingsResetBtn)) { vm.reset() }
             }
         }
     }
@@ -150,27 +151,27 @@ struct SettingsView: View {
     private var filtersTab: some View {
         Form {
             HStack {
-                Text("最低録音時間:")
+                Text(i18n.t(.settingsMinDurLabel))
                 Slider(value: $vm.minDurationMs, in: 100...5000, step: 100)
-                Text("\(Int(vm.minDurationMs))ms")
+                Text("\(Int(vm.minDurationMs))\(i18n.t(.msUnit))")
                     .frame(width: 60, alignment: .trailing)
             }
 
             HStack {
-                Text("最大録音時間:")
+                Text(i18n.t(.settingsMaxDurLabel))
                 Slider(value: $vm.maxDurationSec, in: 10...300, step: 10)
-                Text("\(Int(vm.maxDurationSec))秒")
+                Text("\(Int(vm.maxDurationSec))\(i18n.t(.secUnit))")
                     .frame(width: 60, alignment: .trailing)
             }
 
             HStack {
-                Text("無音判定 RMS:")
+                Text(i18n.t(.settingsRmsLabel))
                 Slider(value: $vm.silenceRmsThreshold, in: 0...0.01, step: 0.0001)
                 Text(String(format: "%.4f", vm.silenceRmsThreshold))
                     .frame(width: 60, alignment: .trailing)
             }
 
-            Toggle("デバッグログ", isOn: $vm.debugEnabled)
+            Toggle(i18n.t(.settingsDebugLabel), isOn: $vm.debugEnabled)
         }
     }
 }
@@ -180,7 +181,7 @@ struct SettingsView: View {
 final class SettingsWindowController: NSWindowController {
     private let vm: SettingsViewModel
 
-    init(settings: SettingsManager, onSave: @escaping () -> Void) {
+    init(settings: SettingsManager, i18n: I18n, onSave: @escaping () -> Void) {
         self.vm = SettingsViewModel(settings: settings)
         vm.load()
 
@@ -190,14 +191,14 @@ final class SettingsWindowController: NSWindowController {
             backing: .buffered,
             defer: true
         )
-        window.title = "Kikitori 設定"
+        window.title = i18n.t(.settingsTitle)
         window.setContentSize(NSSize(width: 420, height: 350))
         window.center()
         window.isReleasedWhenClosed = false
 
         super.init(window: window)
 
-        let view = SettingsView(vm: vm, onSave: {
+        let view = SettingsView(vm: vm, i18n: i18n, onSave: {
             onSave()
         })
         window.contentViewController = NSHostingController(rootView: view)
