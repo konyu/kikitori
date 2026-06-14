@@ -77,11 +77,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         overlay.show()
 
+        // 録音開始時に常に最新のファイル内容を読み込む（Python版と同等の動作）
+        settings.load()
+        corrections.load()
+
         let r = SpeechRecognizer()
         r.language = settings.language
         r.minDurationMs = settings.minDurationMs
         r.silenceRmsThreshold = settings.silenceRmsThreshold
-        r.contextualStrings = settings.glossary
         recognizer = r
         let c = capture
 

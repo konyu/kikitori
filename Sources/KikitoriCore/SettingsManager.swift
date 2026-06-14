@@ -35,9 +35,6 @@ public final class SettingsManager: @unchecked Sendable {
     /// デバッグログ有効フラグ
     public var debug: Bool = false
 
-    /// 音声認識の精度向上用用語リスト
-    public var glossary: [String] = []
-
     // MARK: - 初期化
 
     public init(path: URL? = nil) {
@@ -88,9 +85,6 @@ public final class SettingsManager: @unchecked Sendable {
         if let v = dict["max_duration_sec"], let n = Int(v) { maxDurationSec = n }
         if let v = dict["silence_rms_threshold"], let d = Double(v) { silenceRmsThreshold = d }
         if let v = dict["debug"] { debug = v == "true" || v == "1" || v == "yes" }
-        if let v = dict["glossary"] {
-            glossary = v.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
-        }
     }
 
     private func _save() {
@@ -102,7 +96,6 @@ public final class SettingsManager: @unchecked Sendable {
             "max_duration_sec": String(maxDurationSec),
             "silence_rms_threshold": String(silenceRmsThreshold),
             "debug": debug ? "true" : "false",
-            "glossary": glossary.joined(separator: ", "),
         ]
         let yaml = SimpleYAML.serialize(dict)
 
@@ -124,6 +117,5 @@ public final class SettingsManager: @unchecked Sendable {
         maxDurationSec = 60
         silenceRmsThreshold = 0.0001
         debug = false
-        glossary = []
     }
 }

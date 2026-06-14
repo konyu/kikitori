@@ -4,11 +4,16 @@ import Speech
 
 /// バッチ型音声認識。SpeechAnalyzer + SpeechTranscriber 使用。
 public final class SpeechRecognizer: @unchecked Sendable {
-    private let bufferQueue = BufferQueue()
     private var transcriber: SpeechTranscriber?
     private var analyzer: SpeechAnalyzer?
     private var audioFormat: AVAudioFormat?
     private var isRunning = false
+    
+    private let lock = NSLock()
+    private var audioContinuation: AsyncStream<AVAudioPCMBuffer>.Continuation?
+    private var analyzerTask: Task<Void, Never>?
+    private var _totalFrameCount: AVAudioFrameCount = 0
+    private var buffersForRMS: [AVAudioPCMBuffer] = []
     
     /// 最低録音時間（ミリ秒）。これ未満は空文字を返す。
     public var minDurationMs: Int = 300
@@ -20,10 +25,13 @@ public final class SpeechRecognizer: @unchecked Sendable {
     public var language: String = "ja"
 
     /// 音声認識精度向上用の用語リスト（AnalysisContext.contextualStrings に渡す）
+    /// ※現状はGlossary機能ドロップにより使用しませんが、APIとして残しています
     public var contextualStrings: [String] = []
 
     public var compatibleAudioFormat: AVAudioFormat? { audioFormat }
-    public var totalFrameCount: AVAudioFrameCount { bufferQueue.totalFrameCount }
+    public var totalFrameCount: AVAudioFrameCount { 
+        lock.withLock { _totalFrameCount }
+    }
     
     public init() {}
     
@@ -35,18 +43,38 @@ public final class SpeechRecognizer: @unchecked Sendable {
         let format = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [t])
         try await a.prepareToAnalyze(in: format)
 
-        // 用語リストがあれば AnalysisContext に設定
+        // 用語リストがあれば AnalysisContext に設定（解析開始前に行う）
         if !contextualStrings.isEmpty {
             let ctx = AnalysisContext()
             ctx.contextualStrings[.general] = contextualStrings
-            try? await a.setContext(ctx)
-            DebugLogger.shared.log("contextualStrings set: \(contextualStrings)")
+            do {
+                try await a.setContext(ctx)
+                DebugLogger.shared.log("Context successfully applied: \(contextualStrings)")
+            } catch {
+                DebugLogger.shared.log("Failed to apply context: \(error)")
+            }
         }
 
-        self.transcriber = t
-        self.analyzer = a
-        self.audioFormat = format
-        self.isRunning = true
+        let (stream, continuation) = AsyncStream.makeStream(of: AVAudioPCMBuffer.self)
+        
+        lock.withLock {
+            self.transcriber = t
+            self.analyzer = a
+            self.audioFormat = format
+            self.audioContinuation = continuation
+            self.isRunning = true
+            self._totalFrameCount = 0
+            self.buffersForRMS = []
+        }
+        
+        let analyzerStream = SendableAnalyzerStream(base: stream.map { AnalyzerInput(buffer: $0) })
+        self.analyzerTask = Task {
+            do {
+                _ = try await a.analyzeSequence(analyzerStream)
+            } catch {
+                DebugLogger.shared.log("analyzeSequence error: \(error)")
+            }
+        }
     }
     
     /// 言語コード → Locale 変換
@@ -63,25 +91,38 @@ public final class SpeechRecognizer: @unchecked Sendable {
     }
 
     public func addAudio(_ buffer: AVAudioPCMBuffer) {
-        guard isRunning else { return }
-        bufferQueue.append(buffer)
+        lock.withLock {
+            guard isRunning, let cont = audioContinuation else { return }
+            cont.yield(buffer)
+            _totalFrameCount += buffer.frameLength
+            if silenceRmsThreshold > 0 {
+                buffersForRMS.append(buffer)
+            }
+        }
     }
     
     public func stop() async -> String {
-        DebugLogger.shared.log("stop() called, isRunning=\(isRunning), totalFrames=\(totalFrameCount), format=\(audioFormat?.description ?? "nil")")
-        guard isRunning, let t = transcriber, let a = analyzer else {
-            DebugLogger.shared.log("stop() early exit: isRunning=\(isRunning) transcriber=\(transcriber != nil) analyzer=\(analyzer != nil)")
+        let (t, a, format, frames, buffers) = lock.withLock {
+            let t1 = self.transcriber
+            let a1 = self.analyzer
+            let f1 = self.audioFormat
+            let fr = self._totalFrameCount
+            let bufs = self.buffersForRMS
+            self.audioContinuation?.finish()
+            self.isRunning = false
+            return (t1, a1, f1, fr, bufs)
+        }
+
+        DebugLogger.shared.log("stop() called, isRunning=false, totalFrames=\(frames), format=\(format?.description ?? "nil")")
+        guard let t = t, let a = a else {
             return ""
         }
-        isRunning = false
-        bufferQueue.finish()
 
         // 最低録音時間フィルタ
         if minDurationMs > 0 {
-            let sampleRate = audioFormat?.sampleRate ?? 16000
+            let sampleRate = format?.sampleRate ?? 16000
             let minFrames = AVAudioFrameCount(Double(minDurationMs) * sampleRate / 1000)
-            DebugLogger.shared.log("minDuration check: frames=\(totalFrameCount) minFrames=\(minFrames) minDurationMs=\(minDurationMs)")
-            if totalFrameCount < minFrames {
+            if frames < minFrames {
                 DebugLogger.shared.log("FILTER: too short, returning empty")
                 return ""
             }
@@ -89,18 +130,15 @@ public final class SpeechRecognizer: @unchecked Sendable {
 
         // 無音 RMS フィルタ
         if silenceRmsThreshold > 0 {
-            let rms = bufferQueue.calculateRMS()
-            DebugLogger.shared.log("silenceRms check: rms=\(rms) threshold=\(silenceRmsThreshold)")
+            let rms = calculateRMS(buffers)
             if rms < Float(silenceRmsThreshold) {
                 DebugLogger.shared.log("FILTER: silence detected, returning empty")
                 return ""
             }
         }
 
-        DebugLogger.shared.log("starting recognizer pipeline...")
-        let stream = bufferQueue.makeStream().map { AnalyzerInput(buffer: $0) }
-        do { _ = try await a.analyzeSequence(stream) } catch { }
         try? await a.finalizeAndFinishThroughEndOfInput()
+        _ = await self.analyzerTask?.result
         
         var text = ""
         do {
@@ -109,81 +147,50 @@ public final class SpeechRecognizer: @unchecked Sendable {
             }
         } catch { }
         let final = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        DebugLogger.shared.log("recognition result: '\(final)' (len=\(final.count))")
+        DebugLogger.shared.log("recognition result: '\(final)'")
         return final
     }
-}
 
-// MARK: - BufferQueue
-
-final class BufferQueue: @unchecked Sendable {
-    private let lock = NSLock()
-    private var buffers: [AVAudioPCMBuffer] = []
-    private var finished = false
-    private var _totalFrameCount: AVAudioFrameCount = 0
-    
-    var totalFrameCount: AVAudioFrameCount {
-        lock.withLock { _totalFrameCount }
-    }
-    
-    func append(_ buffer: AVAudioPCMBuffer) {
-        lock.withLock {
-            guard !finished else { return }
-            buffers.append(buffer)
-            _totalFrameCount += buffer.frameLength
-        }
-    }
-    
-    func finish() {
-        lock.withLock { finished = true }
-    }
-
-    /// 全バッファの RMS（実効値）を計算する。無音判定用。
-    func calculateRMS() -> Float {
+    private func calculateRMS(_ buffers: [AVAudioPCMBuffer]) -> Float {
         var sumSq: Float = 0
         var totalFrames: AVAudioFrameCount = 0
-        lock.withLock {
-            for buf in buffers {
-                let frames = Int(buf.frameLength)
-                // Float32 と Int16 の両対応
-                if let floatData = buf.floatChannelData?.pointee {
-                    for i in 0..<frames {
-                        let s = floatData[i]
-                        sumSq += s * s
-                    }
-                    totalFrames += buf.frameLength
-                } else if let intData = buf.int16ChannelData?.pointee {
-                    for i in 0..<frames {
-                        let s = Float(intData[i]) / 32768.0
-                        sumSq += s * s
-                    }
-                    totalFrames += buf.frameLength
+        for buf in buffers {
+            let frames = Int(buf.frameLength)
+            if let floatData = buf.floatChannelData?.pointee {
+                for i in 0..<frames {
+                    let s = floatData[i]
+                    sumSq += s * s
                 }
+                totalFrames += buf.frameLength
+            } else if let intData = buf.int16ChannelData?.pointee {
+                for i in 0..<frames {
+                    let s = Float(intData[i]) / 32768.0
+                    sumSq += s * s
+                }
+                totalFrames += buf.frameLength
             }
         }
         guard totalFrames > 0 else { return 0 }
         return sqrtf(sumSq / Float(totalFrames))
     }
+}
 
-    func makeStream() -> AsyncStream<AVAudioPCMBuffer> {
-        AsyncStream { continuation in
-            lock.withLock {
-                for buf in buffers { continuation.yield(buf) }
-            }
-            let done: Bool = lock.withLock { finished }
-            if done {
-                continuation.finish()
-            } else {
-                Task.detached { [weak self] in
-                    while true {
-                        try? await Task.sleep(nanoseconds: 50_000_000)
-                        guard let self else { break }
-                        let d: Bool = self.lock.withLock { self.finished && self.buffers.isEmpty }
-                        if d { break }
-                    }
-                    continuation.finish()
-                }
-            }
+// MARK: - Concurrency Workarounds
+
+struct SendableAnalyzerStream: AsyncSequence, @unchecked Sendable {
+    typealias Element = AnalyzerInput
+    typealias AsyncIterator = Iterator
+    
+    let base: AsyncMapSequence<AsyncStream<AVAudioPCMBuffer>, AnalyzerInput>
+    
+    struct Iterator: AsyncIteratorProtocol {
+        var base: AsyncMapSequence<AsyncStream<AVAudioPCMBuffer>, AnalyzerInput>.AsyncIterator
+        mutating func next() async -> AnalyzerInput? {
+            await base.next()
         }
+    }
+    
+    func makeAsyncIterator() -> Iterator {
+        Iterator(base: base.makeAsyncIterator())
     }
 }
