@@ -14,6 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var recording = false
     private var autoStopTask: Task<Void, Never>?
     private var settingsWindow: SettingsWindowController?
+    private var correctionsWindow: CorrectionsWindowController?
     private let overlay = OverlayController()
 
     func applicationDidFinishLaunching(_ n: Notification) {
@@ -49,6 +50,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let settingsItem = NSMenuItem(title: "Settings", action: #selector(showSettings), keyEquivalent: ",")
         settingsItem.target = self
         m.addItem(settingsItem)
+        
+        let correctionsItem = NSMenuItem(title: "Corrections...", action: #selector(showCorrections), keyEquivalent: "e")
+        correctionsItem.target = self
+        m.addItem(correctionsItem)
+        
         m.addItem(.separator())
         let quitItem = NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q")
         quitItem.target = self
@@ -163,6 +169,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             })
         }
         settingsWindow?.show()
+    }
+
+    @objc func showCorrections() {
+        if correctionsWindow == nil {
+            correctionsWindow = CorrectionsWindowController(corrections: corrections)
+        }
+        correctionsWindow?.show()
     }
 
     private func reloadSettings() {
