@@ -7,6 +7,7 @@ set -euo pipefail
 # 依存: swift, create-dmg (brew install create-dmg)
 
 VERSION="${VERSION:-dev}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 APP_NAME="Kikitori"
 BUILD_DIR=".build/release"
 APP_BUNDLE="$APP_NAME.app"
@@ -85,6 +86,8 @@ cat > "$APP_BUNDLE/Contents/Info.plist" << PLIST
     <string>https://github.com/konyu/kikitori/releases/latest/download/appcast.xml</string>
     <key>SUEnableInstallerLauncherService</key>
     <true/>
+    <key>SUPublicEDKey</key>
+    <string>${SU_PUBLIC_ED_KEY:-}</string>
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>NSMicrophoneUsageDescription</key>
@@ -128,3 +131,10 @@ ls -lh "$DIST_DIR/$DMG_NAME"
 
 echo "=== Ad-hoc code sign ==="
 codesign --sign - --deep --force "$APP_BUNDLE" 2>&1 || echo "WARNING: ad-hoc signing failed (non-fatal)"
+
+echo "=== Generate appcast ==="
+if [ -x "$SCRIPT_DIR/generate-appcast.sh" ]; then
+  DOWNLOAD_URL="https://github.com/konyu/kikitori/releases/download/v${VERSION}/${DMG_NAME}"
+  OUT_FILE="$DIST_DIR/appcast.xml" \
+    bash "$SCRIPT_DIR/generate-appcast.sh" "$DIST_DIR/$DMG_NAME" "$VERSION" "$DOWNLOAD_URL"
+fi
