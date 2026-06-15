@@ -15,7 +15,10 @@ let package = Package(
         .executableTarget(
             name: "Kikitori",
             dependencies: ["KikitoriCore", .product(name: "Sparkle", package: "Sparkle")],
-            resources: [.process("Resources")]
+            resources: [.process("Resources")],
+            linkerSettings: [
+                .unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"])
+            ]
         ),
         .testTarget(
             name: "KikitoriTests",
