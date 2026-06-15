@@ -3,7 +3,7 @@ name: Build and Release DMG
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
 
 permissions:
   contents: write
@@ -15,19 +15,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Extract version
+      - name: Extract version and build number
         id: get_version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+        run: |
+          echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+          echo "BUILD_NUMBER=${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
 
       - name: Install create-dmg
         run: brew install create-dmg
 
       - name: Build DMG
         env:
+          SU_PUBLIC_ED_KEY: ${{ secrets.SU_PUBLIC_ED_KEY }}
           SPARKLE_PRIVATE_KEY_BASE64: ${{ secrets.SPARKLE_PRIVATE_KEY_BASE64 }}
         run: |
           chmod +x scripts/build-dmg.sh
-          VERSION=${{ env.VERSION }} bash scripts/build-dmg.sh
+          VERSION=${{ env.VERSION }} BUILD_NUMBER=${{ env.BUILD_NUMBER }} bash scripts/build-dmg.sh
 
       - name: Upload DMG + Appcast to Release
         uses: softprops/action-gh-release@v2

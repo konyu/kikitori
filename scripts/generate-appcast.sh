@@ -7,7 +7,7 @@ set -euo pipefail
 # Developer ID 署名なしでは利用不可。このスクリプトは自力で appcast.xml を構築する。
 #
 # Usage:
-#   ./scripts/generate-appcast.sh <dmg_path> <version> <download_url>
+#   ./scripts/generate-appcast.sh <dmg_path> <version> <download_url> [build_number]
 #
 # Env:
 #   SPARKLE_PRIVATE_KEY_BASE64  EdDSA 秘密鍵 (base64, generate_keys -x 出力)
@@ -16,16 +16,17 @@ set -euo pipefail
 # 出力:
 #   <dmg_dir>/appcast.xml
 
-DMG_PATH="${1:?Usage: $0 <dmg_path> <version> <download_url>}"
+DMG_PATH="${1:?Usage: $0 <dmg_path> <version> <download_url> [build_number]}"
 VERSION="${2:?}"
 DOWNLOAD_URL="${3:?}"
+BUILD_NUMBER="${4:-$VERSION}"
 
 DMG_DIR="$(dirname "$DMG_PATH")"
 DMG_NAME="$(basename "$DMG_PATH")"
 OUT_FILE="${DMG_DIR}/appcast.xml"
 
 SHORT_VERSION="${VERSION}"
-BUILD_VERSION="${VERSION}"
+BUILD_VERSION="${BUILD_NUMBER}"
 MIN_OS="14.0"
 ARCH="arm64"
 

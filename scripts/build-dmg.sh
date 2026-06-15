@@ -7,6 +7,7 @@ set -euo pipefail
 # 依存: swift, create-dmg (brew install create-dmg)
 
 VERSION="${VERSION:-dev}"
+BUILD_NUMBER="${BUILD_NUMBER:-$VERSION}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 APP_NAME="Kikitori"
 BUILD_DIR=".build/release"
@@ -77,7 +78,7 @@ cat > "$APP_BUNDLE/Contents/Info.plist" << PLIST
     <key>CFBundleShortVersionString</key>
     <string>$VERSION</string>
     <key>CFBundleVersion</key>
-    <string>$VERSION</string>
+    <string>$BUILD_NUMBER</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
     <key>LSUIElement</key>
@@ -136,5 +137,5 @@ echo "=== Generate appcast ==="
 if [ -x "$SCRIPT_DIR/generate-appcast.sh" ]; then
   DOWNLOAD_URL="https://github.com/konyu/kikitori/releases/download/v${VERSION}/${DMG_NAME}"
   OUT_FILE="$DIST_DIR/appcast.xml" \
-    bash "$SCRIPT_DIR/generate-appcast.sh" "$DIST_DIR/$DMG_NAME" "$VERSION" "$DOWNLOAD_URL"
+    bash "$SCRIPT_DIR/generate-appcast.sh" "$DIST_DIR/$DMG_NAME" "$VERSION" "$DOWNLOAD_URL" "$BUILD_NUMBER"
 fi
