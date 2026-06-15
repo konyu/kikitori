@@ -26,7 +26,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ n: Notification) {
         NSApp.setActivationPolicy(.accessory)
-        
+
+        // 起動時にマイク・音声認識権限をチェックし、未許可なら許可を求める。
+        // 権限ダイアログは非同期で表示され、以降のセットアップをブロックしない。
+        Task { @MainActor in
+            await requestPermissionsIfNeeded()
+        }
+
         // 開発中など appcast.xml がない環境で起動時にエラーダイアログが出るのを防ぐため、
         // 最初の起動時（かつまだチェックしたことがない場合のみ）バックグラウンドチェックを遅延させるか、
         // 単純に startingUpdater: false にして手動でスタートさせます。
@@ -213,5 +219,43 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func quit() {
         hotkey.stop()
         NSApp.terminate(nil)
+    }
+
+    // MARK: - Permissions
+
+    /// 起動時にマイクと音声認識の権限をチェック・要求する。
+    /// ユーザーがこの起動で初めて拒否した場合のみ説明アラートを表示する。
+    private func requestPermissionsIfNeeded() async {
+        let micBefore = PermissionManager.shared.microphoneStatus
+        let micDenied = micBefore.needsRequest
+            ? await PermissionManager.shared.requestMicrophonePermission() == .denied
+            : false
+
+        let speechBefore = PermissionManager.shared.speechRecognitionStatus
+        let speechDenied = speechBefore.needsRequest
+            ? await PermissionManager.shared.requestSpeechRecognitionPermission() == .denied
+            : false
+
+        guard micDenied || speechDenied else { return }
+
+        DebugLogger.log("Permission denied by user: mic=\(micDenied), speech=\(speechDenied)")
+        showPermissionDeniedAlert()
+    }
+
+    private func showPermissionDeniedAlert() {
+        let alert = NSAlert()
+        alert.messageText = i18n.t(.permissionDeniedTitle)
+        alert.informativeText = i18n.t(.permissionDeniedMessage)
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: i18n.t(.permissionOpenSettings))
+        alert.addButton(withTitle: i18n.t(.permissionOK))
+
+        let result = alert.runModal()
+        if result == .alertFirstButtonReturn {
+            // プライバシー設定のマイク欄を開く
+            if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone") {
+                NSWorkspace.shared.open(url)
+            }
+        }
     }
 }

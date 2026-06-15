@@ -37,6 +37,9 @@ public enum TranslationKey: Int, Sendable, CaseIterable {
     
     // Updates
     case menuCheckUpdates
+
+    // Permissions
+    case permissionDeniedTitle, permissionDeniedMessage, permissionOpenSettings, permissionOK
 }
 
 /// 多言語対応マネージャー
@@ -116,6 +119,12 @@ public final class I18n: ObservableObject {
         "訂正 (例: useEffect):",             // correctionsRightLabel
         
         "アップデートを確認...",              // menuCheckUpdates
+
+        // Permissions
+        "権限が必要です",
+        "Kikitori を使うにはマイクと音声認識へのアクセスを許可してください。",
+        "システム設定を開く",
+        "OK",
     ]
 
     private nonisolated static let enStrings: [String] = [
@@ -164,6 +173,12 @@ public final class I18n: ObservableObject {
         "Right (e.g. useEffect):",
         
         "Check for Updates...",              // menuCheckUpdates
+
+        // Permissions
+        "Permission Required",
+        "Please allow Kikitori to access the microphone and speech recognition.",
+        "Open System Settings",
+        "OK",
     ]
 
     private nonisolated static func _lookup(_ key: TranslationKey, _ arr: [String]) -> String {
