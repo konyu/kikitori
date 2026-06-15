@@ -27,7 +27,7 @@ public final class SpeechRecognizer: @unchecked Sendable {
     public var language: String = "ja"
 
     public var compatibleAudioFormat: AVAudioFormat? { audioFormat }
-    var totalFrameCount: AVAudioFrameCount { 
+    public var totalFrameCount: AVAudioFrameCount { 
         lock.withLock { _totalFrameCount }
     }
     

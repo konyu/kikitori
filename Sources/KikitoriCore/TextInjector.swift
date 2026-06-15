@@ -7,6 +7,11 @@ public final class FrontmostAppTracker: @unchecked Sendable {
     private let lock = NSLock()
     private var capturedPID: pid_t?
 
+    /// 最後に capture した PID（テスト用）
+    public var currentPID: pid_t? {
+        lock.withLock { capturedPID }
+    }
+
     public init() {}
 
     @discardableResult

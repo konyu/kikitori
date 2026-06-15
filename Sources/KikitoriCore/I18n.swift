@@ -6,7 +6,7 @@ public enum Language: String, Sendable {
 }
 
 /// 翻訳キー
-public enum TranslationKey: Int, Sendable {
+public enum TranslationKey: Int, Sendable, CaseIterable {
     // Menu
     case menuSettings = 0, menuCorrections, menuQuit
 
@@ -43,6 +43,9 @@ public enum TranslationKey: Int, Sendable {
 @MainActor
 public final class I18n: ObservableObject {
     @Published public private(set) var language: Language
+
+    /// 現在選択されている言語（テスト互換用のエイリアス）
+    public var currentLanguage: Language { language }
 
     /// システム言語から自動判定して初期化
     public init(language: Language? = nil) {
