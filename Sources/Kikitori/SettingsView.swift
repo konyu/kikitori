@@ -305,6 +305,7 @@ struct SettingsView: View {
 
 final class SettingsWindowController: NSWindowController {
     private let vm: SettingsViewModel
+    private let contentSize = NSSize(width: 440, height: 460)
 
     init(settings: SettingsManager, i18n: I18n, onSave: @escaping () -> Void) {
         self.vm = SettingsViewModel(settings: settings)
@@ -314,11 +315,11 @@ final class SettingsWindowController: NSWindowController {
             contentRect: .zero,
             styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
-            defer: true
+            defer: false
         )
         window.title = i18n.t(.settingsTitle)
-        window.setContentSize(NSSize(width: 440, height: 460))
-        window.center()
+        window.setContentSize(contentSize)
+        window.center(withContentSize: contentSize)
         window.isReleasedWhenClosed = false
 
         super.init(window: window)
@@ -333,8 +334,8 @@ final class SettingsWindowController: NSWindowController {
 
     func show() {
         vm.load()
-        window?.center()
-        window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        window?.center(withContentSize: contentSize)
+        window?.makeKeyAndOrderFront(nil)
     }
 }

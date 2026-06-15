@@ -156,17 +156,19 @@ struct CorrectionsView: View {
 
 final class CorrectionsWindowController: NSWindowController {
     private let vm: CorrectionsViewModel
+    private let contentSize = NSSize(width: 480, height: 360)
 
     init(corrections: Corrections, i18n: I18n) {
         self.vm = CorrectionsViewModel(corrections: corrections)
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 480, height: 360),
+            contentRect: .zero,
             styleMask: [.titled, .closable, .resizable],
             backing: .buffered,
-            defer: true
+            defer: false
         )
         window.title = i18n.t(.correctionsTitle)
-        window.center()
+        window.setContentSize(contentSize)
+        window.center(withContentSize: contentSize)
         window.isReleasedWhenClosed = false
         super.init(window: window)
 
@@ -178,8 +180,8 @@ final class CorrectionsWindowController: NSWindowController {
 
     func show() {
         vm.load()
-        window?.center()
-        window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        window?.center(withContentSize: contentSize)
+        window?.makeKeyAndOrderFront(nil)
     }
 }
