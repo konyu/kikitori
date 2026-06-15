@@ -119,12 +119,19 @@ if command -v create-dmg &>/dev/null; then
     "$DIST_DIR/$DMG_NAME" \
     "$APP_BUNDLE"
 else
-  # フォールバック: hdiutil 直接（シンプルDMG）
-  echo "create-dmg not found — using hdiutil fallback"
+  # フォールバック: hdiutil 直接（シンプルDMG + Applicationsリンク）
+  echo "create-dmg not found — using hdiutil fallback with Applications link"
+  DMG_ROOT="$DIST_DIR/dmg_root"
+  mkdir -p "$DMG_ROOT"
+  cp -R "$APP_BUNDLE" "$DMG_ROOT/"
+  ln -s /Applications "$DMG_ROOT/Applications"
+  
   hdiutil create -volname "$APP_NAME" \
-    -srcfolder "$APP_BUNDLE" \
+    -srcfolder "$DMG_ROOT" \
     -ov -format UDZO \
     "$DIST_DIR/$DMG_NAME"
+    
+  rm -rf "$DMG_ROOT"
 fi
 
 echo "=== Done: $DIST_DIR/$DMG_NAME ==="
