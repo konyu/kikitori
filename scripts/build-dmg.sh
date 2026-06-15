@@ -61,6 +61,13 @@ cat > "$APP_BUNDLE/Contents/Info.plist" << PLIST
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+    <key>CFBundleLocalizations</key>
+    <array>
+        <string>ja</string>
+        <string>en</string>
+    </array>
+    <key>CFBundleAllowMixedLocalizations</key>
+    <true/>
     <key>CFBundleDevelopmentRegion</key>
     <string>ja</string>
     <key>CFBundleDisplayName</key>
@@ -107,17 +114,29 @@ echo -n "APPL????" > "$APP_BUNDLE/Contents/PkgInfo"
 echo "=== Create DMG ==="
 mkdir -p "$DIST_DIR"
 
+# DMG背景画像の生成
+BG_IMAGE="$DIST_DIR/dmg-bg.png"
+if [ -x "$SCRIPT_DIR/generate-dmg-bg.swift" ]; then
+    "$SCRIPT_DIR/generate-dmg-bg.swift" "$BG_IMAGE"
+fi
+
 if command -v create-dmg &>/dev/null; then
   # create-dmg 使用（より美しいDMG、背景画像・Applicationsシンボリックリンク付き）
-  create-dmg \
-    --volname "$APP_NAME" \
-    --window-size 600 400 \
-    --icon-size 100 \
-    --icon "$APP_NAME.app" 160 200 \
-    --app-drop-link 440 200 \
-    --no-internet-enable \
-    "$DIST_DIR/$DMG_NAME" \
-    "$APP_BUNDLE"
+  
+  CREATE_DMG_ARGS=(
+    --volname "$APP_NAME"
+    --window-size 600 400
+    --icon-size 100
+    --icon "$APP_NAME.app" 160 200
+    --app-drop-link 440 200
+    --no-internet-enable
+  )
+  
+  if [ -f "$BG_IMAGE" ]; then
+      CREATE_DMG_ARGS+=(--background "$BG_IMAGE")
+  fi
+
+  create-dmg "${CREATE_DMG_ARGS[@]}" "$DIST_DIR/$DMG_NAME" "$APP_BUNDLE"
 else
   # フォールバック: hdiutil 直接（シンプルDMG + Applicationsリンク）
   echo "create-dmg not found — using hdiutil fallback with Applications link"
