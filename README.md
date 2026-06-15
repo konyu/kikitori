@@ -1,6 +1,6 @@
 [English](README.md) | [日本語](README_jp.md)
 
-# 🎤 Kikitori
+# 🐦 Kikitori
 
 A speech recognition input tool for macOS. Kikitori records your voice while you hold down a hotkey, and upon release, it uses the new **Speech Framework (SpeechAnalyzer / SpeechTranscriber)** to convert the audio into text and automatically pastes it via the clipboard. It's a lightweight, fast, native macOS application.
 
@@ -10,7 +10,7 @@ A speech recognition input tool for macOS. Kikitori records your voice while you
 - **On-Device Speech Recognition**: Executes speech recognition entirely locally without the need for a network connection (uses the new `SpeechAnalyzer` instead of the legacy `SFSpeechRecognizer`).
 - **Intuitive UI**:
   - Always accessible via the macOS menu bar.
-  - Displays an "Apple Liquid Glass" style real-time waveform overlay UI (an icon and 12 waveform bars) near the bottom of the screen while recording.
+  - Displays an "Apple Liquid Glass" style real-time waveform overlay UI (a bird icon and 12 waveform bars) near the bottom of the screen while recording.
 - **Flexible Customization (GUI Settings)**: Easily change the language, recording duration limits, silence thresholds, and hotkeys from the settings window.
 - **Auto-Correction**: Use the Corrections feature to automatically replace specific phrases or misrecognized technical terms.
 - **Automatic Updates**: Supports automatic updates via the Sparkle framework.
@@ -55,17 +55,17 @@ Download the latest `Kikitori-x.x.x.dmg` from the [Releases page](https://github
 
 ## Usage
 
-Kikitori is a simple tool that records audio only while you hold down a hotkey (keyboard modifier key) and automatically inputs the recognized text when you release it. Upon launch, a 🎤 icon will appear in the menu bar.
+Kikitori is a simple tool that records audio only while you hold down a hotkey (keyboard modifier key) and automatically inputs the recognized text when you release it. Upon launch, a bird icon (🐦) will appear in the menu bar.
 
 - **Start Recording**: **Press and hold** the configured hotkey (default is the `Fn (🌐)` key alone).
-  - A transparent glass UI featuring a microphone icon and 12 waveform bars will appear near the bottom of the screen. The waveform will animate in real-time according to your voice volume.
+  - A transparent glass UI featuring a bird icon and 12 waveform bars will appear near the bottom of the screen. The waveform will animate in real-time according to your voice volume.
 - **Stop Recording & Input Text**: **Release** the hotkey.
   - The recording will stop and speech recognition will be executed.
   - The recognized text will be automatically pasted into the application where your cursor is currently active (e.g., Notepad, Browser, Editor).
 
 ### Menu Bar Features
 
-Clicking the 🎤 icon in the menu bar will display the following menu. Each setting can be intuitively configured in a dedicated GUI window.
+Clicking the bird icon in the menu bar will display the following menu. Each setting can be intuitively configured in a dedicated GUI window.
 
 - **Settings (Cmd + ,)**
   - **General Tab**: 
