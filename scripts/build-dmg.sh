@@ -112,6 +112,9 @@ PLIST
 # PkgInfo
 echo -n "APPL????" > "$APP_BUNDLE/Contents/PkgInfo"
 
+echo "=== Ad-hoc code sign ==="
+codesign --sign - --deep --force "$APP_BUNDLE" 2>&1 || echo "WARNING: ad-hoc signing failed (non-fatal)"
+
 echo "=== Create DMG ==="
 mkdir -p "$DIST_DIR"
 
@@ -156,9 +159,6 @@ fi
 
 echo "=== Done: $DIST_DIR/$DMG_NAME ==="
 ls -lh "$DIST_DIR/$DMG_NAME"
-
-echo "=== Ad-hoc code sign ==="
-codesign --sign - --deep --force "$APP_BUNDLE" 2>&1 || echo "WARNING: ad-hoc signing failed (non-fatal)"
 
 echo "=== Generate appcast ==="
 if [ -x "$SCRIPT_DIR/generate-appcast.sh" ]; then
