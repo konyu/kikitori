@@ -91,8 +91,8 @@ echo "SUPublicEDKey (for Info.plist / env var):"
 echo "$PUBLIC_BASE64"
 echo ""
 
-# CI 用 base64 秘密鍵
-PRIVATE_BASE64=$(base64 -i "$PRIVATE_KEY" | tr -d '\n')
+# CI 用 base64 秘密鍵 (Sparkle の出力は既に base64 なのでそのまま出力)
+PRIVATE_BASE64=$(cat "$PRIVATE_KEY" | tr -d '\n')
 echo "SPARKLE_PRIVATE_KEY_BASE64 (for GitHub Secrets):"
 echo "$PRIVATE_BASE64"
 echo "──────────────────────────────────────────"
