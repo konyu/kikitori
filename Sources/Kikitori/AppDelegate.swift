@@ -40,10 +40,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.overlay.updateAmplitude(amp)
         }
 
-        item = NSStatusBar.system.statusItem(withLength: 24)
+        item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let btn = item.button {
             if let icon = IconLoader.loadIdleIcon() {
-                icon.size = NSSize(width: 18, height: 18)
+                let ratio = icon.size.height > 0 ? icon.size.width / icon.size.height : 1.0
+                icon.size = NSSize(width: 18 * ratio, height: 18)
                 btn.image = icon
             } else {
                 btn.image = NSImage(systemSymbolName: "mic", accessibilityDescription: "Kikitori")
