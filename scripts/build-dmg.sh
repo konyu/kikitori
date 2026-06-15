@@ -39,7 +39,7 @@ fi
 # （バンドルルートに置くと ad-hoc 署名時に "unsealed contents" エラーになる）
 if [ -d "$BUILD_DIR/${APP_NAME}_Kikitori.bundle" ]; then
   cp -R "$BUILD_DIR/${APP_NAME}_Kikitori.bundle" "$APP_BUNDLE/Contents/Resources/"
-  # Contents/Resources 配下にも直接アイコンを置いておく（旧コードの互換）
+  # Contents/Resources 配下にも直接アイコンを置いておく
   if [ -f "$BUILD_DIR/${APP_NAME}_Kikitori.bundle/Contents/Resources/icon-idle.png" ]; then
     cp "$BUILD_DIR/${APP_NAME}_Kikitori.bundle/Contents/Resources/icon-idle.png" "$APP_BUNDLE/Contents/Resources/"
   fi
