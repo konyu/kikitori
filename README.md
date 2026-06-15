@@ -1,128 +1,131 @@
-# Kikitori
+[English](README.md) | [日本語](README_jp.md)
 
-macOS 向け音声認識入力ツール。ホットキー押下中にマイク入力を録音し、解放時に新しい **Speech Framework (SpeechAnalyzer / SpeechTranscriber)** を利用して音声をテキストに変換、クリップボード経由で自動ペーストする、軽量・高速なネイティブ macOS アプリです。
+# 🎤 Kikitori
 
-## 特徴
-- **Swift / SwiftUI によるネイティブ実装**: より軽量で高速な動作を実現。
-- **オンデバイス音声認識**: ネットワーク不要で完全にローカルで音声認識を実行（旧来の `SFSpeechRecognizer` ではなく、新しい `SpeechAnalyzer` を使用しています）。
-- **直感的な UI**:
-  - メニューバー常駐でいつでもアクセス可能。
-  - 録音中は画面下部寄りに「Apple Liquid Glass」デザインのリアルタイム波形オーバーレイ UI（アイコンと12本の波形バー）を表示。
-- **柔軟なカスタマイズ (GUI 設定)**: アプリ上の設定画面から、言語、録音長、無音しきい値、ホットキーなどを簡単に変更可能。
-- **誤変換の自動修正**: 校正設定（Corrections）機能で、特定の言い回しや専門用語の誤変換を自動で置換。
-- **自動アップデート**: Sparkle フレームワークによる自動アップデート機能に対応。
+A speech recognition input tool for macOS. Kikitori records your voice while you hold down a hotkey, and upon release, it uses the new **Speech Framework (SpeechAnalyzer / SpeechTranscriber)** to convert the audio into text and automatically pastes it via the clipboard. It's a lightweight, fast, native macOS application.
 
-## 動作環境
+## Features
 
-- **Apple Silicon Mac 必須**（M1 / M2 / M3 / M4 など）
-- **macOS 26.0** 以上 必須
+- **Native Swift / SwiftUI Implementation**: Achieves lightweight and fast performance.
+- **On-Device Speech Recognition**: Executes speech recognition entirely locally without the need for a network connection (uses the new `SpeechAnalyzer` instead of the legacy `SFSpeechRecognizer`).
+- **Intuitive UI**:
+  - Always accessible via the macOS menu bar.
+  - Displays an "Apple Liquid Glass" style real-time waveform overlay UI (an icon and 12 waveform bars) near the bottom of the screen while recording.
+- **Flexible Customization (GUI Settings)**: Easily change the language, recording duration limits, silence thresholds, and hotkeys from the settings window.
+- **Auto-Correction**: Use the Corrections feature to automatically replace specific phrases or misrecognized technical terms.
+- **Automatic Updates**: Supports automatic updates via the Sparkle framework.
 
-## 必要な権限
+## System Requirements
 
-Kikitori を正しく動作させるためには、以下の3つの権限が必要です。初回起動時に許可を求められます。
+- **Apple Silicon Mac Required** (M1 / M2 / M3 / M4, etc.)
+- **macOS 26.0** or later required
 
-| 権限 | 設定場所 | 用途 |
+## Required Permissions
+
+To function correctly, Kikitori requires the following three permissions. You will be prompted to grant them upon first launch.
+
+| Permission | Settings Location | Purpose |
 |------|---------|------|
-| **マイク** | プライバシーとセキュリティ → マイク | マイクからの音声入力 |
-| **音声認識** | プライバシーとセキュリティ → 音声認識 | Speech Framework による音声からテキストへの変換 |
-| **アクセシビリティ** | プライバシーとセキュリティ → アクセシビリティ | ホットキー（キーボード）の監視と、自動ペースト (Cmd+V のエミュレーション) |
+| **Microphone** | Privacy & Security → Microphone | To capture audio input from the microphone. |
+| **Speech Recognition** | Privacy & Security → Speech Recognition | To convert speech to text using the Speech Framework. |
+| **Accessibility** | Privacy & Security → Accessibility | To monitor hotkeys (keyboard) and automatically paste text (Cmd+V emulation). |
 
-## インストール
+## Installation
 
-[Releases ページ](https://github.com/konyu/kikitori/releases/latest) から最新の `Kikitori-x.x.x.dmg` をダウンロードしてください。
+Download the latest `Kikitori-x.x.x.dmg` from the [Releases page](https://github.com/konyu/kikitori/releases/latest).
 
-1. DMG ファイルを開きます。
-2. 中にある `Kikitori.app` を `Applications` フォルダへドラッグ＆ドロップします。
-3. アプリケーションフォルダから `Kikitori` を起動してください。
+1. Open the downloaded DMG file.
+2. Drag and drop the `Kikitori.app` into your `Applications` folder.
+3. Launch `Kikitori` from the Applications folder.
 
 > [!WARNING]
-> **初回起動時の「開発元が未確認」という警告について**
+> **Regarding the "unidentified developer" warning on first launch**
 > 
-> 起動時に「開発元が未確認」「マルウェアがないか検証できません」という警告が出る場合は、以下のいずれかの方法で許可してください：
+> If you encounter a warning stating "cannot be opened because the developer cannot be verified" or "macOS cannot verify that this app is free from malware," please grant permission using one of the following methods:
 > 
-> **A. システム設定から許可する**
-> 1. 警告ダイアログを「完了」で閉じます。
-> 2. **「システム設定」** > **「プライバシーとセキュリティ」** を開きます。
-> 3. 「"Kikitori" は開発元を確認できないため...」の横にある **「このまま開く」** をクリックします。
+> **A. Allow from System Settings**
+> 1. Close the warning dialog by clicking "Done".
+> 2. Open **System Settings** > **Privacy & Security**.
+> 3. Click **Open Anyway** next to the message ""Kikitori" was blocked from use...".
 > 
-> **B. ターミナルで検疫を解除する**
+> **B. Remove the quarantine attribute via Terminal**
 > ```bash
 > xattr -rd com.apple.quarantine /Applications/Kikitori.app
 > ```
 
-## 使い方
+## Usage
 
-Kikitori はホットキー（キーボードの修飾キー）を押している間だけ音声を録音し、離すと認識結果を自動入力するシンプルなツールです。アプリを起動すると、メニューバーに 🎤 アイコンが表示されます。
+Kikitori is a simple tool that records audio only while you hold down a hotkey (keyboard modifier key) and automatically inputs the recognized text when you release it. Upon launch, a 🎤 icon will appear in the menu bar.
 
-- **録音の開始**: 設定したホットキー（デフォルトは `Fn (🌐)` キー単体）を**押し続けます**。
-  - 画面下部寄りに、マイクアイコンと12本の波形バーが並んだ「透明なグラスUI」が表示され、声の大きさに合わせて波形がリアルタイムに動きます。
-- **録音の終了とテキスト入力**: ホットキーを**離します**。
-  - 録音が終了し、音声認識が実行されます。
-  - 認識されたテキストは、現在カーソルがあるアプリケーション（メモ帳、ブラウザ、エディタなど）に自動的にペーストされます。
+- **Start Recording**: **Press and hold** the configured hotkey (default is the `Fn (🌐)` key alone).
+  - A transparent glass UI featuring a microphone icon and 12 waveform bars will appear near the bottom of the screen. The waveform will animate in real-time according to your voice volume.
+- **Stop Recording & Input Text**: **Release** the hotkey.
+  - The recording will stop and speech recognition will be executed.
+  - The recognized text will be automatically pasted into the application where your cursor is currently active (e.g., Notepad, Browser, Editor).
 
-### メニューバーの機能
+### Menu Bar Features
 
-メニューバーの 🎤 アイコンをクリックすると、以下のメニューが表示されます。各設定項目は専用の GUI ウィンドウで直感的に操作可能です。
+Clicking the 🎤 icon in the menu bar will display the following menu. Each setting can be intuitively configured in a dedicated GUI window.
 
-- **設定 (Cmd + ,)**
-  - **「一般」タブ**: 
-    - **認識言語**: 音声認識する言語（日本語、英語など6言語）を選択します。
-    - **UI 表示言語**: アプリケーションの表示言語を選択します。
-    - **ホットキー**: 録音に使用する修飾キー（Fn, Control, Option, Command, Shift のいずれか、または組み合わせ）をチェックボックスで設定します。
-  - **「フィルタ」タブ**: 
-    - **最低録音時間**: 指定した時間（ミリ秒）より短い録音は無視します（誤作動防止）。
-    - **最大録音時間**: 指定した時間（秒）に達すると強制的に録音を区切ります。
-    - **無音判定 RMS**: 録音中の音量がこのしきい値を下回る場合は「無音」とみなし、音声認識を行いません。
-    - **デバッグログ**: 開発者向けの詳細なログ出力を有効にします。
+- **Settings (Cmd + ,)**
+  - **General Tab**: 
+    - **Recognition language**: Select the language for speech recognition (e.g., Japanese, English, etc. - 6 languages available).
+    - **UI language**: Select the application's display language.
+    - **Hotkey (Modifiers)**: Set the modifier key used for recording (Fn, Control, Option, Command, Shift, or a combination) using checkboxes.
+  - **Filters Tab**: 
+    - **Min duration**: Recordings shorter than the specified time (in milliseconds) will be ignored (prevents accidental triggers).
+    - **Max duration**: Recording is forcibly stopped when it reaches the specified time (in seconds).
+    - **Silence RMS**: If the recording volume falls below this threshold, it is considered "silence" and no speech recognition is performed.
+    - **Debug Log**: Enables detailed log output for developers.
 
-- **校正設定... (Cmd + e)**
-  - 音声認識でよく間違えられる単語の変換ルール（間違い → 正解）を管理する画面です。
-  - **追加 ( + ) / 編集 ( 鉛筆 ) / 削除 ( - )**: 専用の入力フォームが開き、「間違い (例: use effect)」と「訂正 (例: useEffect)」のペアを登録できます。
-  - ※内部的には `~/.kikitori/corrections.yaml` に保存され、右上のアイコンからファイルを直接開いたり再読み込みすることも可能です。
+- **Corrections... (Cmd + e)**
+  - A screen to manage replacement rules (Wrong → Right) for commonly misrecognized words.
+  - **Add ( + ) / Edit ( Pencil ) / Delete ( - )**: Opens a dedicated input form to register a pair of "Wrong (e.g. use effect)" and "Right (e.g. useEffect)".
+  - *Internally, these are saved in `~/.kikitori/corrections.yaml`. You can also open the file directly or reload it using the buttons in the top right corner.*
 
-- **アップデートを確認...**
-  - 新しいバージョンがあるか確認し、見つかった場合は自動でダウンロード・インストールを行います。
+- **Check for Updates...**
+  - Checks if a new version is available and automatically downloads and installs it if found.
 
-- **終了 (Cmd + q)**
-  - アプリケーションを終了します。
+- **Quit (Cmd + q)**
+  - Exits the application.
 
-## トラブルシューティング
+## Troubleshooting
 
-### ホットキーが効かない・テキストがペーストされない
-「システム設定 → プライバシーとセキュリティ → アクセシビリティ」で **Kikitori** のスイッチがオンになっているか確認してください。すでにオンの場合は、一度オフにしてから再度オンにしてみてください。
+### Hotkey not working / Text not pasted
+Check if the toggle for **Kikitori** is turned on in "System Settings → Privacy & Security → Accessibility". If it is already on, try turning it off and on again.
 
-### 録音されない・音声認識が失敗する
-「システム設定 → プライバシーとセキュリティ」の **マイク** および **音声認識** の項目で、Kikitori に許可が与えられているか確認してください。
+### Not recording / Speech recognition fails
+Ensure that Kikitori has been granted permissions in both the **Microphone** and **Speech Recognition** sections under "System Settings → Privacy & Security".
 
-## 開発（Swift版）
+## Development (Swift Version)
 
-本プロジェクトは Swift 6.0 / Swift Package Manager (SPM) ベースで構築されています。
+This project is built using Swift 6.0 and the Swift Package Manager (SPM).
 
-### ビルド手順
+### Build Instructions
 
 ```bash
-# クローン
+# Clone the repository
 git clone https://github.com/konyu/kikitori.git
 cd kikitori
 
-# 開発用ビルド
+# Development build
 swift build
 
-# DMG / リリースビルドの作成（Sparkleの鍵設定が必要）
+# Create DMG / Release build (Requires Sparkle key configuration)
 bash scripts/build-dmg.sh
 ```
 
-### プロジェクト構成
+### Project Structure
 
 ```
 .
-├── Package.swift            # SPM パッケージ定義
+├── Package.swift            # SPM package definition
 ├── Sources/
-│   ├── Kikitori/            # AppDelegate, SwiftUI (設定画面, オーバーレイUI) など
-│   └── KikitoriCore/        # 録音制御, Speech API 連携, ホットキー監視, 設定管理
-├── scripts/                 # DMG作成やSparkle用鍵生成スクリプト
+│   ├── Kikitori/            # AppDelegate, SwiftUI (Settings, Overlay UI), etc.
+│   └── KikitoriCore/        # Recording control, Speech API integration, Hotkey monitoring, Settings management
+├── scripts/                 # Scripts for DMG creation and Sparkle key generation
 ```
 
-## ライセンス
+## License
 
 MIT License
