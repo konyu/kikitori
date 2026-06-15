@@ -39,13 +39,14 @@ fi
 # （バンドルルートに置くと ad-hoc 署名時に "unsealed contents" エラーになる）
 if [ -d "$BUILD_DIR/${APP_NAME}_Kikitori.bundle" ]; then
   cp -R "$BUILD_DIR/${APP_NAME}_Kikitori.bundle" "$APP_BUNDLE/Contents/Resources/"
-  # Contents/Resources 配下にも直接アイコンを置いておく
-  if [ -f "$BUILD_DIR/${APP_NAME}_Kikitori.bundle/Contents/Resources/icon-idle.png" ]; then
-    cp "$BUILD_DIR/${APP_NAME}_Kikitori.bundle/Contents/Resources/icon-idle.png" "$APP_BUNDLE/Contents/Resources/"
-  fi
-  if [ -f "$BUILD_DIR/${APP_NAME}_Kikitori.bundle/Contents/Resources/icon-recording.png" ]; then
-    cp "$BUILD_DIR/${APP_NAME}_Kikitori.bundle/Contents/Resources/icon-recording.png" "$APP_BUNDLE/Contents/Resources/"
-  fi
+  # SPM バンドルはフラット構造の場合があるので、PNG を Contents/Resources 直下にもコピー
+  for icon in icon-idle.png icon-recording.png; do
+    if [ -f "$BUILD_DIR/${APP_NAME}_Kikitori.bundle/$icon" ]; then
+      cp "$BUILD_DIR/${APP_NAME}_Kikitori.bundle/$icon" "$APP_BUNDLE/Contents/Resources/"
+    elif [ -f "$BUILD_DIR/${APP_NAME}_Kikitori.bundle/Contents/Resources/$icon" ]; then
+      cp "$BUILD_DIR/${APP_NAME}_Kikitori.bundle/Contents/Resources/$icon" "$APP_BUNDLE/Contents/Resources/"
+    fi
+  done
 else
   # SPM バンドルが見つからない場合は直接ソースからコピー
   if [ -f "Sources/Kikitori/Resources/icon-idle.png" ]; then
