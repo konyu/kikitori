@@ -1,5 +1,6 @@
 import SwiftUI
 import KikitoriCore
+import ServiceManagement
 
 // MARK: - ViewModel
 
@@ -16,6 +17,7 @@ final class SettingsViewModel: ObservableObject {
     @Published var maxDurationSec: Double = 60
     @Published var silenceRmsThreshold: Double = 0.0001
     @Published var debugEnabled: Bool = false
+    @Published var launchAtLogin: Bool = false
 
     private let settings: SettingsManager
 
@@ -31,6 +33,7 @@ final class SettingsViewModel: ObservableObject {
         maxDurationSec = Double(settings.maxDurationSec)
         silenceRmsThreshold = settings.silenceRmsThreshold
         debugEnabled = settings.debug
+        launchAtLogin = SMAppService.mainApp.status == .enabled
     }
 
     private func loadHotkeyToggles() {
@@ -57,6 +60,20 @@ final class SettingsViewModel: ObservableObject {
         settings.silenceRmsThreshold = silenceRmsThreshold
         settings.debug = debugEnabled
         settings.save()
+        
+        do {
+            if launchAtLogin {
+                if SMAppService.mainApp.status != .enabled {
+                    try SMAppService.mainApp.register()
+                }
+            } else {
+                if SMAppService.mainApp.status == .enabled {
+                    try SMAppService.mainApp.unregister()
+                }
+            }
+        } catch {
+            print("Failed to toggle launch at login: \(error)")
+        }
     }
 
     private var hotkeyArray: [String] {
@@ -97,10 +114,8 @@ struct SettingsView: View {
             TabView {
                 generalTab
                     .tabItem { Label(i18n.t(.tabGeneral), systemImage: "gearshape") }
-                    .padding(20)
                 filtersTab
                     .tabItem { Label(i18n.t(.tabFilters), systemImage: "waveform") }
-                    .padding(20)
             }
             Divider()
             HStack {
@@ -114,62 +129,174 @@ struct SettingsView: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 10)
         }
-        .frame(width: 420, height: 350)
+        .frame(width: 440, height: 400)
     }
 
     private var generalTab: some View {
-        Form {
-            Picker(i18n.t(.settingsLanguageLabel), selection: $vm.language) {
-                ForEach(SettingsViewModel.languageOptions, id: \.0) { code, label in
-                    Text(label).tag(code)
+        ScrollView {
+            VStack(spacing: 0) {
+                // ---- 言語設定 ----
+                GroupBox {
+                    VStack(spacing: 12) {
+                        settingsRow {
+                            Picker(i18n.t(.settingsLanguageLabel), selection: $vm.language) {
+                                ForEach(SettingsViewModel.languageOptions, id: \.0) { code, label in
+                                    Text(label).tag(code)
+                                }
+                            }
+                            .frame(width: 160)
+                        }
+                        settingsRow {
+                            Picker(i18n.t(.settingsUILanguageLabel), selection: $vm.uiLanguage) {
+                                Text("日本語").tag("ja")
+                                Text("English").tag("en")
+                            }
+                            .frame(width: 160)
+                        }
+                    }
+                    .padding(.vertical, 8)
+                } label: {
+                    Text(i18n.t(.settingsLanguageLabel)).font(.headline)
                 }
-            }
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
 
-            Picker(i18n.t(.settingsUILanguageLabel), selection: $vm.uiLanguage) {
-                Text("日本語").tag("ja")
-                Text("English").tag("en")
-            }
+                // ---- 起動 ----
+                Toggle(isOn: $vm.launchAtLogin) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(i18n.t(.settingsLaunchAtLogin))
+                            .font(.body)
+                        Text("macOSの「ログイン項目と機能拡張」に追加されます")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .toggleStyle(.switch)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
 
-            Text(i18n.t(.settingsHotkeyLabel))
-                .font(.subheadline)
-            
-            Toggle("Fn      🌐", isOn: $vm.hotkeyFn)
-            Toggle("Control ⌃", isOn: $vm.hotkeyCtrl)
-            Toggle("Option  ⌥", isOn: $vm.hotkeyAlt)
-            Toggle("Command ⌘", isOn: $vm.hotkeyCmd)
-            Toggle("Shift    ⇧", isOn: $vm.hotkeyShift)
+                Divider()
+                    .padding(.vertical, 8)
 
-            HStack {
-                Spacer()
-                Button(i18n.t(.settingsResetBtn)) { vm.reset() }
+                // ---- ホットキー ----
+                GroupBox {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text(i18n.t(.settingsHotkeyLabel))
+                            .font(.headline)
+                        
+                        Divider()
+                        
+                        Toggle("Fn     🌐", isOn: $vm.hotkeyFn)
+                        Toggle("Control ⌃", isOn: $vm.hotkeyCtrl)
+                        Toggle("Option ⌥", isOn: $vm.hotkeyAlt)
+                        Toggle("Command ⌘", isOn: $vm.hotkeyCmd)
+                        Toggle("Shift   ⇧", isOn: $vm.hotkeyShift)
+                    }
+                    .padding(.vertical, 8)
+                }
+                .padding(.horizontal, 16)
+
+                // ---- リセット ----
+                HStack {
+                    Spacer()
+                    Button(i18n.t(.settingsResetBtn)) { vm.reset() }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
             }
         }
     }
 
+    private func settingsRow<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        HStack {
+            content()
+            Spacer()
+        }
+    }
+
     private var filtersTab: some View {
-        Form {
-            HStack {
-                Text(i18n.t(.settingsMinDurLabel))
-                Slider(value: $vm.minDurationMs, in: 100...5000, step: 100)
-                Text("\(Int(vm.minDurationMs))\(i18n.t(.msUnit))")
-                    .frame(width: 60, alignment: .trailing)
-            }
+        ScrollView {
+            VStack(spacing: 0) {
+                // ---- 録音時間 ----
+                GroupBox {
+                    VStack(spacing: 14) {
+                        sliderRow(
+                            label: i18n.t(.settingsMinDurLabel),
+                            hint: i18n.t(.settingsMinDurHint),
+                            value: $vm.minDurationMs,
+                            range: 100...5000,
+                            step: 100,
+                            format: { "\(Int($0))\(i18n.t(.msUnit))" }
+                        )
+                        sliderRow(
+                            label: i18n.t(.settingsMaxDurLabel),
+                            value: $vm.maxDurationSec,
+                            range: 10...300,
+                            step: 10,
+                            format: { "\(Int($0))\(i18n.t(.secUnit))" }
+                        )
+                    }
+                    .padding(.vertical, 8)
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
 
-            HStack {
-                Text(i18n.t(.settingsMaxDurLabel))
-                Slider(value: $vm.maxDurationSec, in: 10...300, step: 10)
-                Text("\(Int(vm.maxDurationSec))\(i18n.t(.secUnit))")
-                    .frame(width: 60, alignment: .trailing)
-            }
+                // ---- 無音判定 ----
+                GroupBox {
+                    VStack(spacing: 10) {
+                        sliderRow(
+                            label: i18n.t(.settingsRmsLabel),
+                            value: $vm.silenceRmsThreshold,
+                            range: 0...0.01,
+                            step: 0.0001,
+                            format: { String(format: "%.4f", $0) }
+                        )
+                    }
+                    .padding(.vertical, 8)
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
 
-            HStack {
-                Text(i18n.t(.settingsRmsLabel))
-                Slider(value: $vm.silenceRmsThreshold, in: 0...0.01, step: 0.0001)
-                Text(String(format: "%.4f", vm.silenceRmsThreshold))
-                    .frame(width: 60, alignment: .trailing)
+                // ---- デバッグ ----
+                Toggle(isOn: $vm.debugEnabled) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(i18n.t(.settingsDebugLabel))
+                            .font(.body)
+                        Text("ログを ~/Library/Logs/Kikitori/ に出力します")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .toggleStyle(.switch)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
             }
+        }
+    }
 
-            Toggle(i18n.t(.settingsDebugLabel), isOn: $vm.debugEnabled)
+    private func sliderRow(
+        label: String,
+        hint: String? = nil,
+        value: Binding<Double>,
+        range: ClosedRange<Double>,
+        step: Double,
+        format: @escaping (Double) -> String
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(label)
+                    .frame(width: 120, alignment: .leading)
+                Slider(value: value, in: range, step: step)
+                Text(format(value.wrappedValue))
+                    .frame(width: 60, alignment: .trailing)
+                    .monospacedDigit()
+            }
+            if let hint = hint {
+                Text(hint)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .padding(.leading, 120)
+            }
         }
     }
 }
@@ -190,7 +317,7 @@ final class SettingsWindowController: NSWindowController {
             defer: true
         )
         window.title = i18n.t(.settingsTitle)
-        window.setContentSize(NSSize(width: 420, height: 350))
+        window.setContentSize(NSSize(width: 440, height: 460))
         window.center()
         window.isReleasedWhenClosed = false
 

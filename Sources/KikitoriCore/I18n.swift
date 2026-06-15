@@ -23,7 +23,7 @@ public enum TranslationKey: Int, Sendable {
     case settingsTitle, tabGeneral, tabFilters
     case settingsLanguageLabel, settingsUILanguageLabel
     case settingsHotkeyLabel, settingsMinDurLabel, settingsMaxDurLabel, settingsRmsLabel, settingsDebugLabel
-    case settingsMinDurHint
+    case settingsMinDurHint, settingsLaunchAtLogin
     case settingsResetBtn, settingsCancelBtn, settingsSaveBtn, btnClose
     case msUnit, secUnit
     
@@ -91,6 +91,7 @@ public final class I18n: ObservableObject {
         "無音判定 RMS:",                    // settingsRmsLabel
         "デバッグログ",                      // settingsDebugLabel
         "これより短い録音は無視されます",     // settingsMinDurHint
+        "Mac起動時にKikitoriを開く",         // settingsLaunchAtLogin
         "デフォルトに戻す",                  // settingsResetBtn
         "キャンセル",                       // settingsCancelBtn
         "保存",                             // settingsSaveBtn
@@ -138,6 +139,7 @@ public final class I18n: ObservableObject {
         "Silence RMS:",
         "Debug Log",
         "Shorter recordings are ignored",
+        "Launch Kikitori at login",
         "Reset Defaults",
         "Cancel",
         "Save",
