@@ -19,13 +19,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var correctionsWindow: CorrectionsWindowController?
     private let overlay = OverlayController()
     private let updater = SPUStandardUpdaterController(
-        startingUpdater: true,
+        startingUpdater: false,
         updaterDelegate: nil,
         userDriverDelegate: nil
     )
 
     func applicationDidFinishLaunching(_ n: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        
+        // 開発中など appcast.xml がない環境で起動時にエラーダイアログが出るのを防ぐため、
+        // 最初の起動時（かつまだチェックしたことがない場合のみ）バックグラウンドチェックを遅延させるか、
+        // 単純に startingUpdater: false にして手動でスタートさせます。
+        updater.startUpdater()
         settings.load()
         i18n.setLanguage(settings.uiLanguage)
         DebugLogger.enabled = settings.debug

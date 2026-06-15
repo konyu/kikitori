@@ -51,6 +51,14 @@ public final class TextInjector: @unchecked Sendable {
             original = pendingOriginal
         }
 
+        Task { @MainActor in
+            let options = ["AXTrustedCheckOptionPrompt": true]
+            let isTrusted = AXIsProcessTrustedWithOptions(options as CFDictionary)
+            if !isTrusted {
+                DebugLogger.log("TextInjector: Accessibility permission not granted.")
+            }
+        }
+
         // テキストをクリップボードにコピー
         let pb = NSPasteboard.general
         pb.clearContents()
