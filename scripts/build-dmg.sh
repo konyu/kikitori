@@ -35,21 +35,22 @@ else
   echo "WARNING: Sparkle.framework not found at $SPARKLE_FW"
 fi
 
-# アイコンコピー
-if [ -f "$BUILD_DIR/${APP_NAME}_Kikitori.bundle/Contents/Resources/icon-idle.png" ]; then
-  cp "$BUILD_DIR/${APP_NAME}_Kikitori.bundle/Contents/Resources/icon-idle.png" "$APP_BUNDLE/Contents/Resources/"
-fi
-if [ -f "$BUILD_DIR/${APP_NAME}_Kikitori.bundle/Contents/Resources/icon-recording.png" ]; then
-  cp "$BUILD_DIR/${APP_NAME}_Kikitori.bundle/Contents/Resources/icon-recording.png" "$APP_BUNDLE/Contents/Resources/"
-fi
-
-# フォールバック: 直接ソースからアイコンコピー
-if [ ! -f "$APP_BUNDLE/Contents/Resources/icon-idle.png" ]; then
+# Swift Package Manager が生成するリソースバンドルを Contents/Resources にコピー
+# （バンドルルートに置くと ad-hoc 署名時に "unsealed contents" エラーになる）
+if [ -d "$BUILD_DIR/${APP_NAME}_Kikitori.bundle" ]; then
+  cp -R "$BUILD_DIR/${APP_NAME}_Kikitori.bundle" "$APP_BUNDLE/Contents/Resources/"
+  # Contents/Resources 配下にも直接アイコンを置いておく（旧コードの互換）
+  if [ -f "$BUILD_DIR/${APP_NAME}_Kikitori.bundle/Contents/Resources/icon-idle.png" ]; then
+    cp "$BUILD_DIR/${APP_NAME}_Kikitori.bundle/Contents/Resources/icon-idle.png" "$APP_BUNDLE/Contents/Resources/"
+  fi
+  if [ -f "$BUILD_DIR/${APP_NAME}_Kikitori.bundle/Contents/Resources/icon-recording.png" ]; then
+    cp "$BUILD_DIR/${APP_NAME}_Kikitori.bundle/Contents/Resources/icon-recording.png" "$APP_BUNDLE/Contents/Resources/"
+  fi
+else
+  # SPM バンドルが見つからない場合は直接ソースからコピー
   if [ -f "Sources/Kikitori/Resources/icon-idle.png" ]; then
     cp Sources/Kikitori/Resources/icon-idle.png "$APP_BUNDLE/Contents/Resources/"
   fi
-fi
-if [ ! -f "$APP_BUNDLE/Contents/Resources/icon-recording.png" ]; then
   if [ -f "Sources/Kikitori/Resources/icon-recording.png" ]; then
     cp Sources/Kikitori/Resources/icon-recording.png "$APP_BUNDLE/Contents/Resources/"
   fi
