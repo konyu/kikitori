@@ -99,6 +99,8 @@ cat > "$APP_BUNDLE/Contents/Info.plist" << PLIST
     <string>${SU_PUBLIC_ED_KEY:-}</string>
     <key>NSHighResolutionCapable</key>
     <true/>
+    <key>CFBundleIconFile</key>
+    <string>Kikitori.icns</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>音声認識のためにマイクへのアクセスが必要です。</string>
     <key>NSSpeechRecognitionUsageDescription</key>
@@ -111,6 +113,22 @@ PLIST
 
 # PkgInfo
 echo -n "APPL????" > "$APP_BUNDLE/Contents/PkgInfo"
+
+# アプリアイコン (.icns) を生成・配置
+echo "=== Generate app icon ==="
+ICON_SRC="Sources/Kikitori/Resources/icon-idle.png"
+ICON_DST="$APP_BUNDLE/Contents/Resources/Kikitori.icns"
+if [ -f "$ICON_SRC" ]; then
+    if [ -x "$SCRIPT_DIR/generate-icns.sh" ]; then
+        "$SCRIPT_DIR/generate-icns.sh" "$ICON_SRC" "$ICON_DST"
+    elif [ -f "assets/Kikitori.icns" ]; then
+        cp "assets/Kikitori.icns" "$ICON_DST"
+    else
+        echo "WARNING: no icon generation script or prebuilt icns found"
+    fi
+else
+    echo "WARNING: icon source not found: $ICON_SRC"
+fi
 
 echo "=== Ad-hoc code sign ==="
 codesign --sign - --deep --force "$APP_BUNDLE" 2>&1 || echo "WARNING: ad-hoc signing failed (non-fatal)"
@@ -138,6 +156,10 @@ if command -v create-dmg &>/dev/null; then
   
   if [ -f "$BG_IMAGE" ]; then
       CREATE_DMG_ARGS+=(--background "$BG_IMAGE")
+  fi
+
+  if [ -f "$ICON_DST" ]; then
+      CREATE_DMG_ARGS+=(--volicon "$ICON_DST")
   fi
 
   create-dmg "${CREATE_DMG_ARGS[@]}" "$DIST_DIR/$DMG_NAME" "$APP_BUNDLE"

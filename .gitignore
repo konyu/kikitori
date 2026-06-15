@@ -38,3 +38,4 @@ Kikitori.app/
 
 # Sparkle keys (秘密鍵は絶対にコミットしない)
 .config/sparkle/private.pem
+assets/Kikitori.icns
