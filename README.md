@@ -102,48 +102,7 @@ bash scripts/build-dmg.sh
 │   ├── Kikitori/            # AppDelegate, SwiftUI (設定画面, オーバーレイUI) など
 │   └── KikitoriCore/        # 録音制御, Apple Speech API 連携, ホットキー監視, 設定管理
 ├── scripts/                 # DMG作成やSparkle用鍵生成スクリプト
-└── (以下、Python版のレガシーコード群)
 ```
-
----
-
-## 🐍 Python版（Legacy）について
-
-以前の Python / PySide6 / `mlx-whisper` ベースのバージョンもリポジトリ内に残されています。
-Apple Speech Framework ではなく、Hugging Face の Whisper モデルを使用したい場合などにご利用いただけますが、**現在は Swift 版がメインストリーム**となります。
-
-<details>
-<summary>Python版のインストールと使い方</summary>
-
-### Homebrew でのインストール
-
-```bash
-brew tap konyu/kikitori
-brew install kikitori
-kikitori
-```
-
-### 手動インストール
-```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-brew install ffmpeg
-```
-
-### 実行方法
-
-メニューバーアプリ（推奨）:
-```bash
-./run.sh
-```
-
-PySide6 版オーバーレイUI:
-```bash
-python pyside_main.py
-```
-
-</details>
 
 ## ライセンス
 
