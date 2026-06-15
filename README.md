@@ -1,303 +1,150 @@
 # 🎤 Kikitori
 
-macOS 向け音声認識入力ツール。ホットキー押下中にマイク入力を録音し、解放時に Apple Silicon 最適化された Whisper モデルが音声をテキストに変換、クリップボード経由で自動ペーストします。
+macOS 向け音声認識入力ツール。ホットキー押下中にマイク入力を録音し、解放時に Apple Speech Framework（オンデバイス）を利用して音声をテキストに変換、クリップボード経由で自動ペーストする、軽量・高速なネイティブ macOS アプリです。
 
 ## 特徴
 
-- **Apple Silicon 最適化**: `mlx-whisper` による高速な音声認識（M1/M2/M3/M4）
-- **ホットキー操作**: 設定可能なホットキー（デフォルト: Option） — 押下中録音、解放で即時テキスト化
-- **メニューバー常駐**: PySide6 による macOS メニューバーアプリ（Homebrew またはターミナル実行）
-- **設定ファイル対応**: ホットキー・言語・プロンプトを JSON ファイルでカスタマイズ可能
-- **最大60秒録音**: 長時間録音の自動区切り機能
+- **Swift / SwiftUI によるネイティブ実装**: 従来の Python 版から移行し、より軽量で高速な動作を実現。
+- **オンデバイス音声認識**: macOS 14 搭載の Apple Speech Framework (`SFSpeechRecognizer`) を利用し、ネットワーク不要で完全にローカルで音声認識。
+- **直感的な UI**:
+  - メニューバー常駐でいつでもアクセス可能。
+  - 録音中は画面中央下にリアルタイムに波形が動くオーバーレイ UI を表示。
+- **柔軟なカスタマイズ (GUI 設定)**: アプリ上の設定画面から、言語、録音長、無音しきい値、ホットキーなどを簡単に変更可能。
+- **誤変換の自動修正**: カスタム辞書（Corrections）機能で、特定の言い回しや専門用語の誤変換を自動で置換。
+- **自動アップデート**: Sparkle フレームワークによる自動アップデート機能に対応。
 
 ## 動作環境
 
 - Apple Silicon Mac（M1/M2/M3/M4）
-- Python 3.14（Homebrew インストール時は自動）
-- macOS 14（Sonoma）以上推奨
+- macOS 14.0（Sonoma）以上 必須
 
 ## 必要な権限
 
+Kikitori を正しく動作させるためには、以下の3つの権限が必要です。初回起動時に許可を求められます。
+
 | 権限 | 設定場所 | 用途 |
 |------|---------|------|
-| マイク | システム設定 → プライバシーとセキュリティ → マイク | 音声入力 |
-| アクセシビリティ | システム設定 → プライバシーとセキュリティ → アクセシビリティ | グローバルホットキー監視・自動ペースト |
+| **マイク** | プライバシーとセキュリティ → マイク | マイクからの音声入力 |
+| **音声認識** | プライバシーとセキュリティ → 音声認識 | Apple Speech Framework による音声からテキストへの変換 |
+| **アクセシビリティ** | プライバシーとセキュリティ → アクセシビリティ | ホットキー（キーボード）の監視と、自動ペースト (Cmd+V のエミュレーション) |
 
 ## インストール
 
-### 直接ダウンロード (DMG)
+[Releases ページ](https://github.com/konyu/kikitori/releases/latest) から最新の `Kikitori-x.x.x.dmg` をダウンロードしてください。
 
-[Releases ページ](https://github.com/konyu/kikitori/releases/latest) から最新の `Kikitori-x.x.x.dmg` をダウンロードし、中の `Kikitori.app` を `Applications` フォルダへドラッグ＆ドロップしてください。
+1. DMG ファイルを開きます。
+2. 中にある `Kikitori.app` を `Applications` フォルダへドラッグ＆ドロップします。
+3. アプリケーションフォルダから `Kikitori` を起動してください。
 
 > [!WARNING]
-> **【重要】初回起動時の「検証できません」という警告について**
+> **初回起動時の「開発元が未確認」という警告について**
 > 
-> Kikitori は無料で配布するため、Apple Developer Program による公証（Notarization）を行っていません。そのため、ダウンロードしたアプリを開こうとすると「開発元が未確認」「マルウェアがないか検証できません」という警告が出ます。
+> 起動時に「開発元が未確認」「マルウェアがないか検証できません」という警告が出る場合は、以下のいずれかの方法で許可してください：
 > 
-> **回避方法（以下のいずれかを行ってください）：**
+> **A. システム設定から許可する**
+> 1. 警告ダイアログを「完了」で閉じます。
+> 2. **「システム設定」** > **「プライバシーとセキュリティ」** を開きます。
+> 3. 「"Kikitori" は開発元を確認できないため...」の横にある **「このまま開く」** をクリックします。
 > 
-> **A. ターミナルで検疫属性を解除する（おすすめ）**
-> アプリケーションフォルダに入れた後、ターミナルを開き以下のコマンドを実行してください。
+> **B. ターミナルで検疫を解除する**
 > ```bash
 > xattr -rd com.apple.quarantine /Applications/Kikitori.app
 > ```
-> 以降は普通にダブルクリックで起動できるようになります。
-> 
-> **B. システム設定から許可する**
-> 1. アプリをダブルクリックして警告ダイアログを出し、「完了」で閉じます。
-> 2. Mac の **「システム設定」** > **「プライバシーとセキュリティ」** を開きます。
-> 3. 画面中段の「セキュリティ」セクションに「"Kikitori" は開発元を確認できないため...」と表示されるので、**「このまま開く」** をクリックします。
-> 4. パスワードを入力すると起動します。
-
-### Homebrew でインストール
-
-Formula は [`konyu/homebrew-kikitori`](https://github.com/konyu/homebrew-kikitori) で管理されています。
-
-```bash
-# 1. タップを追加
-brew tap konyu/kikitori
-
-# 2. インストール（Python 3.14・ffmpeg・すべての依存関係を自動解決）
-brew install kikitori
-
-# 3. 起動（メニューバーにアイコンが表示されます）
-kikitori
-
-# オプション: ログイン時に自動起動
-brew services start konyu/kikitori/kikitori
-```
-
-### 手動インストール（開発者向け）
-
-```bash
-# リポジトリをクローン
-git clone https://github.com/konyu/kikitori.git
-cd kikitori
-
-# 仮想環境の作成と有効化（Python 3.14 推奨）
-python3 -m venv venv
-source venv/bin/activate
-
-# 依存関係のインストール
-pip install -r requirements.txt
-
-# ffmpeg のインストール（Homebrew 経由）
-brew install ffmpeg
-```
 
 ## 使い方
 
-### メニューバーアプリとして実行（推奨）
+アプリを起動すると、メニューバーに 🎤 アイコンが表示されます。
+
+- **ホットキー押下中（デフォルト: 右 Option キー）**: 録音開始（画面下部に波形オーバーレイが表示されます）
+- **ホットキー解放**: 録音停止 → 音声認識 → 自動的に現在のカーソル位置にテキストがペーストされます。
+
+### メニューバーの機能
+
+メニューバーの 🎤 アイコンをクリックすると、以下の操作が可能です。
+
+- **設定**: 言語（日本語・英語など）、UIの言語、ホットキー、各種しきい値（ミリ秒・音量）を GUI から設定します。
+- **置換辞書**: よく間違えられる単語の変換ルール（間違い → 正解）を登録できます。
+- **アップデートの確認**: 新しいバージョンがあるか確認し、自動でダウンロード・インストールします。
+- **終了**: アプリを終了します。
+
+## トラブルシューティング
+
+### ホットキーが効かない・テキストがペーストされない
+「システム設定 → プライバシーとセキュリティ → アクセシビリティ」で **Kikitori** のスイッチがオンになっているか確認してください。すでにオンの場合は、一度オフにしてから再度オンにしてみてください。
+
+### 録音されない・音声認識が失敗する
+「システム設定 → プライバシーとセキュリティ」の **マイク** および **音声認識** の項目で、Kikitori に許可が与えられているか確認してください。
+
+## 開発（Swift版）
+
+本プロジェクトは Swift 5.10 / Swift Package Manager (SPM) ベースで構築されています。
+
+### ビルド手順
 
 ```bash
-./run.sh
-```
+# クローン
+git clone https://github.com/konyu/kikitori.git
+cd kikitori
 
-メニューバーに 🎤 アイコンが表示されます。デフォルトでは **Option キー** がホットキーです。
+# 開発用ビルド
+swift build
 
-- **Option 押下中**: 録音開始（🔴 アイコンに変化）
-- **Option 解放**: 録音停止 → 音声認識 → 自動ペースト
-
-### PySide6 版（画面中央下にオーバーレイUI）
-
-AQUA VOICE のような、録音中に画面中央下に波形アニメーションと「音声入力中...」の
-オーバーレイを表示するバージョンです。マウスクリックは下のアプリに透過します。
-
-```bash
-source venv/bin/activate
-python pyside_main.py
-```
-
-特徴:
-- **フレームレス・常時最前面**のオーバーレイウィンドウ
-- **マウスクリック透過**（後ろのアプリが操作可能）
-- **リアルタイム波形アニメーション**（30本のバーが音声の大きさに応じて変動）
-- **PySide6 QSystemTrayIcon** でメニューバー常駐
-
-### コマンドラインから直接実行
-
-```bash
-source venv/bin/activate
-python main.py
-```
-
-`Ctrl+C` で終了します。
-
-### 設定のカスタマイズ
-
-メニューバーから **設定ファイルを開く** を選択すると `~/.kikitori_settings.yaml` が作成・表示されます。
-
-```yaml
-language: ja
-prompt: "以下は日本語の音声認識結果です。"
-hotkey:
-  - option
-min_duration_ms: 500
-```
-
-- `language`: 認識言語（`ja`, `en`, `zh` など）
-- `prompt`: Whisper への指示文（文脈を与えると認識精度が向上）
-- `hotkey`: ホットキー（後述）
-- `min_duration_ms`: 最低録音長（ミリ秒）。これより短い録音はWhisperに渡さない（デフォルト: 500）
-
-ファイル保存後、自動的に設定が反映されます。
-
-**利用可能なホットキー例:**
-- `["option"]` — Option 単体
-- `["ctrl", "alt"]` — Ctrl + Option
-- `["f13"]` — F13 キー
-- `["cmd", "shift", "a"]` — Cmd + Shift + A
-
-### メニューバー操作
-
-画面右上の 🎤 アイコンをクリック:
-
-| メニュー | 動作 |
-|---------|------|
-| ○ 待機中 / ● 録音中... | 現在の状態を表示 |
-| 🔴 録音開始 / ⏹ 録音停止 | ホットキーなしで録音操作 |
-| 言語: ja | 現在の認識言語 |
-| プロンプト: ... | 現在のプロンプト（30文字まで表示） |
-| モデル: ... | 使用中のWhisperモデル |
-| 設定ファイルを開く | `~/.kikitori_settings.yaml` を編集 |
-| 終了 | アプリを終了 |
-
-> 初回起動時、`mlx-whisper` が Hugging Face からモデルをダウンロードします（数百MB）。ネットワーク接続が必要です。
-
-## 開発
-
-### テストの実行
-
-```bash
-source venv/bin/activate
-python -m pytest tests/ -v
+# DMG / リリースビルドの作成（Sparkleの鍵設定が必要）
+bash scripts/build-dmg.sh
 ```
 
 ### プロジェクト構成
 
 ```
 .
-├── main.py                  # CLI エントリポイント
-├── menu_bar_app.py          # macOS メニューバーアプリ（rumps版）
-├── pyside_main.py           # PySide6 版エントリポイント（オーバーレイUI付き）
-├── run.sh                   # 起動スクリプト
-├── requirements.txt         # Python 依存関係
-└── kikitori/
-    ├── app.py               # アプリケーション統合
-    ├── apple_speech.py      # Apple Speech Framework ラッパー（バッチ・リアルタイム認識）
-    ├── audio_buffer.py      # スレッドセーフ録音バッファ
-    ├── config.py            # 設定定数
-    ├── hotkey_manager.py    # ホットキー状態管理
-    ├── injector.py          # クリップボード経由テキスト入力
-    ├── overlay.py           # PySide6 オーバーレイUI
-    ├── recorder.py          # 録音ストリーム制御
-    ├── transcriber.py       # mlx-whisper ラッパー
-    └── ui_pyside.py         # PySide6 メニューバー＋オーバーレイ統合
-
-Homebrew Formula: [`konyu/homebrew-kikitori`](https://github.com/konyu/homebrew-kikitori)
+├── Package.swift            # SPM パッケージ定義
+├── Sources/
+│   ├── Kikitori/            # AppDelegate, SwiftUI (設定画面, オーバーレイUI) など
+│   └── KikitoriCore/        # 録音制御, Apple Speech API 連携, ホットキー監視, 設定管理
+├── scripts/                 # DMG作成やSparkle用鍵生成スクリプト
+└── (以下、Python版のレガシーコード群)
 ```
 
-## トラブルシューティング
+---
 
-### ホットキーが効かない
+## 🐍 Python版（Legacy）について
 
-1. システム設定 → プライバシーとセキュリティ → アクセシビリティ で **ターミナル.app**（または iTerm.app）に ✅ が付いているか確認
-2. Karabiner-Elements、BetterTouchTool など他のキー監視アプリを一時的に無効化
-3. メニューバーから「🔴 録音開始」をクリックして動作確認（メニュー操作で録音できれば権限問題）
+以前の Python / PySide6 / `mlx-whisper` ベースのバージョンもリポジトリ内に残されています。
+Apple Speech Framework ではなく、Hugging Face の Whisper モデルを使用したい場合などにご利用いただけますが、**現在は Swift 版がメインストリーム**となります。
 
-### マイク入力が取得できない
+<details>
+<summary>Python版のインストールと使い方</summary>
 
-システム設定 → プライバシーとセキュリティ → マイク でターミナル.app に ✅
-
-### Apple Speech Framework を使用する場合の注意
-
-Apple Speech (`SFSpeechRecognizer`) を使用する場合、以下の点に注意してください：
-
-- **ターミナル直接実行推奨**: IDE（VS Code など）から実行すると `SIGABRT`（exit code 134）でクラッシュする可能性があります
-- **音声認識権限が必要**: 初回実行時に「システム設定 → プライバシーとセキュリティ → 音声認識」でターミナル.app を許可する必要があります
-- **オフライン認識**: macOS 14+ で `requiresOnDeviceRecognition = True` を設定することでオフライン動作が可能です
-- **精度の違い**: 専門用語などでは mlx-whisper の方が精度が高い場合があります。`transcriber_type` で切り替え可能です
-
-### 音声認識エンジンの切り替え
-
-`kikitori.app.App` の初期化時に `transcriber_type` を指定します：
-
-```python
-from kikitori.app import App
-
-# mlx-whisper（デフォルト）
-app = App()
-
-# Apple Speech Framework
-app = App(transcriber_type="apple_speech")
-```
-
-または、依存注入で任意の認識エンジンを渡すことも可能です：
-
-```python
-from kikitori.apple_speech import SpeechTranscriber
-from kikitori.app import App
-
-transcriber = SpeechTranscriber(locale="en-US")
-app = App(transcriber=transcriber)
-```
-
-### 音声認識結果が入力されない
-
-1. 対象アプリ（メモ帳、VS Code など）にカーソルが置かれているか確認
-2. 対象アプリにもアクセシビリティ権限が必要な場合があります
-
-### モデルのダウンロードに失敗する
+### Homebrew でのインストール
 
 ```bash
-rm -rf ~/.cache/huggingface
-./run.sh  # 再試行
+brew tap konyu/kikitori
+brew install kikitori
+kikitori
 ```
 
-## 技術的補足
+### 手動インストール
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+brew install ffmpeg
+```
 
-### 配布方法について
+### 実行方法
 
-本アプリは **Homebrew Formula** で配布しています。以下の理由により `.app` バンドル（PyInstaller/py2app）は提供していません：
+メニューバーアプリ（推奨）:
+```bash
+./run.sh
+```
 
-- **mlx-whisper** が Metal GPU ライブラリ（`.metallib`）と C++ 拡張を含み、正しく梱包するのが極めて困難
-- **sounddevice** が PortAudio（`.dylib`）に依存し、署名・リンクの問題が発生
-- **PySide6** が Qt フレームワークを必要とし、サイズが膨大になる（2GB以上）
+PySide6 版オーバーレイUI:
+```bash
+python pyside_main.py
+```
 
-Homebrew 経由ならこれらの依存関係を自動的に解決でき、また `kikitori` コマンドで簡単に起動できます。
-
-### 使用ライブラリ
-
-| ライブラリ | 用途 |
-|-----------|------|
-| [mlx-whisper](https://github.com/ml-explore/mlx-whisper) | Apple Silicon 最適化音声認識 |
-| [sounddevice](https://python-sounddevice.readthedocs.io/) | マイク録音 |
-| [pynput](https://pynput.readthedocs.io/) | グローバルホットキー監視 |
-| [pyperclip](https://pyperclip.readthedocs.io/) | クリップボード操作 |
-| [rumps](https://rumps.readthedocs.io/) | macOS メニューバー UI |
-| [PySide6](https://doc.qt.io/qtforpython-6/) | PySide6 版 GUI（オーバーレイ・メニューバー） |
-| `pyobjc-framework-Speech` | Apple Speech Framework 連携（`SFSpeechRecognizer`） |
+</details>
 
 ## ライセンス
 
 MIT License
-
-Copyright (c) 2024
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
