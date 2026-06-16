@@ -23,6 +23,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         updaterDelegate: nil,
         userDriverDelegate: nil
     )
+    private var menuSettingsItem: NSMenuItem?
+    private var menuCorrectionsItem: NSMenuItem?
+    private var menuCheckUpdatesItem: NSMenuItem?
+    private var menuQuitItem: NSMenuItem?
 
     func applicationDidFinishLaunching(_ n: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -59,20 +63,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let m = NSMenu()
         let settingsItem = NSMenuItem(title: i18n.t(.menuSettings), action: #selector(showSettings), keyEquivalent: ",")
         settingsItem.target = self
+        menuSettingsItem = settingsItem
         m.addItem(settingsItem)
-        
+
         let correctionsItem = NSMenuItem(title: i18n.t(.menuCorrections), action: #selector(showCorrections), keyEquivalent: "e")
         correctionsItem.target = self
+        menuCorrectionsItem = correctionsItem
         m.addItem(correctionsItem)
-        
+
         m.addItem(.separator())
         let updateItem = NSMenuItem(title: i18n.t(.menuCheckUpdates), action: #selector(checkForUpdates), keyEquivalent: "")
         updateItem.target = self
+        menuCheckUpdatesItem = updateItem
         m.addItem(updateItem)
-        
+
         m.addItem(.separator())
         let quitItem = NSMenuItem(title: i18n.t(.menuQuit), action: #selector(quit), keyEquivalent: "q")
         quitItem.target = self
+        menuQuitItem = quitItem
         m.addItem(quitItem)
         item.menu = m
 
@@ -202,11 +210,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         DebugLogger.enabled = settings.debug
         hotkey.config = HotkeyConfig.parse(from: settings.hotkey)
         
-        if let m = item.menu {
-            m.items[0].title = i18n.t(.menuSettings)
-            m.items[1].title = i18n.t(.menuCorrections)
-            m.items[3].title = i18n.t(.menuQuit)
-        }
+        menuSettingsItem?.title = i18n.t(.menuSettings)
+        menuCorrectionsItem?.title = i18n.t(.menuCorrections)
+        menuCheckUpdatesItem?.title = i18n.t(.menuCheckUpdates)
+        menuQuitItem?.title = i18n.t(.menuQuit)
         
         settingsWindow?.window?.title = i18n.t(.settingsTitle)
         correctionsWindow?.window?.title = i18n.t(.correctionsTitle)
