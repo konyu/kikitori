@@ -1,0 +1,1666 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="meta_title">Kikitori — macOS 音声認識入力ツール</title>
+  <meta name="description" data-i18n="meta_desc" content="Kikitori はホットキー押下中にマイク入力を録音し、解放時に音声をテキストに変換して自動ペーストする、軽量・高速なネイティブ macOS アプリです。">
+  <meta property="og:title" data-i18n="meta_title" content="Kikitori — macOS 音声認識入力ツール">
+  <meta property="og:description" data-i18n="meta_desc" content="話すだけでカーソル先に文字を入力。Apple Silicon Mac 向けのオンデバイス音声認識アプリ。">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="assets/icon-accent.png">
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <script>
+    (function () {
+      const savedTheme = localStorage.getItem('kikitori-theme');
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      document.documentElement.setAttribute('data-theme', savedTheme || (prefersDark ? 'dark' : 'light'));
+
+      const savedLang = localStorage.getItem('kikitori-lang');
+      const osLang = (navigator.language || navigator.userLanguage || '');
+      document.documentElement.lang = savedLang || (osLang.toLowerCase().startsWith('ja') ? 'ja' : 'en');
+    })();
+  </script>
+
+  <style>
+    :root {
+      --accent: #54a4ff;
+      --accent-glow: rgba(84, 164, 255, 0.35);
+      --coral: #e05a5a;
+      --coral-glow: rgba(224, 90, 90, 0.25);
+      --green: #34d399;
+      --radius: 18px;
+      --radius-sm: 12px;
+      --shadow: 0 24px 80px rgba(0, 0, 0, 0.2);
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      /* Default dark theme (overridden by [data-theme] via JS) */
+      --bg: #07070a;
+      --bg-elevated: #0f0f14;
+      --surface: rgba(255, 255, 255, 0.04);
+      --surface-hover: rgba(255, 255, 255, 0.07);
+      --border: rgba(255, 255, 255, 0.08);
+      --border-strong: rgba(255, 255, 255, 0.14);
+      --text: #f2f2f5;
+      --text-muted: #9ca3af;
+      --text-dim: #6b7280;
+      --glass-bg: rgba(20, 20, 28, 0.55);
+      --glass-border: rgba(255, 255, 255, 0.14);
+      --glass-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+      --ring-color: rgba(84, 164, 255, 0.08);
+      --ring2-color: rgba(224, 90, 90, 0.06);
+      --code-bg: #0d0d12;
+      --cta-bg: rgba(255, 255, 255, 0.04);
+      --highlight-bg: linear-gradient(180deg, rgba(84, 164, 255, 0.06) 0%, transparent 100%);
+      --glow-gradient:
+        radial-gradient(circle at 20% 10%, rgba(84, 164, 255, 0.12) 0%, transparent 45%),
+        radial-gradient(circle at 80% 30%, rgba(224, 90, 90, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 50% 90%, rgba(84, 164, 255, 0.08) 0%, transparent 45%);
+    }
+
+    [data-theme="dark"] {
+      --bg: #07070a;
+      --bg-elevated: #0f0f14;
+      --surface: rgba(255, 255, 255, 0.04);
+      --surface-hover: rgba(255, 255, 255, 0.07);
+      --border: rgba(255, 255, 255, 0.08);
+      --border-strong: rgba(255, 255, 255, 0.14);
+      --text: #f2f2f5;
+      --text-muted: #9ca3af;
+      --text-dim: #6b7280;
+      --glass-bg: rgba(20, 20, 28, 0.55);
+      --glass-border: rgba(255, 255, 255, 0.14);
+      --glass-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+      --ring-color: rgba(84, 164, 255, 0.08);
+      --ring2-color: rgba(224, 90, 90, 0.06);
+      --code-bg: #0d0d12;
+      --cta-bg: rgba(255, 255, 255, 0.04);
+      --highlight-bg: linear-gradient(180deg, rgba(84, 164, 255, 0.06) 0%, transparent 100%);
+      --glow-gradient:
+        radial-gradient(circle at 20% 10%, rgba(84, 164, 255, 0.12) 0%, transparent 45%),
+        radial-gradient(circle at 80% 30%, rgba(224, 90, 90, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 50% 90%, rgba(84, 164, 255, 0.08) 0%, transparent 45%);
+    }
+
+    [data-theme="light"] {
+      --bg: #f7f7f9;
+      --bg-elevated: #ffffff;
+      --surface: rgba(0, 0, 0, 0.035);
+      --surface-hover: rgba(0, 0, 0, 0.06);
+      --border: rgba(0, 0, 0, 0.08);
+      --border-strong: rgba(0, 0, 0, 0.14);
+      --text: #111118;
+      --text-muted: #4b5563;
+      --text-dim: #6b7280;
+      --glass-bg: rgba(255, 255, 255, 0.72);
+      --glass-border: rgba(0, 0, 0, 0.12);
+      --glass-shadow: 0 20px 60px rgba(0, 0, 0, 0.12);
+      --ring-color: rgba(84, 164, 255, 0.18);
+      --ring2-color: rgba(224, 90, 90, 0.1);
+      --code-bg: #111118;
+      --cta-bg: rgba(255, 255, 255, 0.55);
+      --highlight-bg: linear-gradient(180deg, rgba(84, 164, 255, 0.09) 0%, transparent 100%);
+      --glow-gradient:
+        radial-gradient(circle at 20% 10%, rgba(84, 164, 255, 0.14) 0%, transparent 45%),
+        radial-gradient(circle at 80% 30%, rgba(224, 90, 90, 0.09) 0%, transparent 40%),
+        radial-gradient(circle at 50% 90%, rgba(84, 164, 255, 0.1) 0%, transparent 45%);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+      transition: background 0.25s ease, color 0.25s ease;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    img {
+      max-width: 100%;
+      display: block;
+    }
+
+    code {
+      font-family: var(--font-mono);
+      font-size: 0.9em;
+      background: var(--surface);
+      padding: 2px 5px;
+      border-radius: 5px;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .container {
+      width: 100%;
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    .bg-glow {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: -1;
+      background: var(--glow-gradient);
+      transition: background 0.25s ease;
+    }
+
+    /* Header */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      background: color-mix(in srgb, var(--bg) 72%, transparent);
+      border-bottom: 1px solid var(--border);
+      transition: background 0.25s ease, border-color 0.25s ease;
+    }
+
+    .header-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 68px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 700;
+      font-size: 1.1rem;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+
+    .logo-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 9px;
+      background-color: var(--accent);
+      -webkit-mask-image: url('assets/icon-idle.png');
+      mask-image: url('assets/icon-idle.png');
+      -webkit-mask-size: contain;
+      mask-size: contain;
+      -webkit-mask-repeat: no-repeat;
+      mask-repeat: no-repeat;
+      -webkit-mask-position: center;
+      mask-position: center;
+      filter: drop-shadow(0 0 10px var(--accent-glow));
+    }
+
+    nav {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+    }
+
+    nav a {
+      font-size: 0.88rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      transition: color 0.2s;
+    }
+
+    nav a:hover {
+      color: var(--text);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 9px 16px;
+      border-radius: 999px;
+      font-weight: 600;
+      font-size: 0.88rem;
+      transition: all 0.2s ease;
+      border: 1px solid transparent;
+      cursor: pointer;
+      background: none;
+      color: inherit;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #001018;
+      box-shadow: 0 0 22px var(--accent-glow);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 0 34px var(--accent-glow);
+    }
+
+    .btn-secondary {
+      background: var(--surface);
+      border-color: var(--border);
+      color: var(--text);
+    }
+
+    .btn-secondary:hover {
+      background: var(--surface-hover);
+      border-color: var(--border-strong);
+    }
+
+    .btn-large {
+      padding: 13px 24px;
+      font-size: 0.96rem;
+    }
+
+    .icon-btn {
+      width: 36px;
+      height: 36px;
+      padding: 0;
+      border-radius: 50%;
+      background: var(--surface);
+      border-color: var(--border);
+      color: var(--text-muted);
+    }
+
+    .icon-btn:hover {
+      background: var(--surface-hover);
+      color: var(--text);
+    }
+
+    .lang-switcher {
+      display: flex;
+      align-items: center;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 3px;
+    }
+
+    .lang-btn {
+      padding: 5px 10px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .lang-btn.active {
+      background: var(--accent);
+      color: #001018;
+    }
+
+    .theme-btn .sun,
+    .theme-btn .moon {
+      display: none;
+    }
+
+    [data-theme="dark"] .theme-btn .sun,
+    [data-theme="light"] .theme-btn .moon {
+      display: block;
+    }
+
+    .menu-toggle {
+      display: none;
+      background: none;
+      border: none;
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    nav.nav-open {
+      display: flex;
+      position: absolute;
+      top: 68px;
+      left: 0;
+      right: 0;
+      flex-direction: column;
+      gap: 0;
+      background: color-mix(in srgb, var(--bg) 96%, transparent);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 0;
+    }
+
+    nav.nav-open a {
+      padding: 14px 24px;
+      width: 100%;
+    }
+
+    /* Hero */
+    .hero {
+      padding: 90px 0 70px;
+      position: relative;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.1fr 1fr;
+      gap: 60px;
+      align-items: center;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: rgba(84, 164, 255, 0.1);
+      border: 1px solid rgba(84, 164, 255, 0.2);
+      color: var(--accent);
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 22px;
+    }
+
+    .eyebrow .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent);
+    }
+
+    h1 {
+      font-size: 3.2rem;
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: -0.04em;
+      margin-bottom: 20px;
+      color: var(--text);
+    }
+
+    h1 .gradient {
+      background: linear-gradient(135deg, var(--accent) 0%, #a78bfa 50%, var(--coral) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-desc {
+      font-size: 1.12rem;
+      color: var(--text-muted);
+      max-width: 520px;
+      margin-bottom: 32px;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 14px;
+      margin-bottom: 32px;
+      flex-wrap: wrap;
+    }
+
+    .badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .badge svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .hero-visual {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+    }
+
+    .glass-overlay {
+      display: inline-flex;
+      align-items: center;
+      gap: 18px;
+      padding: 18px 28px;
+      border-radius: 999px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(22px);
+      -webkit-backdrop-filter: blur(22px);
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-shadow);
+      position: relative;
+      transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .glass-overlay::before {
+      content: '';
+      position: absolute;
+      inset: -1px;
+      border-radius: 999px;
+      padding: 1px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.28), rgba(255,255,255,0.02));
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      pointer-events: none;
+    }
+
+    .hero-bird {
+      width: 40px;
+      height: 40px;
+      background-color: var(--accent);
+      -webkit-mask-image: url('assets/icon-idle.png');
+      mask-image: url('assets/icon-idle.png');
+      -webkit-mask-size: contain;
+      mask-size: contain;
+      -webkit-mask-repeat: no-repeat;
+      mask-repeat: no-repeat;
+      -webkit-mask-position: center;
+      mask-position: center;
+      filter: drop-shadow(0 0 16px var(--accent-glow));
+    }
+
+    .waveform {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      height: 38px;
+    }
+
+    .waveform-bar {
+      width: 5px;
+      background: linear-gradient(to top, rgba(130, 150, 170, 0.7), rgba(130, 150, 170, 0.95));
+      border-radius: 3px;
+      animation: wave 1.2s ease-in-out infinite;
+      transform-origin: bottom;
+    }
+
+    .waveform-bar:nth-child(1),
+    .waveform-bar:nth-child(12) { animation-delay: 0.0s; height: 30%; }
+    .waveform-bar:nth-child(2),
+    .waveform-bar:nth-child(11) { animation-delay: 0.1s; height: 45%; }
+    .waveform-bar:nth-child(3),
+    .waveform-bar:nth-child(10) { animation-delay: 0.2s; height: 60%; }
+    .waveform-bar:nth-child(4),
+    .waveform-bar:nth-child(9) { animation-delay: 0.3s; height: 75%; }
+    .waveform-bar:nth-child(5),
+    .waveform-bar:nth-child(8) { animation-delay: 0.4s; height: 90%; }
+    .waveform-bar:nth-child(6),
+    .waveform-bar:nth-child(7) { animation-delay: 0.5s; height: 100%; }
+
+    @keyframes wave {
+      0%, 100% { transform: scaleY(0.35); opacity: 0.6; }
+      50% { transform: scaleY(1); opacity: 1; }
+    }
+
+    .visual-ring {
+      position: absolute;
+      width: 340px;
+      height: 340px;
+      border-radius: 50%;
+      border: 1px solid var(--ring-color);
+      pointer-events: none;
+      transition: border-color 0.25s ease;
+    }
+
+    .visual-ring:nth-child(2) {
+      width: 440px;
+      height: 440px;
+      border-color: var(--ring2-color);
+    }
+
+    section {
+      padding: 80px 0;
+    }
+
+    .section-header {
+      text-align: center;
+      max-width: 640px;
+      margin: 0 auto 56px;
+    }
+
+    .section-label {
+      display: inline-block;
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+      margin-bottom: 14px;
+    }
+
+    h2 {
+      font-size: 2.4rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+      margin-bottom: 16px;
+      color: var(--text);
+    }
+
+    .section-header p {
+      color: var(--text-muted);
+      font-size: 1.05rem;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+
+    .feature-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      transition: all 0.25s ease;
+    }
+
+    .feature-card:hover {
+      background: var(--surface-hover);
+      border-color: var(--border-strong);
+      transform: translateY(-3px);
+    }
+
+    .feature-icon {
+      width: 46px;
+      height: 46px;
+      border-radius: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 18px;
+      background: rgba(84, 164, 255, 0.1);
+      border: 1px solid rgba(84, 164, 255, 0.18);
+      color: var(--accent);
+    }
+
+    .feature-icon.coral {
+      background: rgba(224, 90, 90, 0.1);
+      border-color: rgba(224, 90, 90, 0.18);
+      color: var(--coral);
+    }
+
+    .feature-icon.green {
+      background: rgba(52, 211, 153, 0.1);
+      border-color: rgba(52, 211, 153, 0.18);
+      color: var(--green);
+    }
+
+    .feature-card h3 {
+      font-size: 1.08rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: var(--text);
+    }
+
+    .feature-card p {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      line-height: 1.55;
+    }
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      counter-reset: step;
+    }
+
+    .step {
+      position: relative;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 32px;
+    }
+
+    .step::before {
+      counter-increment: step;
+      content: counter(step);
+      position: absolute;
+      top: -18px;
+      left: 32px;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #001018;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.95rem;
+      box-shadow: 0 0 20px var(--accent-glow);
+    }
+
+    .step h3 {
+      font-size: 1.12rem;
+      font-weight: 700;
+      margin: 12px 0 10px;
+      color: var(--text);
+    }
+
+    .step p {
+      color: var(--text-muted);
+      font-size: 0.94rem;
+    }
+
+    .step-key {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 16px;
+      padding: 6px 12px;
+      border-radius: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      color: var(--text);
+    }
+
+    .install-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 24px;
+      align-items: start;
+      max-width: 720px;
+      margin: 0 auto;
+    }
+
+    .install-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+    }
+
+    .install-card h3 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+      color: var(--text);
+    }
+
+    .install-steps {
+      list-style: none;
+      counter-reset: install;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .install-steps li {
+      display: flex;
+      gap: 14px;
+      color: var(--text-muted);
+      font-size: 0.94rem;
+      line-height: 1.5;
+    }
+
+    .install-steps li::before {
+      counter-increment: install;
+      content: counter(install);
+      flex-shrink: 0;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #001018;
+      font-size: 0.75rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 1px;
+    }
+
+    .warning-box {
+      background: rgba(224, 90, 90, 0.06);
+      border: 1px solid rgba(224, 90, 90, 0.18);
+      border-radius: var(--radius-sm);
+      padding: 20px;
+    }
+
+    .warning-box h4 {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--coral);
+      margin-bottom: 12px;
+    }
+
+    .warning-box ol {
+      margin-left: 18px;
+      color: var(--text-muted);
+      font-size: 0.88rem;
+      line-height: 1.6;
+    }
+
+    .warning-box li {
+      margin-bottom: 6px;
+    }
+
+    .warning-box .code-block {
+      margin-top: 12px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      background: var(--code-bg);
+      color: #f2f2f5;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      overflow-x: auto;
+    }
+
+    .languages {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 14px;
+    }
+
+    .language {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 22px;
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      font-weight: 600;
+      color: var(--text);
+      transition: all 0.2s;
+    }
+
+    .language:hover {
+      border-color: var(--border-strong);
+      background: var(--surface-hover);
+    }
+
+    .lang-flag {
+      font-size: 1.3rem;
+    }
+
+    .permissions-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+
+    .permission-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      text-align: center;
+    }
+
+    .permission-icon {
+      width: 52px;
+      height: 52px;
+      margin: 0 auto 18px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(84, 164, 255, 0.1);
+      border: 1px solid rgba(84, 164, 255, 0.18);
+      color: var(--accent);
+    }
+
+    .permission-card h3 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: var(--text);
+    }
+
+    .permission-card p {
+      font-size: 0.87rem;
+      color: var(--text-muted);
+    }
+
+    .highlight {
+      background: var(--highlight-bg);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      transition: background 0.25s ease;
+    }
+
+    .highlight-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 60px;
+      align-items: center;
+    }
+
+    .highlight-text h2 {
+      text-align: left;
+      margin-bottom: 18px;
+    }
+
+    .highlight-text p {
+      color: var(--text-muted);
+      margin-bottom: 24px;
+    }
+
+    .check-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .check-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      color: var(--text-muted);
+      font-size: 0.94rem;
+    }
+
+    .check-list svg {
+      width: 18px;
+      height: 18px;
+      color: var(--green);
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .code-window {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+
+    .code-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 16px;
+      background: rgba(255, 255, 255, 0.04);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .code-header span {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .code-header span:nth-child(1) { background: #ff5f57; }
+    .code-header span:nth-child(2) { background: #febc2e; }
+    .code-header span:nth-child(3) { background: #28c840; }
+
+    .code-body {
+      padding: 22px;
+      font-family: var(--font-mono);
+      font-size: 0.88rem;
+      line-height: 1.7;
+      color: #9ca3af;
+    }
+
+    .code-body .key { color: #9cdcfe; }
+    .code-body .str { color: #ce9178; }
+    .code-body .comment { color: #6a9955; }
+
+    .cta {
+      text-align: center;
+      background: var(--cta-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 64px 32px;
+      position: relative;
+      overflow: hidden;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+
+    .cta::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 30% 50%, rgba(84, 164, 255, 0.12), transparent 50%),
+        radial-gradient(circle at 70% 50%, rgba(224, 90, 90, 0.1), transparent 50%);
+      pointer-events: none;
+    }
+
+    .cta h2 {
+      position: relative;
+      margin-bottom: 16px;
+    }
+
+    .cta p {
+      position: relative;
+      color: var(--text-muted);
+      max-width: 540px;
+      margin: 0 auto 28px;
+    }
+
+    .cta-actions {
+      position: relative;
+      display: flex;
+      justify-content: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .download-meta {
+      margin-top: 16px;
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      position: relative;
+    }
+
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 40px 0;
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 0.88rem;
+    }
+
+    footer a {
+      color: var(--text-muted);
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
+    footer a:hover {
+      color: var(--text);
+    }
+
+    @media (max-width: 960px) {
+      .hero-grid,
+      .highlight-grid,
+      .install-grid {
+        grid-template-columns: 1fr;
+        gap: 48px;
+      }
+
+      .hero-visual {
+        order: -1;
+      }
+
+      .features-grid,
+      .steps,
+      .permissions-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      h1 {
+        font-size: 2.6rem;
+      }
+
+      h2 {
+        font-size: 2rem;
+      }
+
+      nav {
+        display: none;
+      }
+
+      .menu-toggle {
+        display: block;
+      }
+    }
+
+    @media (max-width: 620px) {
+      .features-grid,
+      .steps,
+      .permissions-grid {
+        grid-template-columns: 1fr;
+      }
+
+      h1 {
+        font-size: 2.1rem;
+      }
+
+      h2 {
+        font-size: 1.7rem;
+      }
+
+      .hero {
+        padding: 60px 0 50px;
+      }
+
+      .hero-actions {
+        flex-direction: column;
+      }
+
+      .btn {
+        width: 100%;
+      }
+
+      .header-actions .btn-secondary:not(.icon-btn) {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-glow"></div>
+
+  <header>
+    <div class="container header-inner">
+      <a href="#" class="logo">
+        <span class="logo-icon" aria-hidden="true"></span>
+        Kikitori
+      </a>
+      <nav>
+        <a href="#features" data-i18n="nav_features">特徴</a>
+        <a href="#how-it-works" data-i18n="nav_how">使い方</a>
+        <a href="#install" data-i18n="nav_install">インストール</a>
+        <a href="#requirements" data-i18n="nav_requirements">動作環境</a>
+        <a href="#download" data-i18n="nav_download">ダウンロード</a>
+      </nav>
+      <div class="header-actions">
+        <div class="lang-switcher" aria-label="Language switcher">
+          <button class="lang-btn active" data-lang="ja" aria-label="日本語">JA</button>
+          <button class="lang-btn" data-lang="en" aria-label="English">EN</button>
+        </div>
+        <button class="btn icon-btn theme-btn" aria-label="Toggle theme">
+          <svg class="sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+          <svg class="moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+        <a href="https://github.com/konyu/kikitori" target="_blank" rel="noopener" class="btn btn-secondary" data-i18n="header_github">GitHub</a>
+        <a href="https://github.com/konyu/kikitori/releases/latest" target="_blank" rel="noopener" class="btn btn-primary" data-i18n="header_download">Download</a>
+        <button class="menu-toggle" aria-label="Open menu">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 6h16M4 12h16M4 18h16"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="container hero-grid">
+      <div class="hero-content">
+        <div class="eyebrow"><span class="dot"></span> <span data-i18n="hero_eyebrow">macOS ネイティブアプリ</span></div>
+        <h1 data-i18n="hero_title">話すだけ、<br><span class="gradient">入力完了。</span></h1>
+        <p class="hero-desc" data-i18n="hero_desc">
+          Kikitori はホットキー押下中にマイク入力を録音し、解放時に音声をテキストに変換して自動ペースト。ネットワーク不要のオンデバイス音声認識で、軽量かつ高速に動作します。
+        </p>
+        <div class="hero-actions">
+          <a href="https://github.com/konyu/kikitori/releases/latest" target="_blank" rel="noopener" class="btn btn-primary btn-large">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            <span data-i18n="hero_download">最新版をダウンロード</span>
+          </a>
+          <a href="https://github.com/konyu/kikitori" target="_blank" rel="noopener" class="btn btn-secondary btn-large">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12Z"/>
+            </svg>
+            <span data-i18n="hero_github">GitHub で見る</span>
+          </a>
+        </div>
+        <div class="badges">
+          <span class="badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6v6H9z"/></svg>
+            <span data-i18n="badge_silicon">Apple Silicon 対応</span>
+          </span>
+          <span class="badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+            <span data-i18n="badge_macos">macOS 26.0+</span>
+          </span>
+          <span class="badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10H12V2Z"/><path d="M12 2a10 10 0 0 1 10 10"/></svg>
+            <span data-i18n="badge_ondevice">オンデバイス認識</span>
+          </span>
+          <span class="badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <span data-i18n="badge_opensource">オープンソース (MIT)</span>
+          </span>
+        </div>
+      </div>
+
+      <div class="hero-visual">
+        <div class="visual-ring"></div>
+        <div class="visual-ring"></div>
+        <div class="glass-overlay">
+          <span class="hero-bird" aria-hidden="true"></span>
+          <div class="waveform" aria-hidden="true">
+            <div class="waveform-bar"></div>
+            <div class="waveform-bar"></div>
+            <div class="waveform-bar"></div>
+            <div class="waveform-bar"></div>
+            <div class="waveform-bar"></div>
+            <div class="waveform-bar"></div>
+            <div class="waveform-bar"></div>
+            <div class="waveform-bar"></div>
+            <div class="waveform-bar"></div>
+            <div class="waveform-bar"></div>
+            <div class="waveform-bar"></div>
+            <div class="waveform-bar"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="features">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-label" data-i18n="features_label">Features</span>
+        <h2 data-i18n="features_title">軽量・高速な音声入力体験</h2>
+        <p data-i18n="features_desc">Apple の最新 Speech Framework を活用し、macOS に自然に馴染む設計で作られたネイティブアプリです。</p>
+      </div>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+          </div>
+          <h3 data-i18n="feat_native_title">Swift / SwiftUI ネイティブ実装</h3>
+          <p data-i18n="feat_native_desc">Electron フレームワークを使わない純粋な macOS アプリ。メモリ使用量を抑え、素早く起動します。</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon green">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          </div>
+          <h3 data-i18n="feat_ondevice_title">オンデバイス音声認識</h3>
+          <p data-i18n="feat_ondevice_desc">SpeechAnalyzer / SpeechTranscriber を利用し、音声データを外部に送信せずにローカルで認識。オフラインでも使えます。</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+          </div>
+          <h3 data-i18n="feat_glass_title">Liquid Glass オーバーレイ UI</h3>
+          <p data-i18n="feat_glass_desc">録音中は画面下部に「Apple Liquid Glass」調のリアルタイム波形と鳥アイコンが表示。今録音されているかが直感的にわかります。</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon coral">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+          </div>
+          <h3 data-i18n="feat_custom_title">GUI で簡単カスタマイズ</h3>
+          <p data-i18n="feat_custom_desc">認識言語、UI 表示言語、ホットキー、録音時間、無音判定しきい値などを設定画面から直感的に変更できます。</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </div>
+          <h3 data-i18n="feat_corrections_title">誤変換の自動修正</h3>
+          <p data-i18n="feat_corrections_desc">Corrections 機能で「use effect → useEffect」など、よく間違える単語や専門用語を自動で置換できます。</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon green">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/><path d="m9 11 3 3L22 4"/></svg>
+          </div>
+          <h3 data-i18n="feat_update_title">自動アップデート</h3>
+          <p data-i18n="feat_update_desc">Sparkle フレームワークを組み込み、新しいバージョンがリリースされたらメニューから簡単に更新できます。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="how-it-works" style="background: var(--bg-elevated);">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-label" data-i18n="how_label">How it works</span>
+        <h2 data-i18n="how_title">3 ステップで使い始められます</h2>
+        <p data-i18n="how_desc">複雑な操作は不要。ホットキーを押す・話す・離すだけで、今カーソルがある場所に文字が入力されます。</p>
+      </div>
+      <div class="steps">
+        <div class="step">
+          <h3 data-i18n="how_step1_title">ホットキーを押し続ける</h3>
+          <p data-i18n="how_step1_desc">デフォルトでは Fn（🌐）キーを押している間、録音が開始されます。</p>
+          <div class="step-key">Fn <span data-i18n="how_step1_key">Hold</span></div>
+        </div>
+        <div class="step">
+          <h3 data-i18n="how_step2_title">話す</h3>
+          <p data-i18n="how_step2_desc">画面下部にガラス調のオーバーレイが表示され、声の大きさに合わせて波形がリアルタイムに動きます。</p>
+        </div>
+        <div class="step">
+          <h3 data-i18n="how_step3_title">キーを離して自動ペースト</h3>
+          <p data-i18n="how_step3_desc">ホットキーを離すと録音が終了し、認識結果をクリップボード経由でカーソル先に自動入力します。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="install" style="background: var(--bg-elevated);">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-label" data-i18n="install_label">Install</span>
+        <h2 data-i18n="install_title">インストール</h2>
+        <p data-i18n="install_desc">Releases ページから最新の DMG をダウンロードし、Applications フォルダへ入れるだけです。</p>
+      </div>
+      <div class="install-grid">
+        <div class="install-card">
+          <h3 data-i18n="install_steps_title">インストール手順</h3>
+          <ol class="install-steps">
+            <li data-i18n="install_step1">Releases ページから最新の <code>Kikitori-x.x.x.dmg</code> をダウンロードしてください。</li>
+            <li data-i18n="install_step2">ダウンロードした DMG ファイルを開きます。</li>
+            <li data-i18n="install_step3">中にある <code>Kikitori.app</code> を <code>Applications</code> フォルダへドラッグ＆ドロップします。</li>
+            <li data-i18n="install_step4">Applications フォルダから <code>Kikitori</code> を起動してください。</li>
+          </ol>
+        </div>
+        <div class="install-card">
+          <div class="warning-box">
+            <h4>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              <span data-i18n="install_warning_title">初回起動時の「開発元が未確認」警告</span>
+            </h4>
+            <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 12px;" data-i18n="install_warning_desc">「開発元を確認できない」「マルウェアがないか検証できません」と表示された場合、以下のいずれかで許可してください。</p>
+            <ol>
+              <li data-i18n="install_warn_a"><strong>A. システム設定から許可</strong>: 警告ダイアログを「完了」で閉じ、システム設定 → プライバシーとセキュリティ → 「このまま開く」をクリックします。</li>
+              <li data-i18n="install_warn_b"><strong>B. ターミナルで検疫を解除</strong>: 以下のコマンドを実行します。</li>
+            </ol>
+            <div class="code-block">xattr -rd com.apple.quarantine /Applications/Kikitori.app</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="languages">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-label" data-i18n="languages_label">Languages</span>
+        <h2 data-i18n="languages_title">6 言語に対応</h2>
+        <p data-i18n="languages_desc">設定画面から認識言語を切り替えられます。UI 表示言語も日本語・英語から選べます。</p>
+      </div>
+      <div class="languages">
+        <div class="language"><span class="lang-flag">🇯🇵</span> 日本語</div>
+        <div class="language"><span class="lang-flag">🇺🇸</span> English</div>
+        <div class="language"><span class="lang-flag">🇨🇳</span> 中文</div>
+        <div class="language"><span class="lang-flag">🇰🇷</span> 한국어</div>
+        <div class="language"><span class="lang-flag">🇫🇷</span> Français</div>
+        <div class="language"><span class="lang-flag">🇩🇪</span> Deutsch</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="requirements" class="highlight">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-label" data-i18n="requirements_label">System Requirements</span>
+        <h2 data-i18n="requirements_title">動作環境と必要な権限</h2>
+        <p data-i18n="requirements_desc">Apple Silicon Mac と macOS 26.0 以上が必要です。初回起動時に 3 つの権限を許可してください。</p>
+      </div>
+      <div class="permissions-grid">
+        <div class="permission-card">
+          <div class="permission-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+          </div>
+          <h3 data-i18n="perm_mic_title">マイク</h3>
+          <p data-i18n="perm_mic_desc">音声入力をキャプチャするために使用します。<br>プライバシーとセキュリティ → マイク</p>
+        </div>
+        <div class="permission-card">
+          <div class="permission-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+          </div>
+          <h3 data-i18n="perm_speech_title">音声認識</h3>
+          <p data-i18n="perm_speech_desc">Speech Framework による音声→テキスト変換に使用します。<br>プライバシーとセキュリティ → 音声認識</p>
+        </div>
+        <div class="permission-card">
+          <div class="permission-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+          </div>
+          <h3 data-i18n="perm_access_title">アクセシビリティ</h3>
+          <p data-i18n="perm_access_desc">ホットキー監視と自動ペースト（Cmd+V エミュレーション）に使用します。<br>プライバシーとセキュリティ → アクセシビリティ</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="container">
+      <div class="highlight-grid">
+        <div class="highlight-text">
+          <span class="section-label" data-i18n="corrections_label">Corrections</span>
+          <h2 data-i18n="corrections_title">専門用語も正しく入力</h2>
+          <p data-i18n="corrections_desc">音声認識で決まって間違われる言い回しや技術用語は、校正設定に登録して自動置換できます。YAML ファイルを直接編集することも可能です。</p>
+          <ul class="check-list">
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              <span data-i18n="corrections_point1">追加 / 編集 / 削除が GUI で直感的に操作可能</span>
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              <span data-i18n="corrections_point2">~/.kikitori/corrections.yaml として保存</span>
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              <span data-i18n="corrections_point3">例: "use effect" → "useEffect"</span>
+            </li>
+          </ul>
+        </div>
+        <div class="code-window">
+          <div class="code-header">
+            <span></span><span></span><span></span>
+            <span style="margin-left:auto;color:var(--text-dim);font-size:.75rem;font-family:var(--font-mono);">corrections.yaml</span>
+          </div>
+          <div class="code-body">
+            <span class="comment"># よく間違える単語を置換</span><br>
+            <span class="key">corrections</span>:<br>
+            &nbsp;&nbsp;- <span class="key">wrong</span>: <span class="str">"use effect"</span><br>
+            &nbsp;&nbsp;&nbsp;&nbsp;<span class="key">right</span>: <span class="str">"useEffect"</span><br>
+            &nbsp;&nbsp;- <span class="key">wrong</span>: <span class="str">"じゃんご"</span><br>
+            &nbsp;&nbsp;&nbsp;&nbsp;<span class="key">right</span>: <span class="str">"Django"</span><br>
+            &nbsp;&nbsp;- <span class="key">wrong</span>: <span class="str">"デーブオプス"</span><br>
+            &nbsp;&nbsp;&nbsp;&nbsp;<span class="key">right</span>: <span class="str">"DevOps"</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="download">
+    <div class="container">
+      <div class="cta">
+        <h2 data-i18n="cta_title">今すぐ Kikitori を試す</h2>
+        <p data-i18n="cta_desc">最新の DMG をダウンロードして、Applications フォルダへドラッグ＆ドロップするだけ。初回起動時に権限を許可すればすぐに使えます。</p>
+        <div class="cta-actions">
+          <a href="https://github.com/konyu/kikitori/releases/latest" target="_blank" rel="noopener" class="btn btn-primary btn-large">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            <span data-i18n="cta_download">最新版 DMG をダウンロード</span>
+          </a>
+          <a href="https://github.com/konyu/kikitori" target="_blank" rel="noopener" class="btn btn-secondary btn-large" data-i18n="cta_source">ソースコードを見る</a>
+        </div>
+        <p class="download-meta" data-i18n="cta_meta">Apple Silicon Mac 必須 · macOS 26.0 以上 · MIT License</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="container">
+      <p>© 2026 Kikitori Project. <span data-i18n="footer_license">Licensed under</span> <a href="https://github.com/konyu/kikitori/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a>.</p>
+      <p style="margin-top:8px;"><a href="https://github.com/konyu/kikitori" target="_blank" rel="noopener">GitHub</a> · <a href="https://github.com/konyu/kikitori/releases" target="_blank" rel="noopener">Releases</a></p>
+    </div>
+  </footer>
+
+  <script>
+    const i18n = {
+      ja: {
+        meta_title: "Kikitori — macOS 音声認識入力ツール",
+        meta_desc: "Kikitori はホットキー押下中にマイク入力を録音し、解放時に音声をテキストに変換して自動ペーストする、軽量・高速なネイティブ macOS アプリです。",
+        nav_features: "特徴",
+        nav_how: "使い方",
+        nav_install: "インストール",
+        nav_requirements: "動作環境",
+        nav_download: "ダウンロード",
+        header_github: "GitHub",
+        header_download: "Download",
+        hero_eyebrow: "macOS ネイティブアプリ",
+        hero_title: '話すだけ、<br><span class="gradient">入力完了。</span>',
+        hero_desc: "Kikitori はホットキー押下中にマイク入力を録音し、解放時に音声をテキストに変換して自動ペースト。ネットワーク不要のオンデバイス音声認識で、軽量かつ高速に動作します。",
+        hero_download: "最新版をダウンロード",
+        hero_github: "GitHub で見る",
+        badge_silicon: "Apple Silicon 対応",
+        badge_macos: "macOS 26.0+",
+        badge_ondevice: "オンデバイス認識",
+        badge_opensource: "オープンソース (MIT)",
+        features_label: "Features",
+        features_title: "軽量・高速な音声入力体験",
+        features_desc: "Apple の最新 Speech Framework を活用し、macOS に自然に馴染む設計で作られたネイティブアプリです。",
+        feat_native_title: "Swift / SwiftUI ネイティブ実装",
+        feat_native_desc: "Electron フレームワークを使わない純粋な macOS アプリ。メモリ使用量を抑え、素早く起動します。",
+        feat_ondevice_title: "オンデバイス音声認識",
+        feat_ondevice_desc: "SpeechAnalyzer / SpeechTranscriber を利用し、音声データを外部に送信せずにローカルで認識。オフラインでも使えます。",
+        feat_glass_title: "Liquid Glass オーバーレイ UI",
+        feat_glass_desc: "録音中は画面下部に「Apple Liquid Glass」調のリアルタイム波形と鳥アイコンが表示。今録音されているかが直感的にわかります。",
+        feat_custom_title: "GUI で簡単カスタマイズ",
+        feat_custom_desc: "認識言語、UI 表示言語、ホットキー、録音時間、無音判定しきい値などを設定画面から直感的に変更できます。",
+        feat_corrections_title: "誤変換の自動修正",
+        feat_corrections_desc: "Corrections 機能で「use effect → useEffect」など、よく間違える単語や専門用語を自動で置換できます。",
+        feat_update_title: "自動アップデート",
+        feat_update_desc: "Sparkle フレームワークを組み込み、新しいバージョンがリリースされたらメニューから簡単に更新できます。",
+        how_label: "How it works",
+        how_title: "3 ステップで使い始められます",
+        how_desc: "複雑な操作は不要。ホットキーを押す・話す・離すだけで、今カーソルがある場所に文字が入力されます。",
+        how_step1_title: "ホットキーを押し続ける",
+        how_step1_desc: "デフォルトでは Fn（🌐）キーを押している間、録音が開始されます。",
+        how_step1_key: "Hold",
+        how_step2_title: "話す",
+        how_step2_desc: "画面下部にガラス調のオーバーレイが表示され、声の大きさに合わせて波形がリアルタイムに動きます。",
+        how_step3_title: "キーを離して自動ペースト",
+        how_step3_desc: "ホットキーを離すと録音が終了し、認識結果をクリップボード経由でカーソル先に自動入力します。",
+        install_label: "Install",
+        install_title: "インストール",
+        install_desc: "Releases ページから最新の DMG をダウンロードし、Applications フォルダへ入れるだけです。",
+        install_steps_title: "インストール手順",
+        install_step1: "Releases ページから最新の <code>Kikitori-x.x.x.dmg</code> をダウンロードしてください。",
+        install_step2: "ダウンロードした DMG ファイルを開きます。",
+        install_step3: "中にある <code>Kikitori.app</code> を <code>Applications</code> フォルダへドラッグ＆ドロップします。",
+        install_step4: "Applications フォルダから <code>Kikitori</code> を起動してください。",
+        install_warning_title: "初回起動時の「開発元が未確認」警告",
+        install_warning_desc: "「開発元を確認できない」「マルウェアがないか検証できません」と表示された場合、以下のいずれかで許可してください。",
+        install_warn_a: "<strong>A. システム設定から許可</strong>: 警告ダイアログを「完了」で閉じ、システム設定 → プライバシーとセキュリティ → 「このまま開く」をクリックします。",
+        install_warn_b: "<strong>B. ターミナルで検疫を解除</strong>: 以下のコマンドを実行します。",
+        languages_label: "Languages",
+        languages_title: "6 言語に対応",
+        languages_desc: "設定画面から認識言語を切り替えられます。UI 表示言語も日本語・英語から選べます。",
+        requirements_label: "System Requirements",
+        requirements_title: "動作環境と必要な権限",
+        requirements_desc: "Apple Silicon Mac と macOS 26.0 以上が必要です。初回起動時に 3 つの権限を許可してください。",
+        perm_mic_title: "マイク",
+        perm_mic_desc: "音声入力をキャプチャするために使用します。<br>プライバシーとセキュリティ → マイク",
+        perm_speech_title: "音声認識",
+        perm_speech_desc: "Speech Framework による音声→テキスト変換に使用します。<br>プライバシーとセキュリティ → 音声認識",
+        perm_access_title: "アクセシビリティ",
+        perm_access_desc: "ホットキー監視と自動ペースト（Cmd+V エミュレーション）に使用します。<br>プライバシーとセキュリティ → アクセシビリティ",
+        corrections_label: "Corrections",
+        corrections_title: "専門用語も正しく入力",
+        corrections_desc: "音声認識で決まって間違われる言い回しや技術用語は、校正設定に登録して自動置換できます。YAML ファイルを直接編集することも可能です。",
+        corrections_point1: "追加 / 編集 / 削除が GUI で直感的に操作可能",
+        corrections_point2: "~/.kikitori/corrections.yaml として保存",
+        corrections_point3: '例: "use effect" → "useEffect"',
+        cta_title: "今すぐ Kikitori を試す",
+        cta_desc: "最新の DMG をダウンロードして、Applications フォルダへドラッグ＆ドロップするだけ。初回起動時に権限を許可すればすぐに使えます。",
+        cta_download: "最新版 DMG をダウンロード",
+        cta_source: "ソースコードを見る",
+        cta_meta: "Apple Silicon Mac 必須 · macOS 26.0 以上 · MIT License",
+        footer_license: "Licensed under"
+      },
+      en: {
+        meta_title: "Kikitori — Voice-to-Text Input for macOS",
+        meta_desc: "Kikitori is a lightweight, fast native macOS app that records your voice while you hold a hotkey, transcribes it on release, and automatically pastes the text at your cursor.",
+        nav_features: "Features",
+        nav_how: "How it works",
+        nav_install: "Install",
+        nav_requirements: "Requirements",
+        nav_download: "Download",
+        header_github: "GitHub",
+        header_download: "Download",
+        hero_eyebrow: "Native macOS app",
+        hero_title: 'Speak, and it types.<br><span class="gradient">Automatically.</span>',
+        hero_desc: "Kikitori records your voice while you hold a hotkey, then converts speech to text and pastes it at your cursor on release. Lightweight, fast, and on-device — no network required.",
+        hero_download: "Download Latest",
+        hero_github: "View on GitHub",
+        badge_silicon: "Apple Silicon",
+        badge_macos: "macOS 26.0+",
+        badge_ondevice: "On-Device Recognition",
+        badge_opensource: "Open Source (MIT)",
+        features_label: "Features",
+        features_title: "Lightweight, Fast Voice Input",
+        features_desc: "A native macOS app built with Apple's latest Speech Framework, designed to feel right at home on your Mac.",
+        feat_native_title: "Native Swift / SwiftUI",
+        feat_native_desc: "A pure macOS app without Electron. Low memory usage and instant startup.",
+        feat_ondevice_title: "On-Device Speech Recognition",
+        feat_ondevice_desc: "Uses SpeechAnalyzer / SpeechTranscriber to recognize speech locally without sending audio to the internet. Works offline.",
+        feat_glass_title: "Liquid Glass Overlay UI",
+        feat_glass_desc: "While recording, a Liquid Glass-style overlay with a bird icon and real-time waveform appears near the bottom of the screen.",
+        feat_custom_title: "Easy GUI Customization",
+        feat_custom_desc: "Change recognition language, UI language, hotkey, recording duration, silence threshold, and more from the settings window.",
+        feat_corrections_title: "Auto-Correction",
+        feat_corrections_desc: "Use Corrections to automatically replace frequently misrecognized words and technical terms, like \"use effect\" → \"useEffect\".",
+        feat_update_title: "Automatic Updates",
+        feat_update_desc: "Built-in Sparkle framework makes it easy to check for and install updates from the menu.",
+        how_label: "How it works",
+        how_title: "Get started in 3 steps",
+        how_desc: "No complicated setup. Press, speak, and release — text appears wherever your cursor is.",
+        how_step1_title: "Hold the hotkey",
+        how_step1_desc: "By default, recording starts while you hold the Fn (🌐) key.",
+        how_step1_key: "Hold",
+        how_step2_title: "Speak",
+        how_step2_desc: "A glass-style overlay appears at the bottom of the screen, with waveforms animated in real time to your voice.",
+        how_step3_title: "Release to paste",
+        how_step3_desc: "Releasing the hotkey stops recording and automatically types the recognized text at your cursor via the clipboard.",
+        install_label: "Install",
+        install_title: "Installation",
+        install_desc: "Download the latest DMG from the Releases page and drag the app into your Applications folder.",
+        install_steps_title: "Installation Steps",
+        install_step1: "Download the latest <code>Kikitori-x.x.x.dmg</code> from the Releases page.",
+        install_step2: "Open the downloaded DMG file.",
+        install_step3: "Drag <code>Kikitori.app</code> into your <code>Applications</code> folder.",
+        install_step4: "Launch <code>Kikitori</code> from your Applications folder.",
+        install_warning_title: '"Unidentified Developer" Warning on First Launch',
+        install_warning_desc: 'If you see a warning that the developer cannot be verified, allow it using one of the following methods:',
+        install_warn_a: "<strong>A. Allow from System Settings</strong>: Close the warning, then go to System Settings → Privacy & Security → Open Anyway.",
+        install_warn_b: "<strong>B. Remove quarantine via Terminal</strong>: Run the following command:",
+        languages_label: "Languages",
+        languages_title: "Supports 6 Languages",
+        languages_desc: "Switch recognition languages in the settings. UI language can also be set to Japanese or English.",
+        requirements_label: "System Requirements",
+        requirements_title: "Requirements & Permissions",
+        requirements_desc: "Requires an Apple Silicon Mac and macOS 26.0 or later. Three permissions are requested on first launch.",
+        perm_mic_title: "Microphone",
+        perm_mic_desc: "Captures audio input.<br>Privacy & Security → Microphone",
+        perm_speech_title: "Speech Recognition",
+        perm_speech_desc: "Converts speech to text using the Speech Framework.<br>Privacy & Security → Speech Recognition",
+        perm_access_title: "Accessibility",
+        perm_access_desc: "Monitors hotkeys and simulates Cmd+V for auto-paste.<br>Privacy & Security → Accessibility",
+        corrections_label: "Corrections",
+        corrections_title: "Get Technical Terms Right",
+        corrections_desc: "Register replacement rules for words that are often misrecognized. You can also edit the YAML file directly.",
+        corrections_point1: "Add / edit / delete rules intuitively in the GUI",
+        corrections_point2: "Saved as ~/.kikitori/corrections.yaml",
+        corrections_point3: 'Example: "use effect" → "useEffect"',
+        cta_title: "Try Kikitori Today",
+        cta_desc: "Download the latest DMG and drag it to your Applications folder. Grant permissions on first launch and you're ready to go.",
+        cta_download: "Download Latest DMG",
+        cta_source: "View Source Code",
+        cta_meta: "Apple Silicon Mac required · macOS 26.0+ · MIT License",
+        footer_license: "Licensed under"
+      }
+    };
+
+    function setLang(lang) {
+      document.documentElement.lang = lang;
+      localStorage.setItem('kikitori-lang', lang);
+      document.querySelectorAll('.lang-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.lang === lang);
+      });
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.dataset.i18n;
+        if (i18n[lang][key]) {
+          el.innerHTML = i18n[lang][key];
+        }
+      });
+      document.title = i18n[lang].meta_title;
+    }
+
+    function setTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      localStorage.setItem('kikitori-theme', theme);
+    }
+
+    function init() {
+      const savedLang = localStorage.getItem('kikitori-lang');
+      const osLang = (navigator.language || navigator.userLanguage || '');
+      const initialLang = savedLang || (osLang.toLowerCase().startsWith('ja') ? 'ja' : 'en');
+      setLang(initialLang);
+
+      const savedTheme = localStorage.getItem('kikitori-theme');
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      setTheme(savedTheme || (prefersDark ? 'dark' : 'light'));
+
+      document.querySelectorAll('.lang-btn').forEach(btn => {
+        btn.addEventListener('click', () => setLang(btn.dataset.lang));
+      });
+
+      document.querySelector('.theme-btn')?.addEventListener('click', () => {
+        const current = document.documentElement.getAttribute('data-theme');
+        setTheme(current === 'dark' ? 'light' : 'dark');
+      });
+
+      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+        if (!localStorage.getItem('kikitori-theme')) {
+          setTheme(e.matches ? 'dark' : 'light');
+        }
+      });
+
+      document.querySelector('.menu-toggle')?.addEventListener('click', () => {
+        document.querySelector('nav')?.classList.toggle('nav-open');
+      });
+
+      document.querySelectorAll('nav a').forEach(link => {
+        link.addEventListener('click', () => {
+          document.querySelector('nav')?.classList.remove('nav-open');
+        });
+      });
+
+      const hero = document.querySelector('.hero');
+      const rings = document.querySelectorAll('.visual-ring');
+      if (hero && rings.length) {
+        hero.addEventListener('mousemove', (e) => {
+          const rect = hero.getBoundingClientRect();
+          const x = (e.clientX - rect.left) / rect.width - 0.5;
+          const y = (e.clientY - rect.top) / rect.height - 0.5;
+          rings[0].style.transform = `translate(${x * -12}px, ${y * -12}px)`;
+          rings[1].style.transform = `translate(${x * -20}px, ${y * -20}px)`;
+        });
+      }
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+  </script>
+</body>
+</html>
