@@ -8,17 +8,17 @@ final class WaveformModel: ObservableObject {
     @Published var levels: [Float] = Array(repeating: 0.05, count: 12)
 
     func push(_ amp: Float) {
-        let boosted = sqrt(amp) * 3.5 
+        let boosted = sqrt(amp) * 3.5
         let clamped = min(max(boosted, 0.05), 1.0)
-        
+
         var newLevels: [Float] = []
         for i in 0..<12 {
             // 中央が一番高く、端に行くほど低くなる係数 (0.3 〜 1.0)
             let centerBias = 1.0 - (abs(Float(i) - 5.5) / 5.5) * 0.7
-            
+
             // 声が出ている時だけ各バーにランダムな揺らぎを加える
             let noise = clamped > 0.1 ? Float.random(in: 0.6...1.4) : 1.0
-            
+
             let val = clamped * centerBias * noise
             newLevels.append(val)
         }
@@ -52,9 +52,9 @@ struct OverlayView: View {
                 ForEach(0..<model.levels.count, id: \.self) { i in
                     let level = model.levels[i]
                     let h = max(4.0, CGFloat(level) * 30.0)
-                    
+
                     RoundedRectangle(cornerRadius: 2)
-                        .fill(Color(red: 160/255, green: 175/255, blue: 190/255).opacity(0.85))
+                        .fill(Color(red: 160/255, green: 175/255, blue: 190/255))
                         .frame(width: 4, height: min(h, 24)) // 以前と同じぐらいの高さ制限
                 }
             }
@@ -63,10 +63,14 @@ struct OverlayView: View {
         }
         .padding(.horizontal, 24)
         .frame(height: 44) // 全体の高さを元に戻す
-        // Apple Liquid Glassデザイン (薄いマテリアル＋エッジハイライト＋シャドウ)
+        // Apple Liquid Glassデザイン (薄いマテリアル＋暗いオーバーレイ＋エッジハイライト＋シャドウ)
         .background(
             Capsule()
                 .fill(.ultraThinMaterial)
+                .overlay(
+                    Capsule()
+                        .fill(Color.black.opacity(0.3))
+                )
                 .overlay(
                     Capsule()
                         .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
@@ -96,9 +100,9 @@ final class OverlayController: NSObject {
         // 背景を完全に透明にする（余白の白背景を防ぐ）
         hosting.view.wantsLayer = true
         hosting.view.layer?.backgroundColor = NSColor.clear.cgColor
-        
+
         self.hostingController = hosting
-        
+
         let size = hosting.view.fittingSize
         hosting.view.frame.size = size
 
