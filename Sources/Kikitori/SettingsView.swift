@@ -161,23 +161,6 @@ struct SettingsView: View {
                 .padding(.horizontal, 16)
                 .padding(.top, 16)
 
-                // ---- 起動 ----
-                Toggle(isOn: $vm.launchAtLogin) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(i18n.t(.settingsLaunchAtLogin))
-                            .font(.body)
-                        Text("macOSの「ログイン項目と機能拡張」に追加されます")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                .toggleStyle(.switch)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-
-                Divider()
-                    .padding(.vertical, 8)
-
                 // ---- ホットキー ----
                 GroupBox {
                     VStack(alignment: .leading, spacing: 10) {
@@ -195,6 +178,38 @@ struct SettingsView: View {
                     .padding(.vertical, 8)
                 }
                 .padding(.horizontal, 16)
+                .padding(.top, 16)
+
+                Divider()
+                    .padding(.vertical, 8)
+
+                // ---- 起動 ----
+                Toggle(isOn: $vm.launchAtLogin) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(i18n.t(.settingsLaunchAtLogin))
+                            .font(.body)
+                        Text("macOSの「ログイン項目と機能拡張」に追加されます")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .toggleStyle(.switch)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+
+                // ---- デバッグ ----
+                Toggle(isOn: $vm.debugEnabled) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(i18n.t(.settingsDebugLabel))
+                            .font(.body)
+                        Text("ログを ~/Library/Logs/Kikitori/ に出力します")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .toggleStyle(.switch)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 12)
 
                 // ---- リセット ----
                 HStack {
@@ -241,35 +256,8 @@ struct SettingsView: View {
                 .padding(.horizontal, 16)
                 .padding(.top, 16)
 
-                // ---- 無音判定 ----
-                GroupBox {
-                    VStack(spacing: 10) {
-                        sliderRow(
-                            label: i18n.t(.settingsRmsLabel),
-                            value: $vm.silenceRmsThreshold,
-                            range: 0...0.01,
-                            step: 0.0001,
-                            format: { String(format: "%.4f", $0) }
-                        )
-                    }
-                    .padding(.vertical, 8)
-                }
-                .padding(.horizontal, 16)
-                .padding(.top, 12)
 
-                // ---- デバッグ ----
-                Toggle(isOn: $vm.debugEnabled) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(i18n.t(.settingsDebugLabel))
-                            .font(.body)
-                        Text("ログを ~/Library/Logs/Kikitori/ に出力します")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                .toggleStyle(.switch)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
+
             }
         }
     }
