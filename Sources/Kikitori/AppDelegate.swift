@@ -40,7 +40,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 開発中など appcast.xml がない環境で起動時にエラーダイアログが出るのを防ぐため、
         // 最初の起動時（かつまだチェックしたことがない場合のみ）バックグラウンドチェックを遅延させるか、
         // 単純に startingUpdater: false にして手動でスタートさせます。
+        #if !DEBUG
         updater.startUpdater()
+        #endif
         settings.load()
         i18n.setLanguage(settings.uiLanguage)
         DebugLogger.enabled = settings.debug
