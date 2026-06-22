@@ -13,7 +13,7 @@ jobs:
     runs-on: macos-26
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Extract version and build number
         id: get_version
@@ -56,7 +56,7 @@ jobs:
           VERSION=${{ env.VERSION }} BUILD_NUMBER=${{ env.BUILD_NUMBER }} bash scripts/build-dmg.sh
 
       - name: Upload DMG + Appcast to Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             dist/Kikitori-${{ env.VERSION }}.dmg
