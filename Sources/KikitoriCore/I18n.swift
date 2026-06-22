@@ -40,6 +40,9 @@ public enum TranslationKey: Int, Sendable, CaseIterable {
 
     // Permissions
     case permissionDeniedTitle, permissionDeniedMessage, permissionOpenSettings, permissionOK
+
+    // Accessibility Dialog
+    case axPermissionTitle, axPermissionMessage, axPermissionStep1, axPermissionStep2, axPermissionStep3, axPermissionCopied, btnDoNotShowAgain
 }
 
 /// 多言語対応マネージャー
@@ -125,6 +128,15 @@ public final class I18n: ObservableObject {
         "Kikitori を使うにはマイクと音声認識へのアクセスを許可してください。",
         "システム設定を開く",
         "OK",
+
+        // Accessibility Dialog
+        "アクセシビリティの許可が必要です",
+        "Kikitoriが自動的にテキストを入力できるようにするには、システム設定でアクセシビリティの許可を付与してください：",
+        "1. システム設定 → プライバシーとセキュリティ → アクセシビリティを開く（パスワードやTouch IDでのロック解除が必要な場合があります）",
+        "2. 「＋」ボタンをクリックし、アプリケーションフォルダからKikitoriを選択して「開く」をクリック",
+        "3. Kikitoriの横のチェックボックスがオンになっていることを確認",
+        "テキストは自動的にクリップボードにコピーされました。文字起こし後もペーストできます。",
+        "今後表示しない"
     ]
 
     private nonisolated static let enStrings: [String] = [
@@ -179,6 +191,15 @@ public final class I18n: ObservableObject {
         "Please allow Kikitori to access the microphone and speech recognition.",
         "Open System Settings",
         "OK",
+
+        // Accessibility Dialog
+        "Accessibility Permission Required",
+        "To allow Kikitori to type text automatically, please grant Accessibility permission in System Settings:",
+        "1. Open System Settings → Privacy & Security → Accessibility (you may need to unlock with a password or Touch ID)",
+        "2. Click the '+' button, navigate to the Applications folder, select Kikitori, and click 'Open'",
+        "3. Ensure the checkbox next to Kikitori is turned on",
+        "The text has been copied to your clipboard. You can paste it manually.",
+        "Do not show again"
     ]
 
     private nonisolated static func _lookup(_ key: TranslationKey, _ arr: [String]) -> String {

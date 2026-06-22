@@ -39,6 +39,8 @@ public final class TextInjector: @unchecked Sendable {
     private var pendingOriginal: String?
     private var restoreGeneration: Int = 0
 
+    public var onAccessibilityPermissionMissing: ((String) -> Void)?
+
     public init() {}
 
     public func inject(_ text: String) {
@@ -57,10 +59,11 @@ public final class TextInjector: @unchecked Sendable {
         }
 
         Task { @MainActor in
-            let options = ["AXTrustedCheckOptionPrompt": true]
+            let options = ["AXTrustedCheckOptionPrompt": false]
             let isTrusted = AXIsProcessTrustedWithOptions(options as CFDictionary)
             if !isTrusted {
                 DebugLogger.log("TextInjector: Accessibility permission not granted.")
+                onAccessibilityPermissionMissing?(text)
             }
         }
 

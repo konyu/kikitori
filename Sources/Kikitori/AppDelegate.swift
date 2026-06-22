@@ -51,6 +51,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         capture.onAmplitude = { [weak self] amp in
             self?.overlay.updateAmplitude(amp)
         }
+        injector.onAccessibilityPermissionMissing = { [weak self] text in
+            Task { @MainActor in
+                guard let self else { return }
+                AccessibilityDialogManager.shared.show(transcribedText: text, i18n: self.i18n)
+            }
+        }
 
         item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let btn = item.button {

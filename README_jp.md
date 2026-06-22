@@ -2,6 +2,8 @@
 
 # 🐦 Kikitori
 
+🌐 **Website**: [https://kikitori.arpa-llc.com/](https://kikitori.arpa-llc.com/)
+
 macOS 向け音声認識入力ツール。ホットキー押下中にマイク入力を録音し、解放時に新しい **Speech Framework (SpeechAnalyzer / SpeechTranscriber)** を利用して音声をテキストに変換、クリップボード経由で自動ペーストする、軽量・高速なネイティブ macOS アプリです。
 
 ## 特徴

@@ -2,6 +2,8 @@
 
 # 🐦 Kikitori
 
+🌐 **Website**: [https://kikitori.arpa-llc.com/](https://kikitori.arpa-llc.com/)
+
 A speech recognition input tool for macOS. Kikitori records your voice while you hold down a hotkey, and upon release, it uses the new **Speech Framework (SpeechAnalyzer / SpeechTranscriber)** to convert the audio into text and automatically pastes it via the clipboard. It's a lightweight, fast, native macOS application.
 
 ## Features
