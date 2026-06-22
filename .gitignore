@@ -39,3 +39,9 @@ Kikitori.app/
 # Sparkle keys (秘密鍵は絶対にコミットしない)
 .config/sparkle/private.pem
 assets/Kikitori.icns
+
+# Local Environment Variables
+.env
+.env.local
+.envrc
+.mise.local.toml

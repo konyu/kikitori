@@ -131,8 +131,10 @@ else
     echo "WARNING: icon source not found: $ICON_SRC"
 fi
 
-echo "=== Ad-hoc code sign ==="
-codesign --sign - --deep --force "$APP_BUNDLE" 2>&1 || echo "WARNING: ad-hoc signing failed (non-fatal)"
+echo "=== Code sign ==="
+SIGNING_IDENTITY="${CODE_SIGN_IDENTITY:--}"
+echo "Using identity: $SIGNING_IDENTITY"
+codesign --sign "$SIGNING_IDENTITY" --deep --force "$APP_BUNDLE" 2>&1 || echo "WARNING: signing failed (non-fatal)"
 
 echo "=== Create DMG ==="
 mkdir -p "$DIST_DIR"

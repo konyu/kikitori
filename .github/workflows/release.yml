@@ -24,12 +24,35 @@ jobs:
       - name: Install create-dmg
         run: brew install create-dmg
 
+      - name: Install Code Signing Certificate
+        env:
+          CERT_P12_BASE64: ${{ secrets.MAC_CERTS_P12_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.MAC_CERTS_PASSWORD }}
+          KEYCHAIN_PASSWORD: "temp_password_for_ci"
+        run: |
+          if [ -z "$CERT_P12_BASE64" ]; then
+            echo "No signing certificate provided. Will use ad-hoc signing."
+            exit 0
+          fi
+          echo "$CERT_P12_BASE64" | base64 --decode > /tmp/certificate.p12
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security import /tmp/certificate.p12 -k build.keychain -P "$CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
+
       - name: Build DMG
         env:
           SU_PUBLIC_ED_KEY: ${{ secrets.SU_PUBLIC_ED_KEY }}
           SPARKLE_PRIVATE_KEY_BASE64: ${{ secrets.SPARKLE_PRIVATE_KEY_BASE64 }}
+          MAC_CERTS_P12_BASE64: ${{ secrets.MAC_CERTS_P12_BASE64 }}
         run: |
           chmod +x scripts/build-dmg.sh
+          if [ -n "$MAC_CERTS_P12_BASE64" ]; then
+            export CODE_SIGN_IDENTITY="Kikitori OSS"
+          else
+            export CODE_SIGN_IDENTITY="-"
+          fi
           VERSION=${{ env.VERSION }} BUILD_NUMBER=${{ env.BUILD_NUMBER }} bash scripts/build-dmg.sh
 
       - name: Upload DMG + Appcast to Release
