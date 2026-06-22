@@ -228,6 +228,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func checkForUpdates() {
+        NSApp.activate(ignoringOtherApps: true)
+        
+        // もし起動時にスタートされていなければ（DEBUGなど）、ここでスタートさせる
+        updater.startUpdater()
+        
         updater.checkForUpdates(nil)
     }
 
