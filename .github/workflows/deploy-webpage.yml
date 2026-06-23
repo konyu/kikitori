@@ -14,8 +14,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Deploy to Cloudflare Workers
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          workingDirectory: "webpage"
+      - name: Install Wrangler
+        run: npm install -g wrangler
+
+      - name: Verify auth & show account
+        working-directory: webpage
+        run: |
+          wrangler whoami
+          wrangler versions list --name kikitori_webpage || true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+      - name: Deploy
+        working-directory: webpage
+        run: wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
