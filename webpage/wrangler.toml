@@ -3,5 +3,5 @@ main = "worker.js"
 compatibility_date = "2025-06-23"
 
 [assets]
-directory = "./"
+directory = "./public"
 not_found_handling = "none"
