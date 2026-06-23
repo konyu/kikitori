@@ -30,6 +30,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ n: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        setupMainMenu()
 
         // 起動時にマイク・音声認識権限をチェックし、未許可なら許可を求める。
         // 権限ダイアログは非同期で表示され、以降のセットアップをブロックしない。
@@ -239,6 +240,71 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func quit() {
         hotkey.stop()
         NSApp.terminate(nil)
+    }
+
+    // MARK: - Main Menu
+
+    /// Set up NSApp.mainMenu with Edit menu so Cmd+C/V/X/A/Z shortcuts work
+    /// in SwiftUI TextFields. Without a main menu, keyboard equivalents for
+    /// standard editing commands are not routed to the first responder.
+    private func setupMainMenu() {
+        let mainMenu = NSMenu()
+
+        // App submenu — required by convention even for accessory apps
+        let appMenuItem = NSMenuItem()
+        mainMenu.addItem(appMenuItem)
+        let appMenu = NSMenu()
+        appMenuItem.submenu = appMenu
+        appMenu.addItem(NSMenuItem(
+            title: "Quit Kikitori",
+            action: #selector(NSApplication.terminate(_:)),
+            keyEquivalent: "q"
+        ))
+
+        // Edit submenu — provides Copy, Paste, Cut, Undo, Redo, Select All
+        let editMenuItem = NSMenuItem()
+        mainMenu.addItem(editMenuItem)
+        let editMenu = NSMenu(title: "Edit")
+        editMenuItem.submenu = editMenu
+
+        editMenu.addItem(NSMenuItem(
+            title: "Undo",
+            action: Selector(("undo:")),
+            keyEquivalent: "z"
+        ))
+        editMenu.addItem(NSMenuItem(
+            title: "Redo",
+            action: Selector(("redo:")),
+            keyEquivalent: "Z"
+        ))
+        editMenu.addItem(.separator())
+        editMenu.addItem(NSMenuItem(
+            title: "Cut",
+            action: #selector(NSText.cut(_:)),
+            keyEquivalent: "x"
+        ))
+        editMenu.addItem(NSMenuItem(
+            title: "Copy",
+            action: #selector(NSText.copy(_:)),
+            keyEquivalent: "c"
+        ))
+        editMenu.addItem(NSMenuItem(
+            title: "Paste",
+            action: #selector(NSText.paste(_:)),
+            keyEquivalent: "v"
+        ))
+        editMenu.addItem(NSMenuItem(
+            title: "Delete",
+            action: #selector(NSText.delete(_:)),
+            keyEquivalent: "\u{8}"
+        ))
+        editMenu.addItem(NSMenuItem(
+            title: "Select All",
+            action: #selector(NSText.selectAll(_:)),
+            keyEquivalent: "a"
+        ))
+
+        NSApp.mainMenu = mainMenu
     }
 
     // MARK: - Permissions
