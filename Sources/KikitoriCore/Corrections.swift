@@ -39,24 +39,33 @@ public final class Corrections: @unchecked Sendable {
 
     /// テキストに校正を適用する。
     ///
+    /// 最初に日本語テキストの正規化（句読点前のスペース除去）を行い、
+    /// その後ユーザー定義の置換を適用する。
+    ///
     /// アルゴリズム:
-    /// 1. wrong の長い順にソート（"use effect" が "use" より先）
-    /// 2. ケースインセンシティブマッチ
-    /// 3. 非再帰置換（一度置換した文字は再検査しない）
-    /// 4. マッチしなければ 1 文字進む
+    /// 1. 日本語正規化（句読点前のスペース除去）
+    /// 2. wrong の長い順にソート（"use effect" が "use" より先）
+    /// 3. ケースインセンシティブマッチ
+    /// 4. 非再帰置換（一度置換した文字は再検査しない）
+    /// 5. マッチしなければ 1 文字進む
     public func apply(to text: String) -> String {
+        guard !text.isEmpty else { return text }
+
+        // 日本語正規化: 句読点前のASCIIスペースを除去
+        let normalized = Self.normalizeJapanese(text)
+
         let sorted: [(wrong: String, right: String)] = lock.withLock {
             pairs.sorted { $0.wrong.count > $1.wrong.count }
         }
-        guard !sorted.isEmpty, !text.isEmpty else { return text }
+        guard !sorted.isEmpty else { return normalized }
 
         var result = ""
-        var i = text.startIndex
-        while i < text.endIndex {
+        var i = normalized.startIndex
+        while i < normalized.endIndex {
             var matched = false
             for (wrong, right) in sorted {
-                let end = text.index(i, offsetBy: wrong.count, limitedBy: text.endIndex)
-                if let end, text[i..<end].lowercased() == wrong.lowercased() {
+                let end = normalized.index(i, offsetBy: wrong.count, limitedBy: normalized.endIndex)
+                if let end, normalized[i..<end].lowercased() == wrong.lowercased() {
                     result += right
                     i = end
                     matched = true
@@ -64,11 +73,26 @@ public final class Corrections: @unchecked Sendable {
                 }
             }
             if !matched {
-                result.append(text[i])
-                i = text.index(after: i)
+                result.append(normalized[i])
+                i = normalized.index(after: i)
             }
         }
         return result
+    }
+
+    /// 日本語テキストの正規化: 句読点前のASCIIスペースを除去する。
+    /// e.g. "あの件どうなりましたか ？" → "あの件どうなりましたか？"
+    public static func normalizeJapanese(_ text: String) -> String {
+        // CJK句読点 + 全角記号（前にスペースを入れてはいけない文字）
+        // U+3001(、) U+3002(。) U+FF1F(？) U+FF01(！)
+        // U+300D(」) U+300F(』) U+FF09(）) U+3011(】)
+        // U+FF5D(｝) U+3009(〉) U+300B(》) U+301F(〟)
+        let pattern = " +(?=[、。？！！」』）】｝〉》〟])"
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else {
+            return text
+        }
+        let range = NSRange(text.startIndex..<text.endIndex, in: text)
+        return regex.stringByReplacingMatches(in: text, options: [], range: range, withTemplate: "")
     }
 
     /// ペアを置き換えて保存（GUI 用、後日）。
