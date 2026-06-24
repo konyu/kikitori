@@ -120,16 +120,31 @@ struct SettingsView: View {
             Divider()
             HStack {
                 Spacer()
-                Button(i18n.t(.settingsSaveBtn)) {
-                    vm.save()
-                    onSave()
+                Button(i18n.t(.btnClose)) {
+                    NSApp.sendAction(#selector(NSWindow.performClose(_:)), to: nil, from: nil)
                 }
-                .keyboardShortcut(.defaultAction)
+                .keyboardShortcut(.cancelAction)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 10)
         }
         .frame(width: 440, height: 400)
+        .onChange(of: vm.language) { saveAndApply() }
+        .onChange(of: vm.uiLanguage) { saveAndApply() }
+        .onChange(of: vm.hotkeyFn) { saveAndApply() }
+        .onChange(of: vm.hotkeyCtrl) { saveAndApply() }
+        .onChange(of: vm.hotkeyAlt) { saveAndApply() }
+        .onChange(of: vm.hotkeyCmd) { saveAndApply() }
+        .onChange(of: vm.hotkeyShift) { saveAndApply() }
+        .onChange(of: vm.minDurationMs) { saveAndApply() }
+        .onChange(of: vm.maxDurationSec) { saveAndApply() }
+        .onChange(of: vm.debugEnabled) { saveAndApply() }
+        .onChange(of: vm.launchAtLogin) { saveAndApply() }
+    }
+
+    private func saveAndApply() {
+        vm.save()
+        onSave()
     }
 
     private var generalTab: some View {
@@ -214,7 +229,10 @@ struct SettingsView: View {
                 // ---- リセット ----
                 HStack {
                     Spacer()
-                    Button(i18n.t(.settingsResetBtn)) { vm.reset() }
+                    Button(i18n.t(.settingsResetBtn)) {
+                        vm.reset()
+                        saveAndApply()
+                    }
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
