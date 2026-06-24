@@ -38,12 +38,19 @@ public final class SpeechRecognizer: @unchecked Sendable {
         self.isRunning = true
     }
     
-    public func start() {
+    /// 音声認識エンジンの準備が完了するまで await する。
+    /// 呼び出し元は、この関数が返ってから録音・UI 表示を開始することで、
+    /// 認識準備が整う前の音声漏れや最初の文字落ちを防ぐ。
+    public func start() async {
+        // 既に stop() 済みのインスタンスではセットアップを開始しない
+        let shouldSetup = lock.withLock { self.isRunning }
+        guard shouldSetup else { return }
+
         self.setupTask = Task {
             let locale = Self.locale(for: language)
             let t = SpeechTranscriber(locale: locale, preset: .transcription)
             let a = SpeechAnalyzer(modules: [t])
-            
+
             let format = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [t])
             do {
                 try await a.prepareToAnalyze(in: format)
@@ -52,15 +59,16 @@ public final class SpeechRecognizer: @unchecked Sendable {
                 return
             }
 
-            _ = lock.withLock {
+            let shouldStartAnalyzer = lock.withLock {
                 self.transcriber = t
                 self.analyzer = a
                 self.audioFormat = format
                 return self.isRunning
             }
-            
-            // isRunningがfalseなら、すでにstop()が呼ばれているので解析タスクを開始しつつ、すぐにストリームを終了させる
-            // （audioContinuation?.finish() は stop() で呼ばれる）
+
+            // isRunningがfalseなら、すでにstop()が呼ばれているので解析タスクを開始しない
+            guard shouldStartAnalyzer else { return }
+
             let converter = BufferConverter()
             let (analyzerStream, analyzerCont) = AsyncStream<AnalyzerInput>.makeStream()
             let bridgeTask = Task {
@@ -84,6 +92,9 @@ public final class SpeechRecognizer: @unchecked Sendable {
                 bridgeTask.cancel()
             }
         }
+
+        // 呼び出し元が準備完了を待てるように、セットアップタスクの完了を待つ
+        _ = await self.setupTask?.result
     }
     
     /// 言語コード → Locale 変換

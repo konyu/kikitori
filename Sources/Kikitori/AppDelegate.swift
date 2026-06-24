@@ -107,8 +107,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard !recording else { return }
         recording = true
 
-        overlay.show()
-
         // 録音開始時に常に最新のファイル内容を読み込む
         settings.load()
         corrections.load()
@@ -123,14 +121,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 自動停止タイマー
         scheduleAutoStop()
 
-        Task {
+        Task { [weak self] in
+            guard let self else { return }
             do {
-                r.start()
-                if let f = r.compatibleAudioFormat { c.targetFormat = f }
+                // 音声認識の準備が完了するまで待つ。これにより、
+                // インジケーター表示前に認識エンジンが確実に音声を受け取れる状態になる。
+                await r.start()
+
+                // ホットキーが既に離されていれば（stop() が呼ばれていれば）
+                // 録音を開始しない。オーバーレイも表示しない。
+                guard self.recording else { return }
+
+                // 無変換の生バッファを渡す。SpeechRecognizer 内の BufferConverter で
+                // 認識エンジン向けフォーマットに変換する。ここで targetFormat を設定すると
+                // Int16 バッファが渡され、無音判定 RMS 計算が float フォーマットを前提に
+                // 動作しないため文字が認識されなくなる。
+                c.targetFormat = nil
                 c.onAudioBuffer = { r.addAudio($0) }
+                self.overlay.show()
                 try await c.start()
             } catch {
-                await MainActor.run { [weak self] in self?.recording = false }
+                self.recording = false
+                self.overlay.hide()
             }
         }
     }
