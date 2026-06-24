@@ -107,8 +107,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard !recording else { return }
         recording = true
 
-        overlay.show()
-
         // 録音開始時に常に最新のファイル内容を読み込む
         settings.load()
         corrections.load()
@@ -123,14 +121,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 自動停止タイマー
         scheduleAutoStop()
 
-        Task {
+        Task { [weak self] in
+            guard let self else { return }
             do {
-                r.start()
+                // 音声認識の準備が完了するまで待つ。これにより、
+                // インジケーター表示前に認識エンジンが確実に音声を受け取れる状態になる。
+                await r.start()
+
+                // ホットキーが既に離されていれば（stop() が呼ばれていれば）
+                // 録音を開始しない。オーバーレイも表示しない。
+                guard self.recording else { return }
+
                 if let f = r.compatibleAudioFormat { c.targetFormat = f }
                 c.onAudioBuffer = { r.addAudio($0) }
+                self.overlay.show()
                 try await c.start()
             } catch {
-                await MainActor.run { [weak self] in self?.recording = false }
+                self.recording = false
+                self.overlay.hide()
             }
         }
     }
