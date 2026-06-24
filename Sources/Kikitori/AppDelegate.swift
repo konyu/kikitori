@@ -132,7 +132,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 // 録音を開始しない。オーバーレイも表示しない。
                 guard self.recording else { return }
 
-                if let f = r.compatibleAudioFormat { c.targetFormat = f }
+                // 無変換の生バッファを渡す。SpeechRecognizer 内の BufferConverter で
+                // 認識エンジン向けフォーマットに変換する。ここで targetFormat を設定すると
+                // Int16 バッファが渡され、無音判定 RMS 計算が float フォーマットを前提に
+                // 動作しないため文字が認識されなくなる。
+                c.targetFormat = nil
                 c.onAudioBuffer = { r.addAudio($0) }
                 self.overlay.show()
                 try await c.start()
