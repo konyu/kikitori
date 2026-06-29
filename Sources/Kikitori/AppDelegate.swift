@@ -138,8 +138,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 // 動作しないため文字が認識されなくなる。
                 c.targetFormat = nil
                 c.onAudioBuffer = { r.addAudio($0) }
-                self.overlay.show()
+                // オーバーレイ表示より先に音声キャプチャを開始する。
+                // 先に表示するとユーザーが話し始めるが、コールドスタート時の
+                // AVAudioEngine.start() 遅延で最初の音声が取りこぼされるため。
                 try await c.start()
+                self.overlay.show()
             } catch {
                 self.recording = false
                 self.overlay.hide()
