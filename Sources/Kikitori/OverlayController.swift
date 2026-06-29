@@ -24,6 +24,11 @@ final class WaveformModel: ObservableObject {
         }
         levels = newLevels
     }
+
+    /// オーバーレイ表示時に前回セッションの振幅状態をクリア
+    func reset() {
+        levels = Array(repeating: 0.05, count: 12)
+    }
 }
 
 // MARK: - View
@@ -94,6 +99,8 @@ final class OverlayController: NSObject {
 
     func show() {
         guard window == nil else { return }
+        // 前回セッションの波形状態をクリアし、無音状態から開始
+        model.reset()
 
         let view = OverlayView(model: model)
         let hosting = NSHostingController(rootView: view)
