@@ -136,8 +136,9 @@ public final class SpeechRecognizer: @unchecked Sendable {
             return (t1, a1, f1, fr, bufs)
         }
 
-        DebugLogger.log("stop() called, isRunning=false, totalFrames=\(frames), format=\(format?.description ?? "nil")")
+        DebugLogger.log("SR.stop: called, isRunning=false, totalFrames=\(frames), format=\(format?.description ?? "nil")")
         guard let t = t, let a = a else {
+            DebugLogger.log("SR.stop: no transcriber/analyzer, returning empty")
             return ""
         }
 
@@ -145,8 +146,9 @@ public final class SpeechRecognizer: @unchecked Sendable {
         if minDurationMs > 0 {
             let sampleRate = format?.sampleRate ?? 16000
             let minFrames = AVAudioFrameCount(Double(minDurationMs) * sampleRate / 1000)
+            DebugLogger.log("SR.stop: minDuration check - frames=\(frames) minFrames=\(minFrames) minDurationMs=\(minDurationMs)")
             if frames < minFrames {
-                DebugLogger.log("FILTER: too short, returning empty")
+                DebugLogger.log("SR.stop: FILTER too short, returning empty")
                 return ""
             }
         }
@@ -154,12 +156,14 @@ public final class SpeechRecognizer: @unchecked Sendable {
         // 無音 RMS フィルタ
         if silenceRmsThreshold > 0 {
             let rms = calculateRMS(buffers)
+            DebugLogger.log("SR.stop: silence check - rms=\(rms) threshold=\(silenceRmsThreshold)")
             if rms < Float(silenceRmsThreshold) {
-                DebugLogger.log("FILTER: silence detected, returning empty")
+                DebugLogger.log("SR.stop: FILTER silence, returning empty")
                 return ""
             }
         }
 
+        DebugLogger.log("SR.stop: calling finalizeAndFinishThroughEndOfInput...")
         try? await a.finalizeAndFinishThroughEndOfInput()
         _ = await self.analyzerTask?.result
         
@@ -168,9 +172,11 @@ public final class SpeechRecognizer: @unchecked Sendable {
             for try await result in t.results {
                 text += String(result.text.characters)
             }
-        } catch { }
+        } catch {
+            DebugLogger.log("SR.stop: result iteration error: \(error)")
+        }
         let final = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        DebugLogger.log("recognition result: '\(final)'")
+        DebugLogger.log("SR.stop: recognition result='\(final)'")
         return final
     }
 

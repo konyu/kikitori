@@ -36,6 +36,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 権限ダイアログは非同期で表示され、以降のセットアップをブロックしない。
         Task { @MainActor in
             await requestPermissionsIfNeeded()
+            // 初回ホットキー押下時に音声認識エンジンとオーディオキャプチャの
+            // コールドスタート遅延で音声が取りこぼされるのを防ぐ。
+            await prewarmSpeechEngine()
+            await prewarmAudioEngine()
         }
 
         // 開発中など appcast.xml がない環境で起動時にエラーダイアログが出るのを防ぐため、
@@ -106,6 +110,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func start() {
         guard !recording else { return }
         recording = true
+        DebugLogger.log("START: entering, first time after launch? (check prewarm logs)")
 
         // 録音開始時に常に最新のファイル内容を読み込む
         settings.load()
@@ -126,11 +131,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             do {
                 // 音声認識の準備が完了するまで待つ。これにより、
                 // インジケーター表示前に認識エンジンが確実に音声を受け取れる状態になる。
+                let t0 = ContinuousClock.now
                 await r.start()
+                let t1 = ContinuousClock.now
+                DebugLogger.log("START: r.start() took \(t1 - t0)")
 
                 // ホットキーが既に離されていれば（stop() が呼ばれていれば）
                 // 録音を開始しない。オーバーレイも表示しない。
-                guard self.recording else { return }
+                guard self.recording else {
+                    DebugLogger.log("START: recording already false after r.start(), bailing")
+                    return
+                }
 
                 // 無変換の生バッファを渡す。SpeechRecognizer 内の BufferConverter で
                 // 認識エンジン向けフォーマットに変換する。ここで targetFormat を設定すると
@@ -141,9 +152,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 // オーバーレイ表示より先に音声キャプチャを開始する。
                 // 先に表示するとユーザーが話し始めるが、コールドスタート時の
                 // AVAudioEngine.start() 遅延で最初の音声が取りこぼされるため。
+                let t2 = ContinuousClock.now
                 try await c.start()
+                let t3 = ContinuousClock.now
+                DebugLogger.log("START: c.start() took \(t3 - t2)")
                 self.overlay.show()
+                DebugLogger.log("START: overlay shown, ready for audio")
             } catch {
+                DebugLogger.log("START: error - \(error)")
                 self.recording = false
                 self.overlay.hide()
             }
@@ -152,23 +168,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func stop() {
         guard recording else {
-            DebugLogger.log("stop() ignored: not recording")
+            DebugLogger.log("STOP: ignored, not recording")
             return
         }
         recording = false
-        DebugLogger.log("stop() - cancelling autoStop, stopping capture")
+        DebugLogger.log("STOP: cancelling autoStop, stopping capture")
         cancelAutoStop()
         capture.stop()
         overlay.hide()
 
         let r = recognizer; recognizer = nil
         guard let r else {
-            DebugLogger.log("stop() - no recognizer")
+            DebugLogger.log("STOP: no recognizer")
             return
         }
         Task {
+            let t0 = ContinuousClock.now
             let text = await r.stop()
-            DebugLogger.log("stop() - recognizer returned: '\(text)'")
+            let t1 = ContinuousClock.now
+            DebugLogger.log("STOP: r.stop() took \(t1 - t0), totalFrames=\(r.totalFrameCount), text='\(text)'")
             var final = text
             if !final.isEmpty {
                 final = corrections.apply(to: final)
@@ -357,6 +375,51 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone") {
                 NSWorkspace.shared.open(url)
             }
+        }
+    }
+
+    // MARK: - Prewarm
+
+    /// アプリ起動時に Speech 認識エンジンを事前初期化する。
+    /// 初回ホットキー押下時にオンデバイス音声モデルのロード待ちで
+    /// 先頭の音声認識精度が落ちるのを防ぐ。
+    private func prewarmSpeechEngine() async {
+        // 権限がない場合はスキップ（prewarm しても無駄）
+        guard PermissionManager.shared.speechRecognitionStatus.isAuthorized else {
+            DebugLogger.log("prewarmSpeech: not authorized, skip")
+            return
+        }
+
+        DebugLogger.log("prewarmSpeech: starting...")
+        let r = SpeechRecognizer()
+        r.language = settings.language
+        r.minDurationMs = 0            // prewarm 用にフィルタ無効化
+        r.silenceRmsThreshold = 0      // 無音フィルタ無効化
+        await r.start()
+        // stop() で finalizeAndFinishThroughEndOfInput まで実行し、
+        // SpeechAnalyzer を正常終了させる。
+        _ = await r.stop()
+        DebugLogger.log("prewarmSpeech: completed")
+    }
+
+    /// 起動時に AVAudioEngine を一度 start/stop して、
+    /// オーディオハードウェアとセッションを初期化しておく。
+    /// これにより初回ホットキー押下時の engine.start() 遅延をなくす。
+    private func prewarmAudioEngine() async {
+        guard PermissionManager.shared.microphoneStatus.isAuthorized else {
+            DebugLogger.log("prewarmAudio: mic not authorized, skip")
+            return
+        }
+
+        DebugLogger.log("prewarmAudio: starting...")
+        do {
+            try await capture.start()
+            // 短い待機でオーディオセッションが完全に初期化されるのを保証
+            try await Task.sleep(nanoseconds: 100_000_000) // 100ms
+            capture.stop()
+            DebugLogger.log("prewarmAudio: completed")
+        } catch {
+            DebugLogger.log("prewarmAudio: failed - \(error)")
         }
     }
 }

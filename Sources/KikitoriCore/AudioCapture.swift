@@ -5,6 +5,7 @@ public final class AudioCapture: @unchecked Sendable {
     private let engine = AVAudioEngine()
     private let queue = DispatchQueue(label: "com.kikitori.audio")
     private var tapInstalled = false
+    private var firstBufferDelivered = false
     
     public var targetFormat: AVAudioFormat? {
         didSet {
@@ -33,6 +34,7 @@ public final class AudioCapture: @unchecked Sendable {
                         self?.deliver(buf, from: inputFmt)
                     }
                     self.tapInstalled = true
+                    self.firstBufferDelivered = false
                     self.engine.prepare()
                     try self.engine.start()
                     cont.resume()
@@ -62,6 +64,12 @@ public final class AudioCapture: @unchecked Sendable {
     }
 
     private func deliver(_ buffer: AVAudioPCMBuffer, from inputFmt: AVAudioFormat) {
+        // 初回バッファ到着をログ（1回だけ）
+        if !firstBufferDelivered && onAudioBuffer != nil {
+            firstBufferDelivered = true
+            DebugLogger.log("AudioCapture: FIRST buffer delivered, frames=\(buffer.frameLength), rate=\(buffer.format.sampleRate)")
+        }
+        
         // 振幅コールバック（メインアクター）
         if let cb = onAmplitude {
             let rms = Self._rms(from: buffer)
