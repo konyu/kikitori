@@ -30,7 +30,7 @@ public final class AudioCapture: @unchecked Sendable {
                     }
                     let input = self.engine.inputNode
                     let inputFmt = input.outputFormat(forBus: 0)
-                    input.installTap(onBus: 0, bufferSize: 2048, format: inputFmt) { [weak self] buf, _ in
+                    input.installTap(onBus: 0, bufferSize: 512, format: inputFmt) { [weak self] buf, _ in
                         self?.deliver(buf, from: inputFmt)
                     }
                     self.tapInstalled = true
